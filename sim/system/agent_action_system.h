@@ -16,10 +16,8 @@ public:
         for (auto& agent : world.Agents().agents)
         {
             // Hunger increases every tick
-            world.commands.Submit(Command{
-                CommandType::ModifyHunger, sim.clock.currentTick,
-                agent.id, 0, 0, 0, 0, 0.5f
-            });
+            world.commands.Submit(sim.clock.currentTick,
+                ModifyHungerCommand{agent.id, 0.5f});
 
             i32 dx = 0, dy = 0;
 
@@ -84,10 +82,8 @@ public:
             i32 newY = agent.position.y + dy;
             if (env.temperature.InBounds(newX, newY))
             {
-                world.commands.Submit(Command{
-                    CommandType::MoveAgent, sim.clock.currentTick,
-                    agent.id, 0, 0, newX, newY, 0.0f
-                });
+                world.commands.Submit(sim.clock.currentTick,
+                    MoveAgentCommand{agent.id, newX, newY});
             }
 
             // Eating: submit FeedAgent command
@@ -95,10 +91,8 @@ public:
             {
                 if (info.smell.At(agent.position.x, agent.position.y) > 20.0f)
                 {
-                    world.commands.Submit(Command{
-                        CommandType::FeedAgent, sim.clock.currentTick,
-                        agent.id, 0, 0, 0, 0, 5.0f
-                    });
+                    world.commands.Submit(sim.clock.currentTick,
+                        FeedAgentCommand{agent.id, 5.0f});
                 }
             }
 
@@ -106,10 +100,8 @@ public:
             if (agent.localTemperature > 50.0f)
             {
                 f32 damage = (agent.localTemperature - 50.0f) * 0.1f;
-                world.commands.Submit(Command{
-                    CommandType::DamageAgent, sim.clock.currentTick,
-                    agent.id, 0, 0, 0, 0, damage
-                });
+                world.commands.Submit(sim.clock.currentTick,
+                    DamageAgentCommand{agent.id, damage});
             }
         }
     }

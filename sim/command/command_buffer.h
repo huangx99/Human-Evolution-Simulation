@@ -8,14 +8,21 @@ struct WorldState;
 class CommandBuffer
 {
 public:
-    void Submit(const Command& cmd)
+    // Submit a typed command. Template constrains T to valid command types.
+    // Auto-wraps into Command variant via MakeCommand.
+    template<typename T>
+    void Submit(Tick tick, T&& cmd)
     {
-        pending.push_back(cmd);
+        static_assert(IsCommandType<std::decay_t<T>>::value,
+                      "Unsupported command type");
+        pending.push_back({tick, MakeCommand(std::forward<T>(cmd))});
     }
 
-    void Push(const Command& cmd)
+    // Push alias for Submit (backward compat, e.g. tests)
+    template<typename T>
+    void Push(Tick tick, T&& cmd)
     {
-        pending.push_back(cmd);
+        Submit(tick, std::forward<T>(cmd));
     }
 
     void Apply(WorldState& world);
@@ -23,13 +30,12 @@ public:
     bool IsSpatialDirty() const { return spatialDirty; }
     void ClearSpatialDirty() { spatialDirty = false; }
 
-    const std::vector<Command>& GetHistory() const { return history; }
+    const std::vector<QueuedCommand>& GetHistory() const { return history; }
+    size_t HistoryCount() const { return history.size(); }
     void ClearHistory() { history.clear(); }
 
 private:
-    std::vector<Command> pending;
-    std::vector<Command> history;
+    std::vector<QueuedCommand> pending;
+    std::vector<QueuedCommand> history;
     bool spatialDirty = false;
-
-    void Execute(WorldState& world, const Command& cmd);
 };

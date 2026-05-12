@@ -935,24 +935,14 @@ TEST(command_payload_u32_precision)
     // Use a large capability flag that would lose precision in f32
     Capability largeCap = Capability::Tool;  // 1 << 24 = 16777216
 
-    Command cmd;
-    cmd.type = CommandType::AddEntityCapability;
-    cmd.entityId = entity.id;
-    cmd.payloadU32 = static_cast<u32>(largeCap);
-
-    world.commands.Push(cmd);
+    world.commands.Push(0, AddEntityCapabilityCommand{entity.id, static_cast<u32>(largeCap)});
     world.commands.Apply(world);
 
     ASSERT_TRUE(entity.HasCapability(Capability::Tool));
 
     // Also test with combined flags
     Capability combined = Capability::Flammable | Capability::Tool | Capability::Weapon;
-    Command cmd2;
-    cmd2.type = CommandType::AddEntityCapability;
-    cmd2.entityId = entity.id;
-    cmd2.payloadU32 = static_cast<u32>(combined);
-
-    world.commands.Push(cmd2);
+    world.commands.Push(0, AddEntityCapabilityCommand{entity.id, static_cast<u32>(combined)});
     world.commands.Apply(world);
 
     ASSERT_TRUE(entity.HasCapability(Capability::Flammable));
@@ -968,15 +958,8 @@ TEST(command_modify_field_bounds_check)
     WorldState world(8, 8, 42);
 
     // Try to modify a field at invalid coordinates
-    Command cmd;
-    cmd.type = CommandType::ModifyFieldValue;
-    cmd.x = -1;
-    cmd.y = -1;
-    cmd.targetX = static_cast<i32>(FieldId::Temperature);
-    cmd.targetY = 0;  // Add mode
-    cmd.value = 999.0f;
-
-    world.commands.Push(cmd);
+    world.commands.Push(0,
+        ModifyFieldValueCommand{-1, -1, FieldId::Temperature, 0, 999.0f});
     world.commands.Apply(world);
 
     // Should not crash — bounds check rejects the command

@@ -2,15 +2,8 @@
 
 #include "core/types/types.h"
 #include "core/math/vec2i.h"
+#include "sim/entity/agent_action.h"
 #include <string>
-
-enum class AgentAction : u8
-{
-    Idle,
-    MoveToFood,
-    Flee,
-    Wander
-};
 
 struct Agent
 {

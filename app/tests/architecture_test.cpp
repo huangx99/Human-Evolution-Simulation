@@ -93,13 +93,7 @@ TEST(command_apply)
     WorldState world(8, 8, 42);
     world.SpawnAgent(2, 3);
 
-    Command cmd;
-    cmd.type = CommandType::MoveAgent;
-    cmd.entityId = 1;
-    cmd.targetX = 5;
-    cmd.targetY = 6;
-
-    world.commands.Push(cmd);
+    world.commands.Push(0, MoveAgentCommand{1, 5, 6});
     world.commands.Apply(world);
 
     auto& agent = world.Agents().agents[0];
@@ -185,12 +179,7 @@ TEST(snapshot_full_capture)
     world.events.Dispatch();
 
     // Submit a command
-    Command cmd;
-    cmd.type = CommandType::IgniteFire;
-    cmd.x = 3;
-    cmd.y = 3;
-    cmd.value = 10.0f;
-    world.commands.Push(cmd);
+    world.commands.Push(0, IgniteFireCommand{3, 3, 10.0f});
     world.commands.Apply(world);
 
     WorldSnapshot snap = WorldSnapshot::Capture(world);

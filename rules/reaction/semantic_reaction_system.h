@@ -279,74 +279,42 @@ private:
     void SubmitEffectsBound(WorldState& world, i32 x, i32 y,
                             const SemanticReactionRule& rule, EcologyEntity* bound)
     {
+        Tick tick = world.Sim().clock.currentTick;
         for (const auto& effect : rule.effects)
         {
-            Command cmd;
-            cmd.x = x;
-            cmd.y = y;
-
             switch (effect.type)
             {
             case EffectType::AddState:
-            {
-                cmd.type = CommandType::AddEntityState;
-                cmd.entityId = bound->id;
-                cmd.payloadU32 = static_cast<u32>(effect.state);
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick,
+                    AddEntityStateCommand{bound->id, static_cast<u32>(effect.state)});
                 break;
-            }
             case EffectType::RemoveState:
-            {
-                cmd.type = CommandType::RemoveEntityState;
-                cmd.entityId = bound->id;
-                cmd.payloadU32 = static_cast<u32>(effect.state);
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick,
+                    RemoveEntityStateCommand{bound->id, static_cast<u32>(effect.state)});
                 break;
-            }
             case EffectType::AddCapability:
-            {
-                cmd.type = CommandType::AddEntityCapability;
-                cmd.entityId = bound->id;
-                cmd.payloadU32 = static_cast<u32>(effect.capability);
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick,
+                    AddEntityCapabilityCommand{bound->id, static_cast<u32>(effect.capability)});
                 break;
-            }
             case EffectType::RemoveCapability:
-            {
-                cmd.type = CommandType::RemoveEntityCapability;
-                cmd.entityId = bound->id;
-                cmd.payloadU32 = static_cast<u32>(effect.capability);
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick,
+                    RemoveEntityCapabilityCommand{bound->id, static_cast<u32>(effect.capability)});
                 break;
-            }
             case EffectType::ModifyField:
-            {
-                cmd.type = CommandType::ModifyFieldValue;
-                cmd.targetX = static_cast<i32>(effect.field);
-                cmd.targetY = static_cast<i32>(effect.mode);
-                cmd.value = effect.value;
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick,
+                    ModifyFieldValueCommand{x, y, effect.field, static_cast<i32>(effect.mode), effect.value});
                 break;
-            }
             case EffectType::EmitSmell:
-            {
-                cmd.type = CommandType::EmitSmell;
-                cmd.value = effect.delta;
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick, EmitSmellCommand{x, y, effect.delta});
                 break;
-            }
             case EffectType::EmitSmoke:
-            {
-                cmd.type = CommandType::EmitSmoke;
-                cmd.value = effect.delta;
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick, EmitSmokeCommand{x, y, effect.delta});
                 break;
-            }
             case EffectType::EmitEvent:
             {
                 Event evt;
                 evt.type = EventType::ReactionTriggered;
-                evt.tick = world.Sim().clock.currentTick;
+                evt.tick = tick;
                 evt.x = x;
                 evt.y = y;
                 evt.value = effect.delta;
@@ -363,91 +331,47 @@ private:
     void SubmitEffects(WorldState& world, i32 x, i32 y, const SemanticReactionRule& rule)
     {
         auto& ecology = world.Ecology().entities;
+        Tick tick = world.Sim().clock.currentTick;
 
         for (const auto& effect : rule.effects)
         {
-            Command cmd;
-            cmd.x = x;
-            cmd.y = y;
-
             switch (effect.type)
             {
             case EffectType::AddState:
-            {
-                cmd.type = CommandType::AddEntityState;
-                cmd.payloadU32 = static_cast<u32>(effect.state);
                 for (auto* e : ecology.At(x, y))
-                {
-                    Command entityCmd = cmd;
-                    entityCmd.entityId = e->id;
-                    world.commands.Submit(entityCmd);
-                }
+                    world.commands.Submit(tick,
+                        AddEntityStateCommand{e->id, static_cast<u32>(effect.state)});
                 break;
-            }
             case EffectType::RemoveState:
-            {
-                cmd.type = CommandType::RemoveEntityState;
-                cmd.payloadU32 = static_cast<u32>(effect.state);
                 for (auto* e : ecology.At(x, y))
-                {
-                    Command entityCmd = cmd;
-                    entityCmd.entityId = e->id;
-                    world.commands.Submit(entityCmd);
-                }
+                    world.commands.Submit(tick,
+                        RemoveEntityStateCommand{e->id, static_cast<u32>(effect.state)});
                 break;
-            }
             case EffectType::AddCapability:
-            {
-                cmd.type = CommandType::AddEntityCapability;
-                cmd.payloadU32 = static_cast<u32>(effect.capability);
                 for (auto* e : ecology.At(x, y))
-                {
-                    Command entityCmd = cmd;
-                    entityCmd.entityId = e->id;
-                    world.commands.Submit(entityCmd);
-                }
+                    world.commands.Submit(tick,
+                        AddEntityCapabilityCommand{e->id, static_cast<u32>(effect.capability)});
                 break;
-            }
             case EffectType::RemoveCapability:
-            {
-                cmd.type = CommandType::RemoveEntityCapability;
-                cmd.payloadU32 = static_cast<u32>(effect.capability);
                 for (auto* e : ecology.At(x, y))
-                {
-                    Command entityCmd = cmd;
-                    entityCmd.entityId = e->id;
-                    world.commands.Submit(entityCmd);
-                }
+                    world.commands.Submit(tick,
+                        RemoveEntityCapabilityCommand{e->id, static_cast<u32>(effect.capability)});
                 break;
-            }
             case EffectType::ModifyField:
-            {
-                cmd.type = CommandType::ModifyFieldValue;
-                cmd.targetX = static_cast<i32>(effect.field);
-                cmd.targetY = static_cast<i32>(effect.mode);
-                cmd.value = effect.value;
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick,
+                    ModifyFieldValueCommand{x, y, effect.field, static_cast<i32>(effect.mode), effect.value});
                 break;
-            }
             case EffectType::EmitSmell:
-            {
-                cmd.type = CommandType::EmitSmell;
-                cmd.value = effect.delta;
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick, EmitSmellCommand{x, y, effect.delta});
                 break;
-            }
             case EffectType::EmitSmoke:
-            {
-                cmd.type = CommandType::EmitSmoke;
-                cmd.value = effect.delta;
-                world.commands.Submit(cmd);
+                world.commands.Submit(tick, EmitSmokeCommand{x, y, effect.delta});
                 break;
-            }
             case EffectType::EmitEvent:
             {
                 Event evt;
                 evt.type = EventType::ReactionTriggered;
-                evt.tick = world.Sim().clock.currentTick;
+                evt.tick = tick;
                 evt.x = x;
                 evt.y = y;
                 evt.value = effect.delta;
