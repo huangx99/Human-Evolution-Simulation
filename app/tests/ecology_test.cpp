@@ -519,8 +519,9 @@ TEST(semantic_exec_hot_stone)
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
 
-    // Run one tick
+    // Run one tick: evaluate → submit commands → apply
     sys.Update(world);
+    world.commands.Apply(world);
 
     // Verify: dry grass should now be Burning and have HeatEmission
     ASSERT_TRUE(dryGrass.HasState(MaterialState::Burning));
@@ -550,6 +551,7 @@ TEST(semantic_exec_torch_ignites)
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
     sys.Update(world);
+    world.commands.Apply(world);
 
     ASSERT_TRUE(dryGrass.HasState(MaterialState::Burning));
 
@@ -576,6 +578,7 @@ TEST(semantic_exec_wet_wood_no_burn)
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
     sys.Update(world);
+    world.commands.Apply(world);
 
     // Verify: wet wood should NOT be Burning
     ASSERT_TRUE(!wetWood.HasState(MaterialState::Burning));
@@ -631,6 +634,7 @@ TEST(semantic_exec_rotten_meat)
     SemanticReactionSystem sys;
     sys.AddRule(rule);
     sys.Update(world);
+    world.commands.Apply(world);
     world.Info().smell.Swap();
 
     // Verify: smell field should have increased
@@ -658,6 +662,7 @@ TEST(semantic_exec_wet_grass_no_burn)
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
     sys.Update(world);
+    world.commands.Apply(world);
 
     ASSERT_TRUE(!wetGrass.HasState(MaterialState::Burning));
 

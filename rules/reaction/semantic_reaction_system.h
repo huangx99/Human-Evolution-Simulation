@@ -3,6 +3,8 @@
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"
 #include "rules/reaction/semantic_reaction_rule.h"
+#include "sim/command/command.h"
+#include "sim/event/event.h"
 #include <vector>
 #include <cmath>
 
@@ -28,7 +30,7 @@ public:
                     if (!EvaluatePredicates(world, x, y, rule)) continue;
                     if (sim.random.Next01() > rule.probability) continue;
 
-                    ApplyEffects(world, x, y, rule);
+                    SubmitEffects(world, x, y, rule);
                 }
             }
         }
@@ -103,6 +105,7 @@ private:
         }
         case PredicateType::NearbyCapability:
         {
+            auto& env = world.Env();
             for (i32 dy = -pred.radius; dy <= pred.radius; dy++)
             {
                 for (i32 dx = -pred.radius; dx <= pred.radius; dx++)
@@ -110,6 +113,7 @@ private:
                     if (dx == 0 && dy == 0) continue;
                     i32 nx = x + dx;
                     i32 ny = y + dy;
+                    if (!env.temperature.InBounds(nx, ny)) continue;
                     f32 dist = std::sqrt(static_cast<f32>(dx * dx + dy * dy));
                     if (dist > pred.radius) continue;
 
@@ -123,6 +127,7 @@ private:
         }
         case PredicateType::NearbyState:
         {
+            auto& env = world.Env();
             for (i32 dy = -pred.radius; dy <= pred.radius; dy++)
             {
                 for (i32 dx = -pred.radius; dx <= pred.radius; dx++)
@@ -130,6 +135,7 @@ private:
                     if (dx == 0 && dy == 0) continue;
                     i32 nx = x + dx;
                     i32 ny = y + dy;
+                    if (!env.temperature.InBounds(nx, ny)) continue;
                     f32 dist = std::sqrt(static_cast<f32>(dx * dx + dy * dy));
                     if (dist > pred.radius) continue;
 
@@ -169,77 +175,107 @@ private:
         }
     }
 
-    void ApplyEffects(WorldState& world, i32 x, i32 y, const SemanticReactionRule& rule)
+    void SubmitEffects(WorldState& world, i32 x, i32 y, const SemanticReactionRule& rule)
     {
-        auto& env = world.Env();
-        auto& info = world.Info();
         auto& ecology = world.Ecology().entities;
 
         for (const auto& effect : rule.effects)
         {
+            Command cmd;
+            cmd.x = x;
+            cmd.y = y;
+
             switch (effect.type)
             {
             case EffectType::AddState:
             {
+                cmd.type = CommandType::AddEntityState;
+                cmd.value = static_cast<f32>(static_cast<u32>(effect.state));
                 for (auto* e : ecology.At(x, y))
-                    e->AddState(effect.state);
+                {
+                    Command entityCmd = cmd;
+                    entityCmd.entityId = e->id;
+                    world.commands.Submit(entityCmd);
+                }
                 break;
             }
             case EffectType::RemoveState:
             {
+                cmd.type = CommandType::RemoveEntityState;
+                cmd.value = static_cast<f32>(static_cast<u32>(effect.state));
                 for (auto* e : ecology.At(x, y))
-                    e->state = static_cast<MaterialState>(
-                        static_cast<u32>(e->state) & ~static_cast<u32>(effect.state));
+                {
+                    Command entityCmd = cmd;
+                    entityCmd.entityId = e->id;
+                    world.commands.Submit(entityCmd);
+                }
                 break;
             }
             case EffectType::AddCapability:
             {
+                cmd.type = CommandType::AddEntityCapability;
+                cmd.value = static_cast<f32>(static_cast<u32>(effect.capability));
                 for (auto* e : ecology.At(x, y))
-                    e->AddCapability(effect.capability);
+                {
+                    Command entityCmd = cmd;
+                    entityCmd.entityId = e->id;
+                    world.commands.Submit(entityCmd);
+                }
                 break;
             }
             case EffectType::RemoveCapability:
             {
+                cmd.type = CommandType::RemoveEntityCapability;
+                cmd.value = static_cast<f32>(static_cast<u32>(effect.capability));
                 for (auto* e : ecology.At(x, y))
-                    e->extraCapabilities = static_cast<Capability>(
-                        static_cast<u32>(e->extraCapabilities) & ~static_cast<u32>(effect.capability));
+                {
+                    Command entityCmd = cmd;
+                    entityCmd.entityId = e->id;
+                    world.commands.Submit(entityCmd);
+                }
                 break;
             }
             case EffectType::ModifyField:
             {
-                f32 current = GetFieldValue(world, x, y, effect.field);
-                f32 newVal = (effect.delta != 0.0f) ? current + effect.delta : effect.setTo;
-                SetFieldValue(world, x, y, effect.field, newVal);
+                cmd.type = CommandType::ModifyFieldValue;
+                cmd.targetX = static_cast<i32>(effect.field);
+                cmd.value = effect.delta;
+                if (effect.delta == 0.0f)
+                {
+                    cmd.targetY = 1; // flag: use setTo
+                    cmd.value = effect.setTo;
+                }
+                world.commands.Submit(cmd);
                 break;
             }
             case EffectType::EmitSmell:
-                info.smell.WriteNext(x, y) += effect.delta;
+            {
+                cmd.type = CommandType::EmitSmell;
+                cmd.value = effect.delta;
+                world.commands.Submit(cmd);
                 break;
+            }
             case EffectType::EmitSmoke:
-                info.smoke.WriteNext(x, y) += effect.delta;
+            {
+                cmd.type = CommandType::EmitSmoke;
+                cmd.value = effect.delta;
+                world.commands.Submit(cmd);
                 break;
+            }
             case EffectType::EmitEvent:
+            {
+                Event evt;
+                evt.type = EventType::SmellEmitted;
+                evt.tick = world.Sim().clock.currentTick;
+                evt.x = x;
+                evt.y = y;
+                evt.value = effect.delta;
+                world.events.Emit(evt);
                 break;
+            }
             default:
                 break;
             }
-        }
-    }
-
-    void SetFieldValue(WorldState& world, i32 x, i32 y, FieldId field, f32 value)
-    {
-        auto& env = world.Env();
-        auto& info = world.Info();
-
-        switch (field)
-        {
-        case FieldId::Temperature: env.temperature.WriteNext(x, y) = value; break;
-        case FieldId::Humidity:    env.humidity.WriteNext(x, y) = value; break;
-        case FieldId::Fire:        env.fire.WriteNext(x, y) = value; break;
-        case FieldId::Smell:       info.smell.WriteNext(x, y) = value; break;
-        case FieldId::Danger:      info.danger.WriteNext(x, y) = value; break;
-        case FieldId::Smoke:       info.smoke.WriteNext(x, y) = value; break;
-        default: break;
         }
     }
 };

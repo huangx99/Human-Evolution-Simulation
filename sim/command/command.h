@@ -22,6 +22,14 @@ enum class CommandType : u8
     // Information commands
     SetDanger,
 
+    // Ecology entity commands
+    AddEntityState,
+    RemoveEntityState,
+    AddEntityCapability,
+    RemoveEntityCapability,
+    ModifyFieldValue,
+    EmitSmoke,
+
     Count
 };
 
