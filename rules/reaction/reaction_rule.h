@@ -11,9 +11,11 @@
 
 // DEPRECATED: Use SemanticReactionRule for new code.
 // Kept for backward compatibility during migration.
+// New rules MUST use SemanticReactionSystem with HasCapability/HasState/HasMaterial predicates.
+// Do NOT add new ElementId values. Do NOT add new ReactionRule rules.
 
 // Identifies a material/element in the world
-enum class ElementId : u16
+enum class [[deprecated("Use MaterialId + Capability predicates instead")]] ElementId : u16
 {
     None = 0,
     Fire,
@@ -72,7 +74,7 @@ struct ReactionOutput
 };
 
 // DEPRECATED: Use SemanticReactionRule instead.
-struct ReactionRule
+struct [[deprecated("Use SemanticReactionRule instead")]] ReactionRule
 {
     std::string id;
     std::string name;

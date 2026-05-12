@@ -1,12 +1,20 @@
 #pragma once
 
+// DEPRECATED: Use SemanticReactionSystem instead.
+// This system uses ElementId (Fire/DryGrass/Water/Smoke) which ties reactions
+// to specific element names. New rules MUST use SemanticReactionSystem with
+// HasCapability/HasState/HasMaterial predicates.
+//
+// This file is kept for backward compatibility only. It will be removed
+// once all rules are migrated to SemanticReactionRule.
+
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"
 #include "rules/reaction/reaction_rule.h"
 #include <vector>
 #include <cmath>
 
-class ReactionSystem : public ISystem
+class [[deprecated("Use SemanticReactionSystem instead")]] ReactionSystem : public ISystem
 {
 public:
     void AddRule(const ReactionRule& rule)
