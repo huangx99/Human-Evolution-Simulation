@@ -7,7 +7,7 @@
 #include "sim/system/climate_system.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command.h"
-#include "rules/reaction/reaction_rule.h"
+#include "rules/reaction/semantic_predicate.h"
 #include "api/snapshot/world_snapshot.h"
 #include <memory>
 
@@ -160,20 +160,21 @@ TEST(snapshot_boundary)
     return true;
 }
 
-// Test: Reaction rule evaluation
-TEST(reaction_rule)
+// Test: Semantic predicate construction
+TEST(semantic_predicate_construction)
 {
-    Condition cond;
-    cond.field = FieldId::Temperature;
-    cond.op = ConditionOp::Greater;
-    cond.value = 50.0f;
+    SemanticPredicate pred;
+    pred.type = PredicateType::HasCapability;
+    pred.capability = Capability::Flammable;
+    ASSERT_TRUE(pred.type == PredicateType::HasCapability);
+    ASSERT_TRUE(pred.capability == Capability::Flammable);
 
-    ASSERT_TRUE(EvaluateCondition(cond, 60.0f));
-    ASSERT_TRUE(!EvaluateCondition(cond, 40.0f));
-
-    cond.op = ConditionOp::Less;
-    ASSERT_TRUE(EvaluateCondition(cond, 40.0f));
-    ASSERT_TRUE(!EvaluateCondition(cond, 60.0f));
+    SemanticPredicate fieldPred;
+    fieldPred.type = PredicateType::FieldGreaterThan;
+    fieldPred.field = FieldId::Temperature;
+    fieldPred.value = 50.0f;
+    ASSERT_TRUE(fieldPred.field == FieldId::Temperature);
+    ASSERT_TRUE(fieldPred.value > 49.0f);
 
     return true;
 }

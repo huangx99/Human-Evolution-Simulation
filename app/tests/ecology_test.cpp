@@ -7,7 +7,6 @@
 #include "sim/ecology/ecology_entity.h"
 #include "sim/ecology/ecology_registry.h"
 #include "sim/ecology/field_id.h"
-#include "rules/reaction/reaction_rule.h"
 #include "rules/reaction/semantic_predicate.h"
 #include "rules/reaction/reaction_effect.h"
 #include "rules/reaction/semantic_reaction_rule.h"
@@ -167,46 +166,36 @@ TEST(ecology_demo_wooden_stick)
     return true;
 }
 
-// Test: Capability-based fire reaction
+// Test: Capability-based fire reaction (semantic version)
 // "HeatEmission + Flammable + LowHumidity = Burning"
 // This works for torches, fire pits, lava, lightning — not just "fire" string.
 TEST(ecology_demo_capability_reaction)
 {
-    // Define a capability-based reaction rule
-    ReactionRule rule;
+    SemanticReactionRule rule;
     rule.id = "cap_ignite";
     rule.name = "Capability-based ignition";
 
-    // No ElementId inputs needed — we check capabilities instead
-    rule.inputs = {};
+    // Predicate: entity at cell must have HeatEmission
+    SemanticPredicate heatSource;
+    heatSource.type = PredicateType::HasCapability;
+    heatSource.capability = Capability::HeatEmission;
 
-    // Capability condition: entity at cell must have HeatEmission
-    CapabilityCondition heatSource;
-    heatSource.requiredCapabilities = Capability::HeatEmission;
-    rule.capabilityConditions.push_back(heatSource);
-
-    // Field condition: humidity must be low
-    FieldCondition dryAir;
+    // Predicate: humidity must be low
+    SemanticPredicate dryAir;
+    dryAir.type = PredicateType::FieldLessThan;
     dryAir.field = FieldId::Humidity;
-    dryAir.op = ConditionOp::Less;
     dryAir.value = 35.0f;
-    rule.fieldConditions.push_back(dryAir);
 
-    // Output: increase fire
-    ReactionOutput ignite;
-    ignite.type = OutputType::IncreaseFire;
-    ignite.value = 30.0f;
-    rule.outputs.push_back(ignite);
+    rule.conditions = {heatSource, dryAir};
 
-    // Verify the rule is correctly structured
-    ASSERT_TRUE(rule.capabilityConditions.size() == 1);
-    ASSERT_TRUE(rule.fieldConditions.size() == 1);
-    ASSERT_TRUE(rule.outputs.size() == 1);
+    // Effect: add Burning state
+    ReactionEffect ignite;
+    ignite.type = EffectType::AddState;
+    ignite.state = MaterialState::Burning;
+    rule.effects = {ignite};
 
-    // The rule triggers when:
-    //   - an entity with HeatEmission exists at the cell (torch, fire pit, etc.)
-    //   - AND humidity < 35
-    // This is generic: no mention of "fire", "torch", or any specific item.
+    ASSERT_TRUE(rule.conditions.size() == 2);
+    ASSERT_TRUE(rule.effects.size() == 1);
 
     return true;
 }
