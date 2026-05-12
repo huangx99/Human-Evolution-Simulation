@@ -23,6 +23,10 @@ enum class EventType : u16
     SmellEmitted,
     DangerDetected,
 
+    // Ecology events
+    ReactionTriggered,
+    EcologyChanged,
+
     // Civilization events (future)
     Discovery,
     Cooperation,

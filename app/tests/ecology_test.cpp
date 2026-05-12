@@ -671,3 +671,113 @@ TEST(semantic_exec_wet_grass_no_burn)
 
     return true;
 }
+
+// ===== EXTENSION TEST: New materials + new rules, zero system changes =====
+
+// Test: Coal (new material) ignites dry grass via existing ignition rule
+// Verifies: SemanticReactionSystem doesn't know about Coal — it just sees Flammable+Dry+HeatEmission
+TEST(extension_coal_ignites_grass)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // Coal has HeatEmission by default in MaterialDB
+    auto& coal = ecology.Create(MaterialId::Coal, "coal");
+    coal.x = 5; coal.y = 5;
+
+    // Dry grass nearby
+    auto& dryGrass = ecology.Create(MaterialId::DryGrass, "dry_grass");
+    dryGrass.x = 6; dryGrass.y = 5;
+
+    world.RebuildSpatial();
+    SemanticReactionSystem sys;
+    sys.AddRule(MakeIgnitionRule());
+    sys.Update(world);
+    world.commands.Apply(world);
+
+    // Coal's HeatEmission should ignite the dry grass
+    ASSERT_TRUE(dryGrass.HasState(MaterialState::Burning));
+
+    return true;
+}
+
+// Test: RottingPlant (new material) produces smell in warm conditions
+// Verifies: new material + new rule works without touching SemanticReactionSystem
+TEST(extension_rotting_plant_smell)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // RottingPlant is Dead + Decomposing by default
+    auto& plant = ecology.Create(MaterialId::RottingPlant, "rotting_plant");
+    plant.x = 5; plant.y = 5;
+
+    // Set temperature > 20
+    world.Env().temperature.WriteNext(5, 5) = 25.0f;
+    world.Env().temperature.Swap();
+
+    // Build rule: Dead + Decomposing + Temp>20 → EmitSmell
+    SemanticReactionRule rule;
+    rule.id = "plant_decay";
+    rule.name = "Rotting plant smell";
+    rule.probability = 1.0f;
+
+    SemanticPredicate isDead;
+    isDead.type = PredicateType::HasState;
+    isDead.state = MaterialState::Dead;
+
+    SemanticPredicate isDecomposing;
+    isDecomposing.type = PredicateType::HasState;
+    isDecomposing.state = MaterialState::Decomposing;
+
+    SemanticPredicate isWarm;
+    isWarm.type = PredicateType::FieldGreaterThan;
+    isWarm.field = FieldId::Temperature;
+    isWarm.value = 20.0f;
+
+    rule.conditions = {isDead, isDecomposing, isWarm};
+
+    ReactionEffect emitSmell;
+    emitSmell.type = EffectType::EmitSmell;
+    emitSmell.delta = 3.0f;
+
+    rule.effects = {emitSmell};
+
+    world.RebuildSpatial();
+    SemanticReactionSystem sys;
+    sys.AddRule(rule);
+    sys.Update(world);
+    world.commands.Apply(world);
+    world.Info().smell.Swap();
+
+    f32 smell = world.Info().smell.At(5, 5);
+    ASSERT_TRUE(smell > 0.0f);
+
+    return true;
+}
+
+// Test: Coal does NOT ignite wet grass (no Dry state)
+// Verifies: new material respects existing semantic constraints
+TEST(extension_coal_no_ignite_wet)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    auto& coal = ecology.Create(MaterialId::Coal, "coal");
+    coal.x = 5; coal.y = 5;
+
+    auto& wetGrass = ecology.Create(MaterialId::Grass, "wet_grass");
+    wetGrass.x = 6; wetGrass.y = 5;
+    wetGrass.state = MaterialState::Wet;  // override default — not Dry
+
+    world.RebuildSpatial();
+    SemanticReactionSystem sys;
+    sys.AddRule(MakeIgnitionRule());
+    sys.Update(world);
+    world.commands.Apply(world);
+
+    // Wet grass should NOT burn — rule requires Dry state
+    ASSERT_TRUE(!wetGrass.HasState(MaterialState::Burning));
+
+    return true;
+}

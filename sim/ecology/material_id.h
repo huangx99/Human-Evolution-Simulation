@@ -35,5 +35,11 @@ enum class MaterialId : u16
     Charcoal,
     Ash,
 
+    // Fuel
+    Coal,
+
+    // Decomposing
+    RottingPlant,
+
     Count
 };

@@ -7,9 +7,29 @@ void CommandBuffer::Apply(WorldState& world)
     for (const auto& cmd : pending)
     {
         Execute(world, cmd);
+
+        // Mark spatial index dirty for ecology entity mutations
+        switch (cmd.type)
+        {
+        case CommandType::AddEntityState:
+        case CommandType::RemoveEntityState:
+        case CommandType::AddEntityCapability:
+        case CommandType::RemoveEntityCapability:
+            spatialDirty = true;
+            break;
+        default:
+            break;
+        }
     }
     history.insert(history.end(), pending.begin(), pending.end());
     pending.clear();
+
+    // Auto-rebuild spatial index when ecology entities changed
+    if (spatialDirty)
+    {
+        world.RebuildSpatial();
+        spatialDirty = false;
+    }
 }
 
 void CommandBuffer::Execute(WorldState& world, const Command& cmd)

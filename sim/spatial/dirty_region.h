@@ -1,12 +1,15 @@
 #pragma once
 
-#include "sim/spatial/chunk_coord.h"
-#include <vector>
-#include <algorithm>
-
-// Placeholder for step 2: dirty region tracking.
-// Currently unused — spatial index does full scan of occupied chunks.
-// Future: track which chunks have entity changes to skip unchanged regions.
+// DirtyRegion: tracks which spatial chunks have been modified.
+//
+// STATUS: Placeholder for step 2. Currently unused.
+//
+// Future use: SpatialIndex will skip rebuilding/querying unchanged chunks.
+// Dirty sources: entity creation/removal, state changes, capability changes,
+// entity movement. Environment field changes (temperature, humidity, etc.)
+// are NOT tracked here — they use the double-buffer pattern independently.
+//
+// This is part of the spatial abstraction layer, not a standalone feature.
 
 class DirtyRegion
 {

@@ -139,6 +139,20 @@ namespace MaterialDB
             MaterialState::AshCovered | MaterialState::Dead
         };
 
+        // Coal — dense fuel, flammable when dry
+        db[static_cast<size_t>(MaterialId::Coal)] = {
+            Capability::Flammable | Capability::Conducts | Capability::Buildable | Capability::HeatEmission,
+            Affordance::CanIgnite | Affordance::CanBuild | Affordance::CanGather,
+            MaterialState::Dry
+        };
+
+        // RottingPlant — decomposing organic matter
+        db[static_cast<size_t>(MaterialId::RottingPlant)] = {
+            Capability::Edible | Capability::Decays | Capability::Flammable,
+            Affordance::CanEat | Affordance::CanGather,
+            MaterialState::Dead | MaterialState::Decomposing | MaterialState::Damp
+        };
+
         return db;
     }
 

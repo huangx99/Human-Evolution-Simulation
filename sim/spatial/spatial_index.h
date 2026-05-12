@@ -1,5 +1,20 @@
 #pragma once
 
+// SpatialIndex: chunk-based spatial query layer for ecology entities.
+//
+// Current state (step 1):
+//   - Divides world into fixed-size chunks (default 16x16)
+//   - Provides area queries: QueryArea, QueryAreaWithCapability, QueryAreaWithState
+//   - Rebuilt automatically by CommandBuffer::Apply() when ecology entities change
+//   - AllPositions() replaces full grid scan in reaction system
+//
+// NOT yet implemented (step 2):
+//   - DirtyRegion tracking (skip unchanged chunks)
+//   - Incremental updates (only rebuild modified chunks)
+//   - Spatial partitioning optimizations (quadtree, etc.)
+//
+// This is a spatial abstraction layer, not a complete performance optimization.
+
 #include "sim/spatial/chunk_coord.h"
 #include "sim/spatial/spatial_chunk.h"
 #include "sim/ecology/ecology_registry.h"

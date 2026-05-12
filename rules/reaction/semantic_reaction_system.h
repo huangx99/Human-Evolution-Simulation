@@ -255,7 +255,7 @@ private:
             case EffectType::EmitEvent:
             {
                 Event evt;
-                evt.type = EventType::SmellEmitted;
+                evt.type = EventType::ReactionTriggered;
                 evt.tick = world.Sim().clock.currentTick;
                 evt.x = x;
                 evt.y = y;

@@ -31,7 +31,7 @@ public:
             }
         }
 
-        // CommandApply phase: apply pending commands
+        // CommandApply phase: apply pending commands (auto-rebuilds spatial index)
         world.commands.Apply(world);
 
         // EndTick phase: swap field buffers and step clock
