@@ -39,36 +39,36 @@ struct WorldSnapshot
     static WorldSnapshot Capture(const WorldState& world)
     {
         WorldSnapshot snap;
-        snap.tick = world.sim.clock.currentTick;
-        snap.width = world.env.width;
-        snap.height = world.env.height;
-        snap.windX = world.env.wind.x;
-        snap.windY = world.env.wind.y;
+        snap.tick = world.Sim().clock.currentTick;
+        snap.width = world.Env().width;
+        snap.height = world.Env().height;
+        snap.windX = world.Env().wind.x;
+        snap.windY = world.Env().wind.y;
 
-        const u64* rstate = world.sim.random.GetState();
+        const u64* rstate = world.Sim().random.GetState();
         snap.randomState[0] = rstate[0];
         snap.randomState[1] = rstate[1];
 
-        for (i32 y = 0; y < world.env.height; y++)
+        for (i32 y = 0; y < snap.height; y++)
         {
-            for (i32 x = 0; x < world.env.width; x++)
+            for (i32 x = 0; x < snap.width; x++)
             {
-                f32 f = world.env.fire.At(x, y);
-                f32 s = world.info.smell.At(x, y);
-                f32 d = world.info.danger.At(x, y);
+                f32 f = world.Env().fire.At(x, y);
+                f32 s = world.Info().smell.At(x, y);
+                f32 d = world.Info().danger.At(x, y);
                 if (f > 0.0f || s > 1.0f || d > 0.0f)
                 {
                     snap.hotCells.push_back({
                         x, y,
-                        world.env.temperature.At(x, y),
-                        world.env.humidity.At(x, y),
+                        world.Env().temperature.At(x, y),
+                        world.Env().humidity.At(x, y),
                         f, s, d
                     });
                 }
             }
         }
 
-        for (const auto& agent : world.agents.agents)
+        for (const auto& agent : world.Agents().agents)
         {
             snap.agents.push_back({
                 agent.id,

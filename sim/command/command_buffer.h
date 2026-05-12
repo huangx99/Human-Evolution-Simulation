@@ -13,6 +13,11 @@ public:
         pending.push_back(cmd);
     }
 
+    void Push(const Command& cmd)
+    {
+        pending.push_back(cmd);
+    }
+
     void Apply(WorldState& world);
 
     const std::vector<Command>& GetHistory() const { return history; }

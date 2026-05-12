@@ -14,9 +14,10 @@ static WorldSnapshot RunSimulation(u64 seed, i32 ticks)
 {
     WorldState world(32, 32, seed);
 
-    world.env.fire.At(16, 16) = 80.0f;
-    world.env.fire.At(17, 16) = 60.0f;
-    world.env.fire.At(8, 8) = 60.0f;
+    world.Env().fire.WriteNext(16, 16) = 80.0f;
+    world.Env().fire.WriteNext(17, 16) = 60.0f;
+    world.Env().fire.WriteNext(8, 8) = 60.0f;
+    world.Env().fire.Swap();
 
     world.SpawnAgent(5, 5);
     world.SpawnAgent(10, 20);

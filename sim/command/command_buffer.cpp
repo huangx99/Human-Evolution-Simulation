@@ -1,6 +1,5 @@
 #include "sim/command/command_buffer.h"
 #include "sim/world/world_state.h"
-#include <algorithm>
 
 void CommandBuffer::Apply(WorldState& world)
 {
@@ -18,11 +17,11 @@ void CommandBuffer::Execute(WorldState& world, const Command& cmd)
     {
     case CommandType::MoveAgent:
     {
-        for (auto& agent : world.agents.agents)
+        for (auto& agent : world.Agents().agents)
         {
             if (agent.id == cmd.entityId)
             {
-                if (world.env.temperature.InBounds(cmd.targetX, cmd.targetY))
+                if (world.Env().temperature.InBounds(cmd.targetX, cmd.targetY))
                 {
                     agent.position.x = cmd.targetX;
                     agent.position.y = cmd.targetY;
@@ -34,31 +33,31 @@ void CommandBuffer::Execute(WorldState& world, const Command& cmd)
     }
     case CommandType::IgniteFire:
     {
-        if (world.env.fire.InBounds(cmd.x, cmd.y))
-            world.env.fire.At(cmd.x, cmd.y) = cmd.value;
+        if (world.Env().fire.InBounds(cmd.x, cmd.y))
+            world.Env().fire.WriteNext(cmd.x, cmd.y) = cmd.value;
         break;
     }
     case CommandType::ExtinguishFire:
     {
-        if (world.env.fire.InBounds(cmd.x, cmd.y))
-            world.env.fire.At(cmd.x, cmd.y) = 0.0f;
+        if (world.Env().fire.InBounds(cmd.x, cmd.y))
+            world.Env().fire.WriteNext(cmd.x, cmd.y) = 0.0f;
         break;
     }
     case CommandType::EmitSmell:
     {
-        if (world.info.smell.InBounds(cmd.x, cmd.y))
-            world.info.smell.At(cmd.x, cmd.y) += cmd.value;
+        if (world.Info().smell.InBounds(cmd.x, cmd.y))
+            world.Info().smell.WriteNext(cmd.x, cmd.y) += cmd.value;
         break;
     }
     case CommandType::SetDanger:
     {
-        if (world.info.danger.InBounds(cmd.x, cmd.y))
-            world.info.danger.At(cmd.x, cmd.y) = cmd.value;
+        if (world.Info().danger.InBounds(cmd.x, cmd.y))
+            world.Info().danger.WriteNext(cmd.x, cmd.y) = cmd.value;
         break;
     }
     case CommandType::DamageAgent:
     {
-        for (auto& agent : world.agents.agents)
+        for (auto& agent : world.Agents().agents)
         {
             if (agent.id == cmd.entityId)
             {
@@ -70,7 +69,7 @@ void CommandBuffer::Execute(WorldState& world, const Command& cmd)
     }
     case CommandType::FeedAgent:
     {
-        for (auto& agent : world.agents.agents)
+        for (auto& agent : world.Agents().agents)
         {
             if (agent.id == cmd.entityId)
             {
@@ -82,7 +81,7 @@ void CommandBuffer::Execute(WorldState& world, const Command& cmd)
     }
     case CommandType::SetAgentAction:
     {
-        for (auto& agent : world.agents.agents)
+        for (auto& agent : world.Agents().agents)
         {
             if (agent.id == cmd.entityId)
             {

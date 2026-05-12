@@ -9,16 +9,20 @@ class SmellSystem : public ISystem
 public:
     void Update(WorldState& world) override
     {
-        i32 w = world.info.width;
-        i32 h = world.info.height;
-        Grid<f32> newSmell(w, h, 0.0f);
+        auto& env = world.Env();
+        auto& info = world.Info();
+
+        i32 w = info.width;
+        i32 h = info.height;
+
+        // Copy current to next
+        info.smell.CopyCurrentToNext();
 
         for (i32 y = 0; y < h; y++)
         {
             for (i32 x = 0; x < w; x++)
             {
-                f32 current = world.info.smell.At(x, y);
-
+                f32 current = info.smell.At(x, y);
                 f32 value = current * decayRate;
 
                 f32 lossToNeighbors = 0.0f;
@@ -32,39 +36,37 @@ public:
                     i32 nx = x + dx[i];
                     i32 ny = y + dy[i];
 
-                    if (world.info.smell.InBounds(nx, ny))
+                    if (info.smell.InBounds(nx, ny))
                     {
                         lossToNeighbors += value * diffusionRate;
-                        gainFromNeighbors += world.info.smell.At(nx, ny) * diffusionRate * 0.25f;
+                        gainFromNeighbors += info.smell.At(nx, ny) * diffusionRate * 0.25f;
                     }
                 }
 
                 value = value - lossToNeighbors + gainFromNeighbors;
 
-                i32 wx = x - static_cast<i32>(world.env.wind.x);
-                i32 wy = y - static_cast<i32>(world.env.wind.y);
-                if (world.info.smell.InBounds(wx, wy))
+                i32 wx = x - static_cast<i32>(env.wind.x);
+                i32 wy = y - static_cast<i32>(env.wind.y);
+                if (info.smell.InBounds(wx, wy))
                 {
-                    value += world.info.smell.At(wx, wy) * windStrength;
+                    value += info.smell.At(wx, wy) * windStrength;
                 }
 
-                newSmell.At(x, y) = std::max(0.0f, value);
+                info.smell.WriteNext(x, y) = std::max(0.0f, value);
             }
         }
 
-        // Fire emits smell (food source)
+        // Fire emits smell
         for (i32 y = 0; y < h; y++)
         {
             for (i32 x = 0; x < w; x++)
             {
-                if (world.env.fire.At(x, y) > 5.0f)
+                if (env.fire.At(x, y) > 5.0f)
                 {
-                    newSmell.At(x, y) += world.env.fire.At(x, y) * 0.5f;
+                    info.smell.WriteNext(x, y) += env.fire.At(x, y) * 0.5f;
                 }
             }
         }
-
-        world.info.smell = newSmell;
     }
 
 private:

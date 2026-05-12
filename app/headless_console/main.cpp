@@ -41,32 +41,35 @@ RunConfig ParseArgs(int argc, char* argv[])
 
 void PrintWorldState(const WorldState& world, i32 interval)
 {
-    if (world.sim.clock.currentTick % interval != 0) return;
+    if (world.Sim().clock.currentTick % interval != 0) return;
 
-    std::cout << "=== Tick: " << world.sim.clock.currentTick << " ===" << std::endl;
+    auto& env = world.Env();
+    auto& agentMod = world.Agents();
 
-    i32 cx = world.env.width / 2;
-    i32 cy = world.env.height / 2;
+    std::cout << "=== Tick: " << world.Sim().clock.currentTick << " ===" << std::endl;
+
+    i32 cx = env.width / 2;
+    i32 cy = env.height / 2;
     std::cout << "Temperature (center): " << std::fixed << std::setprecision(1)
-              << world.env.temperature.At(cx, cy) << " C" << std::endl;
-    std::cout << "Humidity (center): " << world.env.humidity.At(cx, cy) << "%" << std::endl;
+              << env.temperature.At(cx, cy) << " C" << std::endl;
+    std::cout << "Humidity (center): " << env.humidity.At(cx, cy) << "%" << std::endl;
     std::cout << "Wind: (" << std::fixed << std::setprecision(2)
-              << world.env.wind.x << ", " << world.env.wind.y << ")" << std::endl;
+              << env.wind.x << ", " << env.wind.y << ")" << std::endl;
 
     i32 fireCount = 0;
     f32 maxFire = 0.0f;
-    for (i32 y = 0; y < world.env.height; y++)
+    for (i32 y = 0; y < env.height; y++)
     {
-        for (i32 x = 0; x < world.env.width; x++)
+        for (i32 x = 0; x < env.width; x++)
         {
-            f32 f = world.env.fire.At(x, y);
+            f32 f = env.fire.At(x, y);
             if (f > 0.0f) { fireCount++; if (f > maxFire) maxFire = f; }
         }
     }
     std::cout << "Fire cells: " << fireCount << " (max: "
               << std::fixed << std::setprecision(1) << maxFire << ")" << std::endl;
 
-    for (const auto& agent : world.agents.agents)
+    for (const auto& agent : agentMod.agents)
     {
         const char* actionStr = "idle";
         switch (agent.currentAction)
@@ -97,18 +100,18 @@ int main(int argc, char* argv[])
 
     WorldState world(32, 32, cfg.seed);
 
-    world.env.fire.At(16, 16) = 80.0f;
-    world.env.fire.At(17, 16) = 60.0f;
-    world.env.fire.At(16, 17) = 60.0f;
-    world.env.fire.At(15, 16) = 40.0f;
-    world.env.fire.At(8, 8) = 60.0f;
-    world.env.fire.At(9, 8) = 40.0f;
+    world.Env().fire.WriteNext(16, 16) = 80.0f;
+    world.Env().fire.WriteNext(17, 16) = 60.0f;
+    world.Env().fire.WriteNext(16, 17) = 60.0f;
+    world.Env().fire.WriteNext(15, 16) = 40.0f;
+    world.Env().fire.WriteNext(8, 8) = 60.0f;
+    world.Env().fire.WriteNext(9, 8) = 40.0f;
+    world.Env().fire.Swap();
 
     world.SpawnAgent(5, 5);
     world.SpawnAgent(10, 20);
     world.SpawnAgent(25, 10);
 
-    // Phase-based scheduler
     Scheduler scheduler;
     scheduler.AddSystem(SimPhase::Environment,  std::make_unique<ClimateSystem>());
     scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<FireSystem>());

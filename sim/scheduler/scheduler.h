@@ -16,6 +16,7 @@ public:
 
     void Tick(WorldState& world)
     {
+        // Execute all systems in phase order
         for (size_t p = 0; p < static_cast<size_t>(SimPhase::Count); p++)
         {
             for (auto& system : systems[p])
@@ -23,7 +24,14 @@ public:
                 system->Update(world);
             }
         }
-        world.sim.clock.Step();
+
+        // CommandApply phase: apply pending commands
+        world.commands.Apply(world);
+
+        // EndTick phase: swap field buffers and step clock
+        world.Env().SwapAll();
+        world.Info().SwapAll();
+        world.Sim().clock.Step();
     }
 
 private:

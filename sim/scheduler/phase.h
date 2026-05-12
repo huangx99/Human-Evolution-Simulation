@@ -4,12 +4,24 @@
 
 enum class SimPhase : uint8_t
 {
-    Environment,    // Climate, weather
-    Propagation,    // Fire spread, smell diffusion
-    Perception,     // Agent sensing
-    Decision,       // Agent decision making
-    Action,         // Agent actions
-    History,        // Recording, clock step
+    BeginTick,          // Prepare for new tick
+
+    Input,              // Process external input
+    CommandPrepare,     // Prepare commands from input
+
+    Environment,        // Climate, weather
+    Reaction,           // Chemical/biological reactions
+    Propagation,        // Fire spread, smell diffusion, disease spread
+
+    Perception,         // Agent sensing
+    Decision,           // Agent decision making
+    Action,             // Agent actions (submit commands)
+
+    CommandApply,       // Apply all pending commands
+    EventResolve,       // Process and archive events
+    Snapshot,           // Capture world state
+
+    EndTick,            // Finalize tick, swap buffers, clock step
 
     Count
 };

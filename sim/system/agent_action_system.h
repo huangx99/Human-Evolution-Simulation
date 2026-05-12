@@ -9,7 +9,11 @@ class AgentActionSystem : public ISystem
 public:
     void Update(WorldState& world) override
     {
-        for (auto& agent : world.agents.agents)
+        auto& env = world.Env();
+        auto& info = world.Info();
+        auto& sim = world.Sim();
+
+        for (auto& agent : world.Agents().agents)
         {
             agent.hunger = std::min(100.0f, agent.hunger + 0.5f);
 
@@ -21,16 +25,15 @@ public:
             {
                 i32 bestDx = 0, bestDy = 0;
                 f32 bestFire = agent.nearestFire;
-
                 static const int offsets[][2] = {{-1,0},{1,0},{0,-1},{0,1}};
                 for (auto& off : offsets)
                 {
                     i32 nx = agent.position.x + off[0];
                     i32 ny = agent.position.y + off[1];
-                    if (!world.env.fire.InBounds(nx, ny)) continue;
-                    if (world.env.fire.At(nx, ny) < bestFire)
+                    if (!env.fire.InBounds(nx, ny)) continue;
+                    if (env.fire.At(nx, ny) < bestFire)
                     {
-                        bestFire = world.env.fire.At(nx, ny);
+                        bestFire = env.fire.At(nx, ny);
                         bestDx = off[0];
                         bestDy = off[1];
                     }
@@ -43,16 +46,15 @@ public:
             {
                 i32 bestDx = 0, bestDy = 0;
                 f32 bestSmell = 0.0f;
-
                 static const int offsets[][2] = {{-1,0},{1,0},{0,-1},{0,1}};
                 for (auto& off : offsets)
                 {
                     i32 nx = agent.position.x + off[0];
                     i32 ny = agent.position.y + off[1];
-                    if (!world.info.smell.InBounds(nx, ny)) continue;
-                    if (world.info.smell.At(nx, ny) > bestSmell)
+                    if (!info.smell.InBounds(nx, ny)) continue;
+                    if (info.smell.At(nx, ny) > bestSmell)
                     {
-                        bestSmell = world.info.smell.At(nx, ny);
+                        bestSmell = info.smell.At(nx, ny);
                         bestDx = off[0];
                         bestDy = off[1];
                     }
@@ -63,34 +65,37 @@ public:
             }
             case AgentAction::Wander:
             {
-                i32 dir = world.sim.random.NextRange(0, 4);
+                i32 dir = sim.random.NextRange(0, 4);
                 static const int offsets[][2] = {{-1,0},{1,0},{0,-1},{0,1},{0,0}};
                 dx = offsets[dir][0];
                 dy = offsets[dir][1];
                 break;
             }
-            case AgentAction::Idle:
             default:
                 break;
             }
 
+            // Submit move command instead of direct modification
             i32 newX = agent.position.x + dx;
             i32 newY = agent.position.y + dy;
-
-            if (world.env.temperature.InBounds(newX, newY))
+            if (env.temperature.InBounds(newX, newY))
             {
-                agent.position.x = newX;
-                agent.position.y = newY;
+                world.commands.Push(Command{
+                    CommandType::MoveAgent, sim.clock.currentTick,
+                    agent.id, 0, 0, newX, newY, 0.0f
+                });
             }
 
-            if (world.info.smell.InBounds(agent.position.x, agent.position.y))
+            // Eating
+            if (info.smell.InBounds(agent.position.x, agent.position.y))
             {
-                if (world.info.smell.At(agent.position.x, agent.position.y) > 20.0f)
+                if (info.smell.At(agent.position.x, agent.position.y) > 20.0f)
                 {
                     agent.hunger = std::max(0.0f, agent.hunger - 5.0f);
                 }
             }
 
+            // Heat damage
             if (agent.localTemperature > 50.0f)
             {
                 agent.health -= (agent.localTemperature - 50.0f) * 0.1f;
