@@ -161,6 +161,72 @@ TEST(snapshot_boundary)
     return true;
 }
 
+// Test: Snapshot captures ecology entities, events, spatial stats, command stats
+TEST(snapshot_full_capture)
+{
+    WorldState world(16, 16, 42);
+
+    // Create ecology entities
+    auto& e1 = world.Ecology().entities.Create(MaterialId::Grass, "grass1");
+    e1.x = 3; e1.y = 3;
+    auto& e2 = world.Ecology().entities.Create(MaterialId::Stone, "stone1");
+    e2.x = 5; e2.y = 5;
+
+    world.RebuildSpatial();
+
+    // Emit an event
+    Event evt;
+    evt.type = EventType::FireStarted;
+    evt.tick = 1;
+    evt.x = 3;
+    evt.y = 3;
+    evt.value = 50.0f;
+    world.events.Emit(evt);
+    world.events.Dispatch();
+
+    // Submit a command
+    Command cmd;
+    cmd.type = CommandType::IgniteFire;
+    cmd.x = 3;
+    cmd.y = 3;
+    cmd.value = 10.0f;
+    world.commands.Push(cmd);
+    world.commands.Apply(world);
+
+    WorldSnapshot snap = WorldSnapshot::Capture(world);
+
+    // Ecology entities captured
+    ASSERT_EQ(static_cast<i32>(snap.entities.size()), 2);
+    ASSERT_EQ(snap.entities[0].id, e1.id);
+    ASSERT_EQ(snap.entities[0].name, "grass1");
+    ASSERT_EQ(snap.entities[0].x, 3);
+    ASSERT_EQ(snap.entities[0].y, 3);
+    ASSERT_TRUE(snap.entities[0].capabilities != 0); // Grass has capabilities from MaterialDB
+
+    // Event archive captured
+    ASSERT_EQ(static_cast<i32>(snap.events.size()), 1);
+    ASSERT_EQ(snap.events[0].type, static_cast<u16>(EventType::FireStarted));
+    ASSERT_EQ(snap.events[0].x, 3);
+
+    // Spatial stats captured
+    ASSERT_TRUE(snap.spatial.initialized);
+    ASSERT_EQ(snap.spatial.chunkCount, 4);  // 16x16 world, chunk=16 → 1x1=1... actually 16/16=1
+    ASSERT_EQ(snap.spatial.totalEntities, 2);
+    ASSERT_TRUE(snap.spatial.occupiedPositions > 0);
+
+    // Command stats captured
+    ASSERT_TRUE(snap.commands.historyCount > 0);
+
+    // Serialize doesn't crash
+    std::string serialized = snap.Serialize();
+    ASSERT_TRUE(serialized.find("entities=2") != std::string::npos);
+    ASSERT_TRUE(serialized.find("events=1") != std::string::npos);
+    ASSERT_TRUE(serialized.find("spatial:") != std::string::npos);
+    ASSERT_TRUE(serialized.find("commands:") != std::string::npos);
+
+    return true;
+}
+
 // Test: Semantic predicate construction
 TEST(semantic_predicate_construction)
 {

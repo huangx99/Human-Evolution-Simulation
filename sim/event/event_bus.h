@@ -61,6 +61,9 @@ public:
         return result;
     }
 
+    // Number of events waiting to be dispatched
+    size_t PendingCount() const { return pending.size(); }
+
     // Clear pending queue
     void ClearPending() { pending.clear(); }
 

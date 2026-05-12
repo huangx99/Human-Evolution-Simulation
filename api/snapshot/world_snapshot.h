@@ -16,6 +16,41 @@ struct AgentSnapshot
     u8 action;
 };
 
+struct EntitySnapshot
+{
+    EntityId id;
+    std::string name;
+    i32 x, y;
+    u32 material;
+    u32 state;
+    u32 capabilities;
+    u32 affordances;
+};
+
+struct EventSnapshot
+{
+    u16 type;
+    Tick tick;
+    EntityId entityId;
+    i32 x, y;
+    f32 value;
+};
+
+struct SpatialStats
+{
+    i32 chunkCount;
+    i32 chunkSize;
+    i32 occupiedPositions;
+    i32 totalEntities;
+    bool initialized;
+};
+
+struct CommandStats
+{
+    size_t historyCount;
+    bool spatialDirty;
+};
+
 struct WorldSnapshot
 {
     Tick tick;
@@ -36,6 +71,19 @@ struct WorldSnapshot
     std::vector<CellSample> hotCells;
     std::vector<AgentSnapshot> agents;
 
+    // Ecology entities
+    std::vector<EntitySnapshot> entities;
+
+    // Event archive (last N events)
+    std::vector<EventSnapshot> events;
+    size_t eventPendingCount = 0;
+
+    // Spatial stats
+    SpatialStats spatial;
+
+    // Command stats
+    CommandStats commands;
+
     static WorldSnapshot Capture(const WorldState& world)
     {
         WorldSnapshot snap;
@@ -49,6 +97,7 @@ struct WorldSnapshot
         snap.randomState[0] = rstate[0];
         snap.randomState[1] = rstate[1];
 
+        // Hot cells
         for (i32 y = 0; y < snap.height; y++)
         {
             for (i32 x = 0; x < snap.width; x++)
@@ -68,6 +117,7 @@ struct WorldSnapshot
             }
         }
 
+        // Agents
         for (const auto& agent : world.Agents().agents)
         {
             snap.agents.push_back({
@@ -77,6 +127,47 @@ struct WorldSnapshot
                 static_cast<u8>(agent.currentAction)
             });
         }
+
+        // Ecology entities
+        for (const auto& e : world.Ecology().entities.All())
+        {
+            snap.entities.push_back({
+                e.id,
+                e.name,
+                e.x, e.y,
+                static_cast<u32>(e.material),
+                static_cast<u32>(e.state),
+                static_cast<u32>(e.GetCapabilities()),
+                static_cast<u32>(e.GetAffordances()),
+            });
+        }
+
+        // Event archive (last 100 events to avoid huge snapshots)
+        const auto& archive = world.events.GetArchive();
+        size_t start = archive.size() > 100 ? archive.size() - 100 : 0;
+        for (size_t i = start; i < archive.size(); i++)
+        {
+            const auto& e = archive[i];
+            snap.events.push_back({
+                static_cast<u16>(e.type),
+                e.tick,
+                e.entityId,
+                e.x, e.y,
+                e.value,
+            });
+        }
+        snap.eventPendingCount = world.events.PendingCount();
+
+        // Spatial stats
+        snap.spatial.chunkCount = world.spatial.ChunkCount();
+        snap.spatial.chunkSize = world.spatial.GetChunkSize();
+        snap.spatial.occupiedPositions = static_cast<i32>(world.spatial.AllPositions().size());
+        snap.spatial.totalEntities = static_cast<i32>(world.Ecology().entities.Count());
+        snap.spatial.initialized = world.spatial.IsInitialized();
+
+        // Command stats
+        snap.commands.historyCount = world.commands.GetHistory().size();
+        snap.commands.spatialDirty = world.commands.IsSpatialDirty();
 
         return snap;
     }
@@ -89,8 +180,9 @@ struct WorldSnapshot
         os << "tick=" << tick << "\n";
         os << "random_state=" << randomState[0] << "," << randomState[1] << "\n";
         os << "wind=" << windX << "," << windY << "\n";
-        os << "hot_cells=" << hotCells.size() << "\n";
 
+        // Hot cells
+        os << "hot_cells=" << hotCells.size() << "\n";
         for (const auto& c : hotCells)
         {
             os << "  cell " << c.x << "," << c.y
@@ -101,6 +193,7 @@ struct WorldSnapshot
                << " d=" << c.danger << "\n";
         }
 
+        // Agents
         os << "agents=" << agents.size() << "\n";
         for (const auto& a : agents)
         {
@@ -110,6 +203,41 @@ struct WorldSnapshot
                << " health=" << a.health
                << " action=" << static_cast<i32>(a.action) << "\n";
         }
+
+        // Ecology entities
+        os << "entities=" << entities.size() << "\n";
+        for (const auto& e : entities)
+        {
+            os << "  entity " << e.id
+               << " [" << e.name << "]"
+               << " pos=" << e.x << "," << e.y
+               << " mat=" << e.material
+               << " state=0x" << std::hex << e.state << std::dec
+               << " cap=0x" << std::hex << e.capabilities << std::dec
+               << " aff=0x" << std::hex << e.affordances << std::dec << "\n";
+        }
+
+        // Events (recent)
+        os << "events=" << events.size()
+           << " (pending=" << eventPendingCount << ")\n";
+        for (const auto& e : events)
+        {
+            os << "  event type=" << e.type
+               << " tick=" << e.tick
+               << " pos=" << e.x << "," << e.y
+               << " val=" << e.value << "\n";
+        }
+
+        // Spatial stats
+        os << "spatial: chunks=" << spatial.chunkCount
+           << " size=" << spatial.chunkSize
+           << " occupied=" << spatial.occupiedPositions
+           << " entities=" << spatial.totalEntities
+           << " init=" << spatial.initialized << "\n";
+
+        // Command stats
+        os << "commands: history=" << commands.historyCount
+           << " spatial_dirty=" << commands.spatialDirty << "\n";
 
         return os.str();
     }
