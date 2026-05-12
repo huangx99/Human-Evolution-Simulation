@@ -43,4 +43,5 @@ struct Command
     i32 targetX = 0;
     i32 targetY = 0;
     f32 value = 0.0f;
+    u32 payloadU32 = 0;  // for bitfield data (state, capability) — never use f32 for flags
 };

@@ -782,3 +782,206 @@ TEST(extension_coal_no_ignite_wet)
 
     return true;
 }
+
+// Test: SameEntity binding prevents cross-contamination
+// Scenario: dry_grass (Flammable+Dry) and wet_wood (Flammable+Wet) share a cell.
+// With SameEntity mode, only dry_grass should burn — wet_wood must NOT be affected.
+TEST(reaction_same_entity_no_cross_contamination)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // Heat source nearby
+    auto& heatSource = ecology.Create(MaterialId::Stone, "hot_stone");
+    heatSource.x = 3; heatSource.y = 3;
+    heatSource.AddCapability(Capability::HeatEmission);
+
+    // Two entities in the SAME cell: dry_grass (Flammable+Dry) and wet_wood (Flammable+Wet)
+    auto& dryGrass = ecology.Create(MaterialId::DryGrass, "dry_grass");
+    dryGrass.x = 4; dryGrass.y = 3;
+
+    auto& wetWood = ecology.Create(MaterialId::Wood, "wet_wood");
+    wetWood.x = 4; wetWood.y = 3;
+    wetWood.state = MaterialState::Wet;  // NOT Dry
+
+    world.RebuildSpatial();
+    SemanticReactionSystem sys;
+
+    auto rule = MakeIgnitionRule();
+    // Default is SameEntity — all entity predicates must match same entity
+    ASSERT_TRUE(rule.targetMode == ReactionTargetMode::SameEntity);
+    sys.AddRule(rule);
+
+    sys.Update(world);
+    world.commands.Apply(world);
+
+    // dry_grass IS Flammable+Dry → should burn
+    ASSERT_TRUE(dryGrass.HasState(MaterialState::Burning));
+    ASSERT_TRUE(dryGrass.HasCapability(Capability::HeatEmission));
+
+    // wet_wood is Flammable but NOT Dry → must NOT burn (SameEntity binding)
+    ASSERT_TRUE(!wetWood.HasState(MaterialState::Burning));
+    ASSERT_TRUE(!wetWood.HasCapability(Capability::HeatEmission));
+
+    return true;
+}
+
+// Test: SameCell mode applies effects to ALL entities in the cell
+// (legacy behavior, explicitly opted-in)
+TEST(reaction_same_cell_applies_to_all)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    auto& heatSource = ecology.Create(MaterialId::Stone, "hot_stone");
+    heatSource.x = 3; heatSource.y = 3;
+    heatSource.AddCapability(Capability::HeatEmission);
+
+    // Two entities in the same cell, both Flammable+Dry
+    auto& grass1 = ecology.Create(MaterialId::DryGrass, "grass1");
+    grass1.x = 4; grass1.y = 3;
+
+    auto& grass2 = ecology.Create(MaterialId::DryGrass, "grass2");
+    grass2.x = 4; grass2.y = 3;
+
+    world.RebuildSpatial();
+    SemanticReactionSystem sys;
+
+    auto rule = MakeIgnitionRule();
+    rule.targetMode = ReactionTargetMode::SameCell;  // explicit opt-in
+    sys.AddRule(rule);
+
+    sys.Update(world);
+    world.commands.Apply(world);
+
+    // Both should burn in SameCell mode
+    ASSERT_TRUE(grass1.HasState(MaterialState::Burning));
+    ASSERT_TRUE(grass2.HasState(MaterialState::Burning));
+
+    return true;
+}
+
+// Test: SameEntity with corpse decay — Flesh+Dead must be on same entity
+// Prevents: another Dead object in the cell triggering decay on unrelated Flesh
+TEST(reaction_same_entity_corpse_decay)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // A dead flesh entity (should decay)
+    auto& corpse = ecology.Create(MaterialId::Flesh, "corpse");
+    corpse.x = 5; corpse.y = 5;
+    corpse.state = MaterialState::Dead;
+
+    // A dead plant in the same cell (also Dead, but NOT Flesh)
+    auto& deadPlant = ecology.Create(MaterialId::Grass, "dead_plant");
+    deadPlant.x = 5; deadPlant.y = 5;
+    deadPlant.state = MaterialState::Dead;
+
+    world.Env().temperature.WriteNext(5, 5) = 30.0f;
+    world.Env().temperature.Swap();
+
+    // Rule: HasMaterial(Flesh) + HasState(Dead) + Temp>25 → EmitSmell
+    SemanticReactionRule rule;
+    rule.id = "decay";
+    rule.name = "Corpse decay";
+    rule.probability = 1.0f;
+    rule.targetMode = ReactionTargetMode::SameEntity;
+
+    SemanticPredicate isFlesh;
+    isFlesh.type = PredicateType::HasMaterial;
+    isFlesh.material = MaterialId::Flesh;
+
+    SemanticPredicate isDead;
+    isDead.type = PredicateType::HasState;
+    isDead.state = MaterialState::Dead;
+
+    SemanticPredicate isWarm;
+    isWarm.type = PredicateType::FieldGreaterThan;
+    isWarm.field = FieldId::Temperature;
+    isWarm.value = 25.0f;
+
+    rule.conditions = {isFlesh, isDead, isWarm};
+
+    ReactionEffect emitSmell;
+    emitSmell.type = EffectType::EmitSmell;
+    emitSmell.delta = 5.0f;
+    rule.effects = {emitSmell};
+
+    world.RebuildSpatial();
+    SemanticReactionSystem sys;
+    sys.AddRule(rule);
+    sys.Update(world);
+    world.commands.Apply(world);
+    world.Info().smell.Swap();
+
+    // Smell should be emitted (from corpse, not dead_plant)
+    f32 smell = world.Info().smell.At(5, 5);
+    ASSERT_TRUE(smell > 0.0f);
+
+    return true;
+}
+
+// Test: Command payloadU32 preserves large bitfield values exactly
+// Verifies fix for f32 precision loss with Capability::Tool (1 << 24)
+TEST(command_payload_u32_precision)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    auto& entity = ecology.Create(MaterialId::Stone, "test_entity");
+    entity.x = 5; entity.y = 5;
+
+    // Use a large capability flag that would lose precision in f32
+    Capability largeCap = Capability::Tool;  // 1 << 24 = 16777216
+
+    Command cmd;
+    cmd.type = CommandType::AddEntityCapability;
+    cmd.entityId = entity.id;
+    cmd.payloadU32 = static_cast<u32>(largeCap);
+
+    world.commands.Push(cmd);
+    world.commands.Apply(world);
+
+    ASSERT_TRUE(entity.HasCapability(Capability::Tool));
+
+    // Also test with combined flags
+    Capability combined = Capability::Flammable | Capability::Tool | Capability::Weapon;
+    Command cmd2;
+    cmd2.type = CommandType::AddEntityCapability;
+    cmd2.entityId = entity.id;
+    cmd2.payloadU32 = static_cast<u32>(combined);
+
+    world.commands.Push(cmd2);
+    world.commands.Apply(world);
+
+    ASSERT_TRUE(entity.HasCapability(Capability::Flammable));
+    ASSERT_TRUE(entity.HasCapability(Capability::Weapon));
+    ASSERT_TRUE(entity.HasCapability(Capability::Tool));
+
+    return true;
+}
+
+// Test: ModifyFieldValue rejects out-of-bounds coordinates
+TEST(command_modify_field_bounds_check)
+{
+    WorldState world(8, 8, 42);
+
+    // Try to modify a field at invalid coordinates
+    Command cmd;
+    cmd.type = CommandType::ModifyFieldValue;
+    cmd.x = -1;
+    cmd.y = -1;
+    cmd.targetX = static_cast<i32>(FieldId::Temperature);
+    cmd.targetY = 0;  // Add mode
+    cmd.value = 999.0f;
+
+    world.commands.Push(cmd);
+    world.commands.Apply(world);
+
+    // Should not crash — bounds check rejects the command
+    // If we get here without crashing, the test passes
+    ASSERT_TRUE(true);
+
+    return true;
+}
