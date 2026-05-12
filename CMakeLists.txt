@@ -4,22 +4,48 @@ project(HumanEvolution VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Include root as include path so "core/xxx" includes work
+# Debug builds enable assertions
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(HE_DEBUG)
+endif()
+
 include_directories(${CMAKE_SOURCE_DIR})
 
-# Source files
-set(CORE_SOURCES
+# === Core library ===
+add_library(human_evolution_core STATIC
     core/random/random.cpp
 )
+target_include_directories(human_evolution_core PUBLIC ${CMAKE_SOURCE_DIR})
 
-set(SIM_SOURCES
-    # Systems are header-only for now
-)
+# === Sim library (header-only for now, but separate target) ===
+add_library(human_evolution_sim INTERFACE)
+target_include_directories(human_evolution_sim INTERFACE ${CMAKE_SOURCE_DIR})
 
-# Headless console app
-add_executable(human_evolution_sim
+# === Headless console app ===
+add_executable(human_evolution_sim_app
     app/headless_console/main.cpp
-    ${CORE_SOURCES}
+)
+target_link_libraries(human_evolution_sim_app
+    human_evolution_core
+    human_evolution_sim
+)
+set_target_properties(human_evolution_sim_app PROPERTIES
+    OUTPUT_NAME "human_evolution_sim"
 )
 
-target_include_directories(human_evolution_sim PRIVATE ${CMAKE_SOURCE_DIR})
+# === Tests ===
+enable_testing()
+
+add_executable(human_evolution_tests
+    app/tests/test_main.cpp
+    app/tests/grid_test.cpp
+    app/tests/random_test.cpp
+    app/tests/determinism_test.cpp
+)
+target_link_libraries(human_evolution_tests
+    human_evolution_core
+    human_evolution_sim
+)
+target_compile_definitions(human_evolution_tests PRIVATE HE_DEBUG)
+
+add_test(NAME unit_tests COMMAND human_evolution_tests)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types/types.h"
+#include "core/assert/he_assert.h"
 #include <vector>
 
 template<typename T>
@@ -19,11 +20,13 @@ public:
 
     T& At(i32 x, i32 y)
     {
+        HE_ASSERT(InBounds(x, y));
         return data[y * width + x];
     }
 
     const T& At(i32 x, i32 y) const
     {
+        HE_ASSERT(InBounds(x, y));
         return data[y * width + x];
     }
 

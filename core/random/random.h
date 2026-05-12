@@ -12,6 +12,8 @@ public:
     f32 Next01();
     i32 NextRange(i32 min, i32 max);
 
+    const u64* GetState() const { return state; }
+
 private:
     u64 state[2];
 

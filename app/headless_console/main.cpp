@@ -4,8 +4,45 @@
 #include "sim/system/fire_system.h"
 #include "sim/system/smell_system.h"
 #include "sim/system/agent_system.h"
+#include "api/snapshot/world_snapshot.h"
 #include <iostream>
+#include <fstream>
 #include <iomanip>
+#include <cstring>
+#include <string>
+
+struct RunConfig
+{
+    u64 seed = 42;
+    i32 ticks = 300;
+    std::string dumpPath;
+    bool quiet = false;
+};
+
+RunConfig ParseArgs(int argc, char* argv[])
+{
+    RunConfig cfg;
+    for (int i = 1; i < argc; i++)
+    {
+        if (std::strcmp(argv[i], "--seed") == 0 && i + 1 < argc)
+        {
+            cfg.seed = std::stoull(argv[++i]);
+        }
+        else if (std::strcmp(argv[i], "--ticks") == 0 && i + 1 < argc)
+        {
+            cfg.ticks = std::stoi(argv[++i]);
+        }
+        else if (std::strcmp(argv[i], "--dump") == 0 && i + 1 < argc)
+        {
+            cfg.dumpPath = argv[++i];
+        }
+        else if (std::strcmp(argv[i], "--quiet") == 0)
+        {
+            cfg.quiet = true;
+        }
+    }
+    return cfg;
+}
 
 void PrintWorldState(const WorldState& world, i32 interval)
 {
@@ -21,7 +58,6 @@ void PrintWorldState(const WorldState& world, i32 interval)
     std::cout << "Wind: (" << std::fixed << std::setprecision(2)
               << world.wind.x << ", " << world.wind.y << ")" << std::endl;
 
-    // Count fire cells and max fire intensity
     i32 fireCount = 0;
     f32 maxFire = 0.0f;
     for (i32 y = 0; y < world.height; y++)
@@ -36,10 +72,9 @@ void PrintWorldState(const WorldState& world, i32 interval)
             }
         }
     }
-    std::cout << "Fire cells: " << fireCount << " (max intensity: "
+    std::cout << "Fire cells: " << fireCount << " (max: "
               << std::fixed << std::setprecision(1) << maxFire << ")" << std::endl;
 
-    // Agent status
     for (const auto& agent : world.agents)
     {
         const char* actionStr = "idle";
@@ -51,55 +86,75 @@ void PrintWorldState(const WorldState& world, i32 interval)
         case AgentAction::Idle:       actionStr = "idle"; break;
         }
 
-        std::cout << "Agent_" << agent.id << ":" << std::endl;
-        std::cout << "  pos: (" << agent.position.x << ", " << agent.position.y << ")" << std::endl;
-        std::cout << "  hunger: " << std::fixed << std::setprecision(0) << agent.hunger << std::endl;
-        std::cout << "  health: " << agent.health << std::endl;
-        std::cout << "  smell: " << std::fixed << std::setprecision(1) << agent.nearestSmell << std::endl;
-        std::cout << "  fire: " << agent.nearestFire << std::endl;
-        std::cout << "  action: " << actionStr << std::endl;
+        std::cout << "Agent_" << agent.id
+                  << " pos=(" << agent.position.x << "," << agent.position.y << ")"
+                  << " hunger=" << std::fixed << std::setprecision(0) << agent.hunger
+                  << " health=" << agent.health
+                  << " action=" << actionStr << std::endl;
     }
 
     std::cout << std::endl;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+    RunConfig cfg = ParseArgs(argc, argv);
+
     std::cout << "Human Evolution Simulation - Phase 1" << std::endl;
+    std::cout << "Seed: " << cfg.seed << "  Ticks: " << cfg.ticks << std::endl;
     std::cout << "====================================" << std::endl << std::endl;
 
-    WorldState world(32, 32, 42);
+    WorldState world(32, 32, cfg.seed);
 
-    // Ignite fires at two locations
+    // Ignite fires
     world.fire.At(16, 16) = 80.0f;
     world.fire.At(17, 16) = 60.0f;
     world.fire.At(16, 17) = 60.0f;
     world.fire.At(15, 16) = 40.0f;
-
     world.fire.At(8, 8) = 60.0f;
     world.fire.At(9, 8) = 40.0f;
 
-    // Spawn agents at various locations
+    // Spawn agents
     world.SpawnAgent(5, 5);
     world.SpawnAgent(10, 20);
     world.SpawnAgent(25, 10);
 
-    // Register systems in fixed order per design doc
+    // Register systems in fixed order
     Scheduler scheduler;
     scheduler.AddSystem(std::make_unique<ClimateSystem>());
     scheduler.AddSystem(std::make_unique<FireSystem>());
     scheduler.AddSystem(std::make_unique<SmellSystem>());
     scheduler.AddSystem(std::make_unique<AgentSystem>());
 
-    i32 totalTicks = 300;
-    i32 printInterval = 25;
+    i32 printInterval = cfg.ticks / 12;
+    if (printInterval < 1) printInterval = 1;
 
-    std::cout << "Starting simulation (" << totalTicks << " ticks)..." << std::endl << std::endl;
-
-    for (i32 i = 0; i < totalTicks; i++)
+    for (i32 i = 0; i < cfg.ticks; i++)
     {
         scheduler.Tick(world);
-        PrintWorldState(world, printInterval);
+        if (!cfg.quiet)
+        {
+            PrintWorldState(world, printInterval);
+        }
+    }
+
+    // Dump final snapshot
+    if (!cfg.dumpPath.empty())
+    {
+        WorldSnapshot snap = WorldSnapshot::Capture(world);
+        std::string data = snap.Serialize();
+        std::ofstream ofs(cfg.dumpPath);
+        if (ofs.is_open())
+        {
+            ofs << data;
+            ofs.close();
+            std::cout << "Snapshot dumped to: " << cfg.dumpPath << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to open dump file: " << cfg.dumpPath << std::endl;
+            return 1;
+        }
     }
 
     std::cout << "Simulation complete." << std::endl;
