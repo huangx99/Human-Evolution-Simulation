@@ -1,0 +1,135 @@
+#pragma once
+
+#include "sim/ecology/ecology_entity.h"
+#include "core/types/types.h"
+#include <vector>
+#include <string>
+
+// Manages all ecology entities in the world.
+// Provides creation, lookup, and query by capability/affordance.
+class EcologyRegistry
+{
+public:
+    // Create an entity with a base material
+    EcologyEntity& Create(MaterialId material, const std::string& name = "")
+    {
+        EcologyEntity entity;
+        entity.id = nextId++;
+        entity.material = material;
+        entity.state = MaterialDB::GetDefaultState(material);
+        entity.name = name;
+        entities.push_back(std::move(entity));
+        return entities.back();
+    }
+
+    // Find entity by ID
+    EcologyEntity* Find(EntityId id)
+    {
+        for (auto& e : entities)
+        {
+            if (e.id == id) return &e;
+        }
+        return nullptr;
+    }
+
+    const EcologyEntity* Find(EntityId id) const
+    {
+        for (const auto& e : entities)
+        {
+            if (e.id == id) return &e;
+        }
+        return nullptr;
+    }
+
+    // Query: all entities at a position
+    std::vector<EcologyEntity*> At(i32 x, i32 y)
+    {
+        std::vector<EcologyEntity*> result;
+        for (auto& e : entities)
+        {
+            if (e.x == x && e.y == y) result.push_back(&e);
+        }
+        return result;
+    }
+
+    // Query: entities at a position that have a specific capability
+    std::vector<EcologyEntity*> AtWithCapability(i32 x, i32 y, Capability cap)
+    {
+        std::vector<EcologyEntity*> result;
+        for (auto& e : entities)
+        {
+            if (e.x == x && e.y == y && e.HasCapability(cap))
+                result.push_back(&e);
+        }
+        return result;
+    }
+
+    // Query: entities at a position that have a specific affordance
+    std::vector<EcologyEntity*> AtWithAffordance(i32 x, i32 y, Affordance aff)
+    {
+        std::vector<EcologyEntity*> result;
+        for (auto& e : entities)
+        {
+            if (e.x == x && e.y == y && e.HasAffordance(aff))
+                result.push_back(&e);
+        }
+        return result;
+    }
+
+    // Query: all entities with a specific capability
+    std::vector<EcologyEntity*> WithCapability(Capability cap)
+    {
+        std::vector<EcologyEntity*> result;
+        for (auto& e : entities)
+        {
+            if (e.HasCapability(cap)) result.push_back(&e);
+        }
+        return result;
+    }
+
+    // Query: all entities with a specific affordance
+    std::vector<EcologyEntity*> WithAffordance(Affordance aff)
+    {
+        std::vector<EcologyEntity*> result;
+        for (auto& e : entities)
+        {
+            if (e.HasAffordance(aff)) result.push_back(&e);
+        }
+        return result;
+    }
+
+    // Query: all entities with a specific state
+    std::vector<EcologyEntity*> WithState(MaterialState s)
+    {
+        std::vector<EcologyEntity*> result;
+        for (auto& e : entities)
+        {
+            if (e.HasState(s)) result.push_back(&e);
+        }
+        return result;
+    }
+
+    // Remove entity by ID
+    bool Remove(EntityId id)
+    {
+        for (auto it = entities.begin(); it != entities.end(); ++it)
+        {
+            if (it->id == id)
+            {
+                entities.erase(it);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Access all entities
+    std::vector<EcologyEntity>& All() { return entities; }
+    const std::vector<EcologyEntity>& All() const { return entities; }
+
+    size_t Count() const { return entities.size(); }
+
+private:
+    std::vector<EcologyEntity> entities;
+    EntityId nextId = 1;
+};

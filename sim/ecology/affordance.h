@@ -35,6 +35,15 @@ enum class Affordance : u32
 
     // Growth
     CanGrow     = 1 << 15,  // vegetation can spread here
+
+    // Tool-based actions
+    CanCut      = 1 << 16,  // cutting/harvesting
+    CanPoke     = 1 << 17,  // poking/prodding
+    CanCarry    = 1 << 18,  // transporting items
+    CanLight    = 1 << 19,  // providing light
+    CanScare    = 1 << 20,  // frightening animals
+    CanIgniteTarget = 1 << 21, // setting fire to target
+    CanBind     = 1 << 22,  // combining/tying
 };
 
 constexpr Affordance operator|(Affordance a, Affordance b)

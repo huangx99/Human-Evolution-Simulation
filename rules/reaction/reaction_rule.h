@@ -1,6 +1,9 @@
 #pragma once
 
 #include "core/types/types.h"
+#include "sim/ecology/capability.h"
+#include "sim/ecology/affordance.h"
+#include "sim/ecology/material_state.h"
 #include <vector>
 #include <string>
 #include <functional>
@@ -56,11 +59,25 @@ enum class ConditionOp : u8
     GreaterEqual
 };
 
-struct Condition
+// Field-based condition: checks a numeric field value
+struct FieldCondition
 {
     FieldId field = FieldId::None;
     ConditionOp op;
     f32 value;
+};
+
+// Capability-based condition: checks entity capabilities/states at a cell
+struct CapabilityCondition
+{
+    // At least one entity at the cell must have ALL of these capabilities
+    Capability requiredCapabilities = Capability::None;
+
+    // At least one entity at the cell must have ALL of these affordances
+    Affordance requiredAffordances = Affordance::None;
+
+    // At least one entity at the cell must be in ALL of these states
+    MaterialState requiredStates = MaterialState::None;
 };
 
 enum class OutputType : u8
@@ -90,18 +107,24 @@ struct ReactionRule
     // Inputs: what elements must be present at the cell
     std::vector<ElementId> inputs;
 
-    // Conditions: field-based checks
-    std::vector<Condition> conditions;
+    // Field conditions: numeric field checks (temperature > 50, etc.)
+    std::vector<FieldCondition> fieldConditions;
+
+    // Capability conditions: entity capability/state checks
+    std::vector<CapabilityCondition> capabilityConditions;
 
     // Outputs: what happens when reaction triggers
     std::vector<ReactionOutput> outputs;
 
     f32 baseProbability = 1.0f;
     bool repeatable = false;  // can trigger every tick
+
+    // Backward compat alias
+    std::vector<FieldCondition>& conditions = fieldConditions;
 };
 
-// Evaluate a condition against a field value
-inline bool EvaluateCondition(const Condition& cond, f32 fieldValue)
+// Evaluate a field condition
+inline bool EvaluateCondition(const FieldCondition& cond, f32 fieldValue)
 {
     switch (cond.op)
     {
@@ -113,3 +136,6 @@ inline bool EvaluateCondition(const Condition& cond, f32 fieldValue)
     default: return false;
     }
 }
+
+// Legacy alias
+using Condition = FieldCondition;

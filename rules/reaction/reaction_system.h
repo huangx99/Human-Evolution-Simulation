@@ -2,6 +2,7 @@
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"
+#include "sim/ecology/ecology_registry.h"
 #include "rules/reaction/reaction_rule.h"
 #include <vector>
 #include <cmath>
@@ -9,6 +10,8 @@
 class ReactionSystem : public ISystem
 {
 public:
+    void SetEcologyRegistry(EcologyRegistry* reg) { ecology = reg; }
+
     void AddRule(const ReactionRule& rule)
     {
         rules.push_back(rule);
@@ -26,7 +29,8 @@ public:
                 for (i32 x = 0; x < env.width; x++)
                 {
                     if (!CheckInputs(world, x, y, rule)) continue;
-                    if (!CheckConditions(world, x, y, rule)) continue;
+                    if (!CheckFieldConditions(world, x, y, rule)) continue;
+                    if (!CheckCapabilityConditions(x, y, rule)) continue;
 
                     // Probability check
                     if (sim.random.Next01() > rule.baseProbability) continue;
@@ -39,6 +43,7 @@ public:
 
 private:
     std::vector<ReactionRule> rules;
+    EcologyRegistry* ecology = nullptr;
 
     bool CheckInputs(WorldState& world, i32 x, i32 y, const ReactionRule& rule)
     {
@@ -68,12 +73,12 @@ private:
         return true;
     }
 
-    bool CheckConditions(WorldState& world, i32 x, i32 y, const ReactionRule& rule)
+    bool CheckFieldConditions(WorldState& world, i32 x, i32 y, const ReactionRule& rule)
     {
         auto& env = world.Env();
         auto& info = world.Info();
 
-        for (const auto& cond : rule.conditions)
+        for (const auto& cond : rule.fieldConditions)
         {
             f32 fieldValue = 0.0f;
 
@@ -109,6 +114,60 @@ private:
             }
 
             if (!EvaluateCondition(cond, fieldValue)) return false;
+        }
+        return true;
+    }
+
+    bool CheckCapabilityConditions(i32 x, i32 y, const ReactionRule& rule)
+    {
+        if (!ecology) return true;  // no ecology registry = skip capability checks
+
+        for (const auto& cond : rule.capabilityConditions)
+        {
+            bool found = false;
+
+            for (auto& entity : ecology->All())
+            {
+                if (entity.x != x || entity.y != y) continue;
+
+                bool match = true;
+
+                if (cond.requiredCapabilities != Capability::None)
+                {
+                    Capability entityCaps = entity.GetCapabilities();
+                    if ((static_cast<u32>(entityCaps) & static_cast<u32>(cond.requiredCapabilities))
+                        != static_cast<u32>(cond.requiredCapabilities))
+                    {
+                        match = false;
+                    }
+                }
+
+                if (cond.requiredAffordances != Affordance::None)
+                {
+                    Affordance entityAffs = entity.GetAffordances();
+                    if ((static_cast<u32>(entityAffs) & static_cast<u32>(cond.requiredAffordances))
+                        != static_cast<u32>(cond.requiredAffordances))
+                    {
+                        match = false;
+                    }
+                }
+
+                if (cond.requiredStates != MaterialState::None)
+                {
+                    if (!entity.HasState(cond.requiredStates))
+                    {
+                        match = false;
+                    }
+                }
+
+                if (match)
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) return false;
         }
         return true;
     }

@@ -34,6 +34,22 @@ enum class Capability : u32
     // Construction (future)
     Buildable   = 1 << 13,  // can be used in construction
     Stackable   = 1 << 14,  // can be stacked/piled
+
+    // Emission (things an entity radiates/releases)
+    LightEmission = 1 << 15, // emits visible light
+    HeatEmission  = 1 << 16, // radiates heat
+    SmokeEmission = 1 << 17, // produces smoke
+
+    // Tool properties
+    Portable    = 1 << 18,  // can be carried by agent
+    SharpEdge   = 1 << 19,  // has cutting surface
+    LongReach   = 1 << 20,  // extends reach distance
+    Binding     = 1 << 21,  // can tie/combine items
+    Container   = 1 << 22,  // can hold items/liquid
+
+    // Composite tool capabilities
+    Weapon      = 1 << 23,  // can be used as weapon
+    Tool        = 1 << 24,  // can be used as tool
 };
 
 constexpr Capability operator|(Capability a, Capability b)
