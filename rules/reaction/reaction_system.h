@@ -2,7 +2,6 @@
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"
-#include "sim/ecology/ecology_registry.h"
 #include "rules/reaction/reaction_rule.h"
 #include <vector>
 #include <cmath>
@@ -10,8 +9,6 @@
 class ReactionSystem : public ISystem
 {
 public:
-    void SetEcologyRegistry(EcologyRegistry* reg) { ecology = reg; }
-
     void AddRule(const ReactionRule& rule)
     {
         rules.push_back(rule);
@@ -30,7 +27,7 @@ public:
                 {
                     if (!CheckInputs(world, x, y, rule)) continue;
                     if (!CheckFieldConditions(world, x, y, rule)) continue;
-                    if (!CheckCapabilityConditions(x, y, rule)) continue;
+                    if (!CheckCapabilityConditions(world, x, y, rule)) continue;
 
                     // Probability check
                     if (sim.random.Next01() > rule.baseProbability) continue;
@@ -43,29 +40,79 @@ public:
 
 private:
     std::vector<ReactionRule> rules;
-    EcologyRegistry* ecology = nullptr;
 
+    // Check ElementId inputs using capability-based logic from EcologyRegistry
     bool CheckInputs(WorldState& world, i32 x, i32 y, const ReactionRule& rule)
     {
         auto& env = world.Env();
         auto& info = world.Info();
+        auto& ecology = world.Ecology().entities;
 
         for (const auto& input : rule.inputs)
         {
             switch (input)
             {
             case ElementId::Fire:
-                if (env.fire.At(x, y) <= 0.0f) return false;
+            {
+                // Fire = any entity with HeatEmission at this cell, OR fire field > 0
+                bool hasHeatSource = false;
+                for (auto& e : ecology.At(x, y))
+                {
+                    if (e.HasCapability(Capability::HeatEmission))
+                    {
+                        hasHeatSource = true;
+                        break;
+                    }
+                }
+                if (!hasHeatSource && env.fire.At(x, y) <= 0.0f) return false;
                 break;
+            }
             case ElementId::DryGrass:
-                if (env.humidity.At(x, y) >= 35.0f) return false;
+            {
+                // DryGrass = entity with Flammable + (Dead|Dry) at this cell, OR low humidity
+                bool hasFlammableDry = false;
+                for (auto& e : ecology.At(x, y))
+                {
+                    if (e.HasCapability(Capability::Flammable) &&
+                        (e.HasState(MaterialState::Dead) || e.HasState(MaterialState::Dry)))
+                    {
+                        hasFlammableDry = true;
+                        break;
+                    }
+                }
+                if (!hasFlammableDry && env.humidity.At(x, y) >= 35.0f) return false;
                 break;
+            }
             case ElementId::Water:
-                if (env.humidity.At(x, y) < 80.0f) return false;
+            {
+                // Water = entity that is Wet/Soaked at this cell, OR high humidity
+                bool hasWater = false;
+                for (auto& e : ecology.At(x, y))
+                {
+                    if (e.HasState(MaterialState::Wet) || e.HasState(MaterialState::Soaked))
+                    {
+                        hasWater = true;
+                        break;
+                    }
+                }
+                if (!hasWater && env.humidity.At(x, y) < 80.0f) return false;
                 break;
+            }
             case ElementId::Smoke:
-                if (info.smoke.At(x, y) <= 0.0f) return false;
+            {
+                // Smoke = entity with SmokeEmission at this cell, OR smoke field > 0
+                bool hasSmokeSource = false;
+                for (auto& e : ecology.At(x, y))
+                {
+                    if (e.HasCapability(Capability::SmokeEmission))
+                    {
+                        hasSmokeSource = true;
+                        break;
+                    }
+                }
+                if (!hasSmokeSource && info.smoke.At(x, y) <= 0.0f) return false;
                 break;
+            }
             default:
                 break;
             }
@@ -118,18 +165,16 @@ private:
         return true;
     }
 
-    bool CheckCapabilityConditions(i32 x, i32 y, const ReactionRule& rule)
+    bool CheckCapabilityConditions(WorldState& world, i32 x, i32 y, const ReactionRule& rule)
     {
-        if (!ecology) return true;  // no ecology registry = skip capability checks
+        auto& ecology = world.Ecology().entities;
 
         for (const auto& cond : rule.capabilityConditions)
         {
             bool found = false;
 
-            for (auto& entity : ecology->All())
+            for (auto& entity : ecology.At(x, y))
             {
-                if (entity.x != x || entity.y != y) continue;
-
                 bool match = true;
 
                 if (cond.requiredCapabilities != Capability::None)

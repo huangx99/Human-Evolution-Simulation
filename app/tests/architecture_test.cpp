@@ -21,6 +21,7 @@ TEST(module_registration)
     ASSERT_TRUE(world.modules.Has<EnvironmentModule>());
     ASSERT_TRUE(world.modules.Has<InformationModule>());
     ASSERT_TRUE(world.modules.Has<AgentModule>());
+    ASSERT_TRUE(world.modules.Has<EcologyModule>());
 
     // Should be able to access
     auto& env = world.modules.Get<EnvironmentModule>();
@@ -107,7 +108,7 @@ TEST(command_apply)
     return true;
 }
 
-// Test: Event lifecycle
+// Test: Event lifecycle (Emit → Dispatch → Archive)
 TEST(event_lifecycle)
 {
     WorldState world(4, 4, 42);
@@ -126,9 +127,17 @@ TEST(event_lifecycle)
     evt.y = 3;
     evt.value = 50.0f;
 
-    world.events.Publish(evt);
+    // Emit enqueues, Dispatch processes
+    world.events.Emit(evt);
+    ASSERT_EQ(receivedX, -1);  // not yet dispatched
+
+    world.events.Dispatch();
     ASSERT_EQ(receivedX, 2);
     ASSERT_EQ(receivedValue, 50.0f);
+
+    // Archive is populated
+    ASSERT_EQ(world.events.GetArchive().size(), 1);
+    ASSERT_EQ(world.events.GetArchive(EventType::FireStarted).size(), 1);
 
     return true;
 }

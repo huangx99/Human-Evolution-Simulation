@@ -16,20 +16,10 @@ public:
         handlers[static_cast<size_t>(type)].push_back(std::move(handler));
     }
 
-    // Enqueue event (does NOT dispatch immediately)
+    // Enqueue event for dispatch at EventResolve phase
     void Emit(const Event& event)
     {
         pending.push_back(event);
-    }
-
-    // Legacy: immediate publish (for backward compat in tests)
-    void Publish(const Event& event)
-    {
-        for (auto& handler : handlers[static_cast<size_t>(event.type)])
-        {
-            handler(event);
-        }
-        archive.push_back(event);
     }
 
     // Process all queued events: dispatch handlers, then archive
