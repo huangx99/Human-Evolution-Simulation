@@ -1,4 +1,5 @@
 #include "test_framework.h"
+#include "sim/world/world_state.h"
 #include "sim/ecology/material_id.h"
 #include "sim/ecology/material_state.h"
 #include "sim/ecology/capability.h"
@@ -10,6 +11,7 @@
 #include "rules/reaction/semantic_predicate.h"
 #include "rules/reaction/reaction_effect.h"
 #include "rules/reaction/semantic_reaction_rule.h"
+#include "rules/reaction/semantic_reaction_system.h"
 
 // Test: MaterialDB has entries for all defined materials
 TEST(ecology_material_db_init)
@@ -455,6 +457,209 @@ TEST(semantic_hot_stone_ignites_grass)
     // The semantic rule would fire because:
     //   NearbyCapability(HeatEmission, radius=2) from (6,5) finds hot_stone at (5,5)
     // No special-case for "stone" needed.
+
+    return true;
+}
+
+// ===== EXECUTION TESTS: SemanticReactionSystem against real WorldState =====
+
+// Helper: build the standard fire ignition rule (Flammable + Dry + NearbyHeat → Burning)
+static SemanticReactionRule MakeIgnitionRule()
+{
+    SemanticReactionRule rule;
+    rule.id = "ignite";
+    rule.name = "Flammable+Dry+HeatEmission → Burning";
+    rule.probability = 1.0f;
+
+    SemanticPredicate isFlammable;
+    isFlammable.type = PredicateType::HasCapability;
+    isFlammable.capability = Capability::Flammable;
+
+    SemanticPredicate isDry;
+    isDry.type = PredicateType::HasState;
+    isDry.state = MaterialState::Dry;
+
+    SemanticPredicate nearbyHeat;
+    nearbyHeat.type = PredicateType::NearbyCapability;
+    nearbyHeat.capability = Capability::HeatEmission;
+    nearbyHeat.radius = 2;
+
+    rule.conditions = {isFlammable, isDry, nearbyHeat};
+
+    ReactionEffect addBurning;
+    addBurning.type = EffectType::AddState;
+    addBurning.state = MaterialState::Burning;
+
+    ReactionEffect addHeat;
+    addHeat.type = EffectType::AddCapability;
+    addHeat.capability = Capability::HeatEmission;
+
+    rule.effects = {addBurning, addHeat};
+
+    return rule;
+}
+
+// Scenario 1: 高温石头点燃干草
+// Hot stone (HeatEmission) + Dry grass (Flammable+Dry) → grass catches fire
+TEST(semantic_exec_hot_stone)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // Place hot stone at (5,5)
+    auto& hotStone = ecology.Create(MaterialId::Stone, "hot_stone");
+    hotStone.x = 5; hotStone.y = 5;
+    hotStone.AddCapability(Capability::HeatEmission);
+
+    // Place dry grass at (6,5) — nearby
+    auto& dryGrass = ecology.Create(MaterialId::DryGrass, "dry_grass");
+    dryGrass.x = 6; dryGrass.y = 5;
+
+    // Add ignition rule
+    SemanticReactionSystem sys;
+    sys.AddRule(MakeIgnitionRule());
+
+    // Run one tick
+    sys.Update(world);
+
+    // Verify: dry grass should now be Burning and have HeatEmission
+    ASSERT_TRUE(dryGrass.HasState(MaterialState::Burning));
+    ASSERT_TRUE(dryGrass.HasCapability(Capability::HeatEmission));
+
+    return true;
+}
+
+// Scenario 2: 干草本身可燃 (Flammable+Dry)
+// A torch (Wood+Burning+HeatEmission) ignites dry grass
+TEST(semantic_exec_torch_ignites)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // Place torch at (5,5)
+    auto& torch = ecology.Create(MaterialId::Wood, "torch");
+    torch.x = 5; torch.y = 5;
+    torch.AddState(MaterialState::Burning);
+    torch.AddCapability(Capability::HeatEmission);
+    torch.AddCapability(Capability::LightEmission);
+
+    // Place dry grass at (5,6)
+    auto& dryGrass = ecology.Create(MaterialId::DryGrass, "dry_grass");
+    dryGrass.x = 5; dryGrass.y = 6;
+
+    SemanticReactionSystem sys;
+    sys.AddRule(MakeIgnitionRule());
+    sys.Update(world);
+
+    ASSERT_TRUE(dryGrass.HasState(MaterialState::Burning));
+
+    return true;
+}
+
+// Scenario 3: 湿木头不容易燃烧
+// Wet wood (Flammable+Wet) should NOT catch fire — no Dry state
+TEST(semantic_exec_wet_wood_no_burn)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // Place heat source at (5,5)
+    auto& heatSource = ecology.Create(MaterialId::Stone, "hot_stone");
+    heatSource.x = 5; heatSource.y = 5;
+    heatSource.AddCapability(Capability::HeatEmission);
+
+    // Place WET wood at (6,5) — Flammable but NOT Dry
+    auto& wetWood = ecology.Create(MaterialId::Wood, "wet_wood");
+    wetWood.x = 6; wetWood.y = 5;
+    wetWood.state = MaterialState::Wet;  // override default Dry state
+
+    SemanticReactionSystem sys;
+    sys.AddRule(MakeIgnitionRule());
+    sys.Update(world);
+
+    // Verify: wet wood should NOT be Burning
+    ASSERT_TRUE(!wetWood.HasState(MaterialState::Burning));
+    ASSERT_TRUE(!wetWood.HasCapability(Capability::HeatEmission));
+
+    return true;
+}
+
+// Scenario 4: 腐肉在高温下产生气味
+// Organic(Flesh) + Dead + Temperature>25 → SmellEmission
+TEST(semantic_exec_rotten_meat)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // Place corpse at (5,5)
+    auto& corpse = ecology.Create(MaterialId::Flesh, "corpse");
+    corpse.x = 5; corpse.y = 5;
+    corpse.state = MaterialState::Dead;
+
+    // Set temperature > 25 at that cell
+    world.Env().temperature.WriteNext(5, 5) = 30.0f;
+    world.Env().temperature.Swap();
+
+    // Build decay rule: Flesh + Dead + Temp>25 → EmitSmell
+    SemanticReactionRule rule;
+    rule.id = "decay";
+    rule.name = "Corpse decay in warm conditions";
+    rule.probability = 1.0f;
+
+    SemanticPredicate isFlesh;
+    isFlesh.type = PredicateType::HasMaterial;
+    isFlesh.material = MaterialId::Flesh;
+
+    SemanticPredicate isDead;
+    isDead.type = PredicateType::HasState;
+    isDead.state = MaterialState::Dead;
+
+    SemanticPredicate isWarm;
+    isWarm.type = PredicateType::FieldGreaterThan;
+    isWarm.field = FieldId::Temperature;
+    isWarm.value = 25.0f;
+
+    rule.conditions = {isFlesh, isDead, isWarm};
+
+    ReactionEffect emitSmell;
+    emitSmell.type = EffectType::EmitSmell;
+    emitSmell.field = FieldId::Smell;
+    emitSmell.delta = 5.0f;
+
+    rule.effects = {emitSmell};
+
+    SemanticReactionSystem sys;
+    sys.AddRule(rule);
+    sys.Update(world);
+    world.Info().smell.Swap();
+
+    // Verify: smell field should have increased
+    f32 smell = world.Info().smell.At(5, 5);
+    ASSERT_TRUE(smell > 0.0f);
+
+    return true;
+}
+
+// Scenario 5: 湿草不容易燃烧 (no Dry state)
+TEST(semantic_exec_wet_grass_no_burn)
+{
+    WorldState world(16, 16, 42);
+    auto& ecology = world.Ecology().entities;
+
+    auto& heatSource = ecology.Create(MaterialId::Stone, "hot_stone");
+    heatSource.x = 5; heatSource.y = 5;
+    heatSource.AddCapability(Capability::HeatEmission);
+
+    // Wet grass — Flammable but state is Wet, not Dry
+    auto& wetGrass = ecology.Create(MaterialId::Grass, "wet_grass");
+    wetGrass.x = 6; wetGrass.y = 5;
+    wetGrass.state = MaterialState::Wet;
+
+    SemanticReactionSystem sys;
+    sys.AddRule(MakeIgnitionRule());
+    sys.Update(world);
+
+    ASSERT_TRUE(!wetGrass.HasState(MaterialState::Burning));
 
     return true;
 }

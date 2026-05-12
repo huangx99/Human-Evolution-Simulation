@@ -56,33 +56,33 @@ private:
         {
         case PredicateType::HasCapability:
         {
-            for (auto& e : ecology.At(x, y))
+            for (auto* e : ecology.At(x, y))
             {
-                if (e.HasCapability(pred.capability)) return true;
+                if (e->HasCapability(pred.capability)) return true;
             }
             return false;
         }
         case PredicateType::HasAffordance:
         {
-            for (auto& e : ecology.At(x, y))
+            for (auto* e : ecology.At(x, y))
             {
-                if (e.HasAffordance(pred.affordance)) return true;
+                if (e->HasAffordance(pred.affordance)) return true;
             }
             return false;
         }
         case PredicateType::HasState:
         {
-            for (auto& e : ecology.At(x, y))
+            for (auto* e : ecology.At(x, y))
             {
-                if (e.HasState(pred.state)) return true;
+                if (e->HasState(pred.state)) return true;
             }
             return false;
         }
         case PredicateType::HasMaterial:
         {
-            for (auto& e : ecology.At(x, y))
+            for (auto* e : ecology.At(x, y))
             {
-                if (e.material == pred.material) return true;
+                if (e->material == pred.material) return true;
             }
             return false;
         }
@@ -113,9 +113,9 @@ private:
                     f32 dist = std::sqrt(static_cast<f32>(dx * dx + dy * dy));
                     if (dist > pred.radius) continue;
 
-                    for (auto& e : ecology.At(nx, ny))
+                    for (auto* e : ecology.At(nx, ny))
                     {
-                        if (e.HasCapability(pred.capability)) return true;
+                        if (e->HasCapability(pred.capability)) return true;
                     }
                 }
             }
@@ -133,9 +133,9 @@ private:
                     f32 dist = std::sqrt(static_cast<f32>(dx * dx + dy * dy));
                     if (dist > pred.radius) continue;
 
-                    for (auto& e : ecology.At(nx, ny))
+                    for (auto* e : ecology.At(nx, ny))
                     {
-                        if (e.HasState(pred.state)) return true;
+                        if (e->HasState(pred.state)) return true;
                     }
                 }
             }
@@ -181,27 +181,28 @@ private:
             {
             case EffectType::AddState:
             {
-                for (auto& e : ecology.At(x, y))
-                    e.AddState(effect.state);
+                for (auto* e : ecology.At(x, y))
+                    e->AddState(effect.state);
                 break;
             }
             case EffectType::RemoveState:
             {
-                for (auto& e : ecology.At(x, y))
-                    e.state = e.state & ~effect.state;
+                for (auto* e : ecology.At(x, y))
+                    e->state = static_cast<MaterialState>(
+                        static_cast<u32>(e->state) & ~static_cast<u32>(effect.state));
                 break;
             }
             case EffectType::AddCapability:
             {
-                for (auto& e : ecology.At(x, y))
-                    e.AddCapability(effect.capability);
+                for (auto* e : ecology.At(x, y))
+                    e->AddCapability(effect.capability);
                 break;
             }
             case EffectType::RemoveCapability:
             {
-                for (auto& e : ecology.At(x, y))
-                    e.extraCapabilities = static_cast<Capability>(
-                        static_cast<u32>(e.extraCapabilities) & ~static_cast<u32>(effect.capability));
+                for (auto* e : ecology.At(x, y))
+                    e->extraCapabilities = static_cast<Capability>(
+                        static_cast<u32>(e->extraCapabilities) & ~static_cast<u32>(effect.capability));
                 break;
             }
             case EffectType::ModifyField:
@@ -218,8 +219,6 @@ private:
                 info.smoke.WriteNext(x, y) += effect.delta;
                 break;
             case EffectType::EmitEvent:
-                // Events are emitted via the EventBus; this is a placeholder
-                // for future event emission from semantic reactions
                 break;
             default:
                 break;
