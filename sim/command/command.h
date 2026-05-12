@@ -30,6 +30,11 @@ enum class CommandType : u8
     ModifyFieldValue,
     EmitSmoke,
 
+    // Cognitive commands (phase 2)
+    ModifyBehaviorBias,
+    EmitSocialSignal,
+    ReinforceKnowledge,
+
     Count
 };
 

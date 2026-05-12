@@ -210,7 +210,7 @@ TEST(snapshot_full_capture)
 
     // Spatial stats captured
     ASSERT_TRUE(snap.spatial.initialized);
-    ASSERT_EQ(snap.spatial.chunkCount, 4);  // 16x16 world, chunk=16 → 1x1=1... actually 16/16=1
+    ASSERT_EQ(snap.spatial.chunkCount, 1);  // 16x16 world, chunk=16 → 1x1=1
     ASSERT_EQ(snap.spatial.totalEntities, 2);
     ASSERT_TRUE(snap.spatial.occupiedPositions > 0);
 

@@ -2,6 +2,8 @@
 
 #include "core/types/types.h"
 #include "sim/world/world_state.h"
+#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/memory_record.h"
 #include <vector>
 #include <string>
 #include <sstream>
@@ -51,6 +53,35 @@ struct CommandStats
     bool spatialDirty;
 };
 
+struct CognitiveSnapshot
+{
+    // Per-agent memory counts
+    struct AgentCognitiveState
+    {
+        EntityId id;
+        size_t shortTermCount;
+        size_t episodicCount;
+        size_t patternCount;
+        size_t socialCount;
+        size_t traumaCount;
+        size_t hypothesisCount;
+        size_t knowledgeNodeCount;
+    };
+
+    std::vector<AgentCognitiveState> agentStates;
+
+    // Knowledge graph summary
+    size_t totalKnowledgeNodes;
+    size_t totalKnowledgeEdges;
+
+    // Frame activity
+    size_t frameStimuliCount;
+    size_t frameFocusedCount;
+    size_t frameMemoriesCount;
+    size_t frameDiscoveriesCount;
+    size_t frameSocialSignalsCount;
+};
+
 struct WorldSnapshot
 {
     Tick tick;
@@ -83,6 +114,9 @@ struct WorldSnapshot
 
     // Command stats
     CommandStats commands;
+
+    // Cognitive state
+    CognitiveSnapshot cognitive;
 
     static WorldSnapshot Capture(const WorldState& world)
     {
@@ -169,6 +203,55 @@ struct WorldSnapshot
         snap.commands.historyCount = world.commands.GetHistory().size();
         snap.commands.spatialDirty = world.commands.IsSpatialDirty();
 
+        // Cognitive state
+        {
+            auto& cog = world.Cognitive();
+            snap.cognitive.totalKnowledgeNodes = cog.knowledgeGraph.NodeCount();
+            snap.cognitive.totalKnowledgeEdges = cog.knowledgeGraph.EdgeCount();
+            snap.cognitive.frameStimuliCount = cog.frameStimuli.size();
+            snap.cognitive.frameFocusedCount = cog.frameFocused.size();
+            snap.cognitive.frameMemoriesCount = cog.frameMemories.size();
+            snap.cognitive.frameDiscoveriesCount = cog.frameDiscoveries.size();
+            snap.cognitive.frameSocialSignalsCount = cog.frameSocialSignals.size();
+
+            for (const auto& agent : world.Agents().agents)
+            {
+                CognitiveSnapshot::AgentCognitiveState acs;
+                acs.id = agent.id;
+
+                const auto& mems = cog.GetAgentMemories(agent.id);
+                acs.shortTermCount = 0;
+                acs.episodicCount = 0;
+                acs.patternCount = 0;
+                acs.socialCount = 0;
+                acs.traumaCount = 0;
+                for (const auto& m : mems)
+                {
+                    switch (m.kind)
+                    {
+                    case MemoryKind::ShortTerm: acs.shortTermCount++; break;
+                    case MemoryKind::Episodic:  acs.episodicCount++; break;
+                    case MemoryKind::Pattern:   acs.patternCount++; break;
+                    case MemoryKind::Social:    acs.socialCount++; break;
+                    case MemoryKind::Trauma:    acs.traumaCount++; break;
+                    }
+                }
+
+                auto hypIt = cog.agentHypotheses.find(agent.id);
+                acs.hypothesisCount = (hypIt != cog.agentHypotheses.end())
+                    ? hypIt->second.size() : 0;
+
+                acs.knowledgeNodeCount = 0;
+                for (const auto& n : cog.knowledgeGraph.nodes)
+                {
+                    if (n.ownerAgentId == agent.id)
+                        acs.knowledgeNodeCount++;
+                }
+
+                snap.cognitive.agentStates.push_back(acs);
+            }
+        }
+
         return snap;
     }
 
@@ -238,6 +321,35 @@ struct WorldSnapshot
         // Command stats
         os << "commands: history=" << commands.historyCount
            << " spatial_dirty=" << commands.spatialDirty << "\n";
+
+        // Cognitive state
+        os << "cognitive: nodes=" << cognitive.totalKnowledgeNodes
+           << " edges=" << cognitive.totalKnowledgeEdges
+           << " frame_stimuli=" << cognitive.frameStimuliCount
+           << " frame_focused=" << cognitive.frameFocusedCount
+           << " frame_memories=" << cognitive.frameMemoriesCount
+           << " frame_discoveries=" << cognitive.frameDiscoveriesCount
+           << " frame_signals=" << cognitive.frameSocialSignalsCount << "\n";
+
+        for (const auto& acs : cognitive.agentStates)
+        {
+            os << "  agent " << acs.id
+               << " stm=" << acs.shortTermCount
+               << " epi=" << acs.episodicCount
+               << " pat=" << acs.patternCount
+               << " soc=" << acs.socialCount
+               << " trm=" << acs.traumaCount
+               << " hyp=" << acs.hypothesisCount
+               << " kn=" << acs.knowledgeNodeCount << "\n";
+        }
+
+        // Knowledge edges (if any)
+        if (cognitive.totalKnowledgeEdges > 0)
+        {
+            // Note: we'd need the full KnowledgeGraph to serialize edges,
+            // which isn't available through the snapshot.
+            // For now, just show the count.
+        }
 
         return os.str();
     }

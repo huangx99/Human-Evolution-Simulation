@@ -32,6 +32,15 @@ enum class EventType : u16
     Cooperation,
     Migration,
 
+    // Cognitive events (phase 2)
+    CognitiveStimulusPerceived,
+    CognitiveAttentionFocused,
+    CognitiveMemoryFormed,
+    CognitiveHypothesisFormed,
+    CognitiveKnowledgeUpdated,
+    SocialSignalEmitted,
+    SocialSignalReceived,
+
     Count
 };
 

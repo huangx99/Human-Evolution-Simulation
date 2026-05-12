@@ -6,6 +6,7 @@
 #include "sim/world/information_module.h"
 #include "sim/world/agent_module.h"
 #include "sim/world/ecology_module.h"
+#include "sim/cognitive/cognitive_module.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
@@ -28,6 +29,7 @@ struct WorldState
         modules.Register<InformationModule>(w, h);
         modules.Register<AgentModule>();
         modules.Register<EcologyModule>();
+        modules.Register<CognitiveModule>();
     }
 
     void RebuildSpatial()
@@ -40,12 +42,14 @@ struct WorldState
     InformationModule& Info() { return modules.Get<InformationModule>(); }
     AgentModule& Agents() { return modules.Get<AgentModule>(); }
     EcologyModule& Ecology() { return modules.Get<EcologyModule>(); }
+    CognitiveModule& Cognitive() { return modules.Get<CognitiveModule>(); }
 
     const SimulationModule& Sim() const { return modules.Get<SimulationModule>(); }
     const EnvironmentModule& Env() const { return modules.Get<EnvironmentModule>(); }
     const InformationModule& Info() const { return modules.Get<InformationModule>(); }
     const AgentModule& Agents() const { return modules.Get<AgentModule>(); }
     const EcologyModule& Ecology() const { return modules.Get<EcologyModule>(); }
+    const CognitiveModule& Cognitive() const { return modules.Get<CognitiveModule>(); }
 
     i32 Width() const { return width; }
     i32 Height() const { return height; }

@@ -1,0 +1,322 @@
+#pragma once
+
+// CognitiveDiscoverySystem: detects patterns in memories and forms hypotheses.
+//
+// ARCHITECTURE NOTE: This system is RULE-DRIVEN hypothesis formation,
+// NOT statistical pattern mining. It uses:
+//   1. DiscoveryRule table: concept-pair → relation mapping
+//   2. Result-tag matching: generic cause-effect from memory results
+//   3. Co-occurrence: two concepts observed within maxTickGap ticks
+//
+// Phase 2 simplification: co-occurrence + rules is sufficient for
+// basic hypothesis formation. Future phases should add:
+//   - Statistical significance testing (chi-squared, mutual information)
+//   - Temporal ordering (A before B vs B before A)
+//   - Confound detection (C causes both A and B)
+//   - Sample size requirements (don't form hypothesis from 2 observations)
+//
+// Hypotheses can be WRONG — this is by design. The system also detects
+// contradictions: if a hypothesis predicts outcome X but the agent
+// observes not-X, the hypothesis's contradiction count increases.
+//
+// Pipeline position: runs in SimPhase::Decision.
+// Reads: CognitiveModule::agentMemories (recent episodic memories).
+// Writes: CognitiveModule::agentHypotheses, frameDiscoveries.
+
+#include "sim/system/i_system.h"
+#include "sim/world/world_state.h"
+#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/knowledge_relation.h"
+#include <vector>
+#include <cmath>
+
+// DiscoveryRule: a configurable pattern for hypothesis formation.
+//
+// Each rule defines a pair of concepts and the relation between them.
+// When two memories match (causeConcept, effectConcept), the system
+// creates a hypothesis with the specified relation.
+//
+// To add a new cognitive pattern: add a DiscoveryRule. No system changes needed.
+struct DiscoveryRule
+{
+    ConceptTag causeConcept;
+    ConceptTag effectConcept;
+    KnowledgeRelation relation;
+};
+
+class CognitiveDiscoverySystem : public ISystem
+{
+public:
+    CognitiveDiscoverySystem()
+    {
+        // === Core discovery rules ===
+        // To add a new pattern, add a rule here. Don't modify InferRelation().
+
+        // Smoke signals fire nearby
+        rules.push_back({ConceptTag::Smoke, ConceptTag::Fire,
+                         KnowledgeRelation::Signals});
+
+        // Beast signals danger
+        rules.push_back({ConceptTag::Beast, ConceptTag::Danger,
+                         KnowledgeRelation::Signals});
+
+        // Fire causes pain (direct damage)
+        rules.push_back({ConceptTag::Fire, ConceptTag::Pain,
+                         KnowledgeRelation::Causes});
+
+        // Food causes satiety
+        rules.push_back({ConceptTag::Food, ConceptTag::Satiety,
+                         KnowledgeRelation::Causes});
+
+        // Cold causes pain (freezing)
+        rules.push_back({ConceptTag::Cold, ConceptTag::Pain,
+                         KnowledgeRelation::Causes});
+
+        // Fire transforms grass to ash
+        rules.push_back({ConceptTag::Fire, ConceptTag::Ash,
+                         KnowledgeRelation::Transforms});
+
+        // Predator signals danger
+        rules.push_back({ConceptTag::Predator, ConceptTag::Danger,
+                         KnowledgeRelation::Signals});
+
+        // Fire emits smoke
+        rules.push_back({ConceptTag::Fire, ConceptTag::Smoke,
+                         KnowledgeRelation::Emits});
+
+        // Heat signals danger (overheating)
+        rules.push_back({ConceptTag::Heat, ConceptTag::Danger,
+                         KnowledgeRelation::Signals});
+
+        // Lightning causes fire
+        rules.push_back({ConceptTag::Lightning, ConceptTag::Fire,
+                         KnowledgeRelation::Causes});
+
+        // Rain prevents fire
+        rules.push_back({ConceptTag::Rain, ConceptTag::Fire,
+                         KnowledgeRelation::Prevents});
+
+        // Wood transforms to coal when burned
+        rules.push_back({ConceptTag::Wood, ConceptTag::Coal,
+                         KnowledgeRelation::Transforms});
+
+        // Add more rules here as needed...
+    }
+
+    void Update(WorldState& world) override
+    {
+        auto& cog = world.Cognitive();
+        auto& sim = world.Sim();
+        Tick now = sim.clock.currentTick;
+
+        for (auto& agent : world.Agents().agents)
+        {
+            auto& memories = cog.GetAgentMemories(agent.id);
+            if (memories.size() < 2) continue;
+
+            // Look for co-occurrence patterns in recent memories
+            for (size_t i = 0; i < memories.size(); i++)
+            {
+                auto& memA = memories[i];
+
+                // Only look at episodic or strong short-term memories
+                if (memA.kind == MemoryKind::ShortTerm && memA.strength < 0.3f)
+                    continue;
+
+                for (size_t j = i + 1; j < memories.size(); j++)
+                {
+                    auto& memB = memories[j];
+
+                    // Skip if too far apart in time
+                    if (std::abs(static_cast<i64>(memA.createdTick) -
+                                 static_cast<i64>(memB.createdTick)) > maxTickGap)
+                        continue;
+
+                    // Skip if same concept (no self-relation)
+                    if (memA.subject == memB.subject) continue;
+
+                    // Try to infer a relation between these two memories
+                    KnowledgeRelation relation = InferRelation(memA, memB);
+                    if (relation == KnowledgeRelation::AssociatedWith &&
+                        !HasStrongAssociation(memA, memB))
+                        continue;  // skip weak associations
+
+                    // Check if a hypothesis already exists for this pair
+                    auto& hypotheses = cog.GetAgentHypotheses(agent.id);
+                    Hypothesis* existing = FindHypothesis(
+                        hypotheses, memA.subject, memB.subject, relation);
+
+                    if (existing)
+                    {
+                        // Reinforce existing hypothesis
+                        existing->supportingCount++;
+                        existing->confidence = std::min(1.0f,
+                            existing->confidence + confidenceIncrement);
+                        existing->lastObservedTick = now;
+                        existing->UpdateStatus(stableThreshold, minEvidence);
+                    }
+                    else
+                    {
+                        // Create new hypothesis
+                        Hypothesis hyp;
+                        hyp.id = cog.nextHypothesisId++;
+                        hyp.ownerId = agent.id;
+                        hyp.causeConcept = memA.subject;
+                        hyp.effectConcept = memB.subject;
+                        hyp.proposedRelation = relation;
+                        hyp.confidence = initialConfidence;
+                        hyp.supportingCount = 1;
+                        hyp.firstObservedTick = now;
+                        hyp.lastObservedTick = now;
+                        hyp.status = HypothesisStatus::Weak;
+
+                        hypotheses.push_back(hyp);
+
+                        // Record discovery
+                        DiscoveryRecord disc;
+                        disc.id = cog.nextDiscoveryId++;
+                        disc.ownerId = agent.id;
+                        disc.hypothesisId = hyp.id;
+                        disc.causeConcept = hyp.causeConcept;
+                        disc.effectConcept = hyp.effectConcept;
+                        disc.relation = relation;
+                        disc.confidence = hyp.confidence;
+                        disc.newStatus = HypothesisStatus::Weak;
+                        disc.tick = now;
+
+                        cog.frameDiscoveries.push_back(disc);
+
+                        world.events.Emit({
+                            EventType::CognitiveHypothesisFormed,
+                            now, agent.id,
+                            memA.location.x, memA.location.y,
+                            hyp.confidence
+                        });
+                    }
+                }
+            }
+
+            // Contradiction detection: check if any memory contradicts existing hypotheses
+            DetectContradictions(agent.id, memories, cog, now, world);
+        }
+    }
+
+private:
+    static constexpr i64 maxTickGap = 50;
+    static constexpr f32 initialConfidence = 0.2f;
+    static constexpr f32 confidenceIncrement = 0.1f;
+    static constexpr f32 stableThreshold = 0.6f;
+    static constexpr u32 minEvidence = 3;
+    static constexpr f32 contradictionConfidencePenalty = 0.1f;
+
+    std::vector<DiscoveryRule> rules;
+
+    // Infer relation using rules first, then result-tag matching as fallback.
+    KnowledgeRelation InferRelation(const MemoryRecord& a, const MemoryRecord& b)
+    {
+        // Check specific rules first (A→B direction)
+        for (const auto& rule : rules)
+        {
+            if (a.subject == rule.causeConcept && b.subject == rule.effectConcept)
+                return rule.relation;
+        }
+
+        // Check rules in B→A direction
+        for (const auto& rule : rules)
+        {
+            if (b.subject == rule.causeConcept && a.subject == rule.effectConcept)
+                return rule.relation;
+        }
+
+        // Fallback: result-tag matching (generic cause-effect)
+        for (auto tag : a.resultTags)
+        {
+            if (tag == b.subject)
+                return KnowledgeRelation::Causes;
+        }
+        for (auto tag : b.resultTags)
+        {
+            if (tag == a.subject)
+                return KnowledgeRelation::Causes;
+        }
+
+        // Default: weak association
+        return KnowledgeRelation::AssociatedWith;
+    }
+
+    // Check if two memories are strongly associated (co-located, close in time)
+    bool HasStrongAssociation(const MemoryRecord& a, const MemoryRecord& b)
+    {
+        if (a.location == b.location &&
+            std::abs(static_cast<i64>(a.createdTick) - static_cast<i64>(b.createdTick)) < 10)
+            return true;
+
+        for (auto tag : a.resultTags)
+        {
+            if (tag == b.subject) return true;
+        }
+        for (auto tag : b.resultTags)
+        {
+            if (tag == a.subject) return true;
+        }
+
+        return false;
+    }
+
+    // Contradiction detection: if a hypothesis predicts "A causes B" but
+    // the agent observes A without B (or B without A), increment contradiction count.
+    void DetectContradictions(EntityId agentId,
+                               const std::vector<MemoryRecord>& memories,
+                               CognitiveModule& cog, Tick now,
+                               WorldState& world)
+    {
+        auto& hypotheses = cog.GetAgentHypotheses(agentId);
+        if (hypotheses.empty()) return;
+
+        // Check each hypothesis against recent memories
+        for (auto& hyp : hypotheses)
+        {
+            // Only check hypotheses that predict a cause-effect relationship
+            if (hyp.proposedRelation != KnowledgeRelation::Causes &&
+                hyp.proposedRelation != KnowledgeRelation::Signals)
+                continue;
+
+            // Look for the cause concept in recent memories
+            bool foundCause = false;
+            bool foundEffect = false;
+            for (const auto& mem : memories)
+            {
+                if (std::abs(static_cast<i64>(mem.createdTick) - static_cast<i64>(now)) > maxTickGap)
+                    continue;
+
+                if (mem.subject == hyp.causeConcept) foundCause = true;
+                if (mem.subject == hyp.effectConcept) foundEffect = true;
+            }
+
+            // Contradiction: cause observed but effect NOT observed
+            // (only if enough time has passed since hypothesis was last observed)
+            if (foundCause && !foundEffect &&
+                (now - hyp.lastObservedTick) > maxTickGap / 2)
+            {
+                hyp.contradictingCount++;
+                hyp.confidence = std::max(0.0f,
+                    hyp.confidence - contradictionConfidencePenalty);
+                hyp.UpdateStatus(stableThreshold, minEvidence);
+            }
+        }
+    }
+
+    Hypothesis* FindHypothesis(std::vector<Hypothesis>& hypotheses,
+                                ConceptTag cause, ConceptTag effect,
+                                KnowledgeRelation relation)
+    {
+        for (auto& h : hypotheses)
+        {
+            if (h.causeConcept == cause &&
+                h.effectConcept == effect &&
+                h.proposedRelation == relation)
+                return &h;
+        }
+        return nullptr;
+    }
+};

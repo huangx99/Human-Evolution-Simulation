@@ -7,6 +7,12 @@
 #include "sim/system/agent_perception_system.h"
 #include "sim/system/agent_decision_system.h"
 #include "sim/system/agent_action_system.h"
+#include "sim/system/cognitive_perception_system.h"
+#include "sim/system/cognitive_attention_system.h"
+#include "sim/system/cognitive_memory_system.h"
+#include "sim/system/cognitive_discovery_system.h"
+#include "sim/system/cognitive_knowledge_system.h"
+#include "sim/system/cognitive_social_system.h"
 #include "rules/reaction/semantic_reaction_system.h"
 #include "rules/reaction/semantic_predicate.h"
 #include "rules/reaction/reaction_effect.h"
@@ -17,6 +23,7 @@
 #include <iomanip>
 #include <cstring>
 #include <string>
+#include <sstream>
 
 struct RunConfig
 {
@@ -49,6 +56,7 @@ void PrintWorldState(const WorldState& world, i32 interval)
 
     auto& env = world.Env();
     auto& agentMod = world.Agents();
+    auto& cog = world.Cognitive();
 
     std::cout << "=== Tick: " << world.Sim().clock.currentTick << " ===" << std::endl;
 
@@ -89,6 +97,39 @@ void PrintWorldState(const WorldState& world, i32 interval)
                   << " hunger=" << std::fixed << std::setprecision(0) << agent.hunger
                   << " health=" << agent.health
                   << " action=" << actionStr << std::endl;
+
+        // Cognitive state per agent
+        const auto& mems = cog.GetAgentMemories(agent.id);
+        if (!mems.empty())
+        {
+            std::cout << "  memories=" << mems.size();
+            // Show strongest memory
+            const MemoryRecord* strongest = &mems[0];
+            for (const auto& m : mems)
+            {
+                if (m.strength > strongest->strength) strongest = &m;
+            }
+            std::cout << " strongest="
+                      << ConceptRegistry::GetName(strongest->subject)
+                      << "(s=" << std::fixed << std::setprecision(2)
+                      << strongest->strength << ")";
+            std::cout << std::endl;
+        }
+
+        // Knowledge graph dump
+        std::string knowledgeDump = cog.knowledgeGraph.Dump(agent.id);
+        if (!knowledgeDump.empty())
+        {
+            std::cout << "  knowledge:\n";
+            std::istringstream iss(knowledgeDump);
+            std::string line;
+            u32 shown = 0;
+            while (std::getline(iss, line) && shown < 5)
+            {
+                std::cout << "    " << line << "\n";
+                shown++;
+            }
+        }
     }
 
     // Ecology entities
@@ -111,7 +152,7 @@ int main(int argc, char* argv[])
 {
     RunConfig cfg = ParseArgs(argc, argv);
 
-    std::cout << "Human Evolution Simulation - Phase 1" << std::endl;
+    std::cout << "Human Evolution Simulation - Phase 2 (Cognitive)" << std::endl;
     std::cout << "Seed: " << cfg.seed << "  Ticks: " << cfg.ticks << std::endl;
     std::cout << "====================================" << std::endl << std::endl;
 
@@ -227,9 +268,25 @@ int main(int argc, char* argv[])
     scheduler.AddSystem(SimPhase::Reaction,     std::move(reactionSys));
     scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<FireSystem>());
     scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<SmellSystem>());
+
+    // Phase 1: runtime perception + decision + action
     scheduler.AddSystem(SimPhase::Perception,   std::make_unique<AgentPerceptionSystem>());
+
+    // Phase 2: cognitive pipeline (perception → attention → memory)
+    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitivePerceptionSystem>());
+    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitiveAttentionSystem>());
+    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitiveMemorySystem>());
+
+    // Phase 2: cognitive decision (discovery → knowledge)
+    scheduler.AddSystem(SimPhase::Decision,     std::make_unique<CognitiveDiscoverySystem>());
+    scheduler.AddSystem(SimPhase::Decision,     std::make_unique<CognitiveKnowledgeSystem>());
+
+    // Phase 1: runtime decision + action
     scheduler.AddSystem(SimPhase::Decision,     std::make_unique<AgentDecisionSystem>());
     scheduler.AddSystem(SimPhase::Action,       std::make_unique<AgentActionSystem>());
+
+    // Phase 2: social learning (after actions, so it can observe results)
+    scheduler.AddSystem(SimPhase::Action,       std::make_unique<CognitiveSocialSystem>());
 
     i32 printInterval = cfg.ticks / 12;
     if (printInterval < 1) printInterval = 1;

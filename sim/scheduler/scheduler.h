@@ -32,6 +32,7 @@ public:
             case SimPhase::BeginTick:
                 if (!world.spatial.IsInitialized())
                     world.RebuildSpatial();
+                world.Cognitive().ClearFrame();
                 break;
             case SimPhase::CommandApply:
                 world.commands.Apply(world);
