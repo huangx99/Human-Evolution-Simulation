@@ -76,21 +76,23 @@ private:
     {
         auto& kg = cog.knowledgeGraph;
 
-        // Get or create the cause node
-        auto& causeNode = kg.GetOrCreateNode(
-            hyp.ownerId, hyp.groupId, hyp.causeConcept, now);
-        causeNode.strength = std::min(1.0f, causeNode.strength + 0.1f);
-        causeNode.lastUpdatedTick = now;
+        // Get or create the cause node (capture ID by value — push_back invalidates refs)
+        u64 causeId = kg.GetOrCreateNode(
+            hyp.ownerId, hyp.groupId, hyp.causeConcept, now).id;
+        auto* causeNode = kg.FindNodeById(causeId);
+        causeNode->strength = std::min(1.0f, causeNode->strength + 0.1f);
+        causeNode->lastUpdatedTick = now;
 
         // Get or create the effect node
-        auto& effectNode = kg.GetOrCreateNode(
-            hyp.ownerId, hyp.groupId, hyp.effectConcept, now);
-        effectNode.strength = std::min(1.0f, effectNode.strength + 0.1f);
-        effectNode.lastUpdatedTick = now;
+        u64 effectId = kg.GetOrCreateNode(
+            hyp.ownerId, hyp.groupId, hyp.effectConcept, now).id;
+        auto* effectNode = kg.FindNodeById(effectId);
+        effectNode->strength = std::min(1.0f, effectNode->strength + 0.1f);
+        effectNode->lastUpdatedTick = now;
 
         // Get or create the edge
         auto& edge = kg.GetOrCreateEdge(
-            causeNode.id, effectNode.id, hyp.proposedRelation, now);
+            causeId, effectId, hyp.proposedRelation, now);
 
         // Reinforce edge based on hypothesis confidence
         f32 delta = hyp.confidence * 0.2f;

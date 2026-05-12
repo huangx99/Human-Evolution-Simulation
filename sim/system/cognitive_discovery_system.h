@@ -88,6 +88,10 @@ public:
         rules.push_back({ConceptTag::Heat, ConceptTag::Danger,
                          KnowledgeRelation::Signals});
 
+        // Fire signals danger (burning, destruction)
+        rules.push_back({ConceptTag::Fire, ConceptTag::Danger,
+                         KnowledgeRelation::Signals});
+
         // Lightning causes fire
         rules.push_back({ConceptTag::Lightning, ConceptTag::Fire,
                          KnowledgeRelation::Causes});
@@ -212,6 +216,8 @@ private:
     std::vector<DiscoveryRule> rules;
 
     // Infer relation using rules first, then result-tag matching as fallback.
+    // Returns AssociatedWith if no specific relation is found — callers should
+    // filter these out unless strong co-occurrence evidence exists.
     KnowledgeRelation InferRelation(const MemoryRecord& a, const MemoryRecord& b)
     {
         // Check specific rules first (A→B direction)
@@ -240,7 +246,9 @@ private:
                 return KnowledgeRelation::Causes;
         }
 
-        // Default: weak association
+        // No specific relation found — return AssociatedWith.
+        // The caller requires HasStrongAssociation() for these, which
+        // filters out weak co-location noise.
         return KnowledgeRelation::AssociatedWith;
     }
 

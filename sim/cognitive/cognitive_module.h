@@ -28,6 +28,7 @@
 #include "sim/cognitive/hypothesis.h"
 #include "sim/cognitive/knowledge_graph.h"
 #include "sim/cognitive/social_signal.h"
+#include "sim/cognitive/decision_modifier.h"
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
@@ -197,5 +198,72 @@ struct CognitiveModule : public IModule
     std::string DumpKnowledge(EntityId agentId) const
     {
         return knowledgeGraph.Dump(agentId);
+    }
+
+    // === Decision modifiers: knowledge-driven behavior bias ===
+    //
+    // Queries the knowledge graph and produces generic modifiers.
+    // DecisionSystem uses these instead of hand-written knowledge checks.
+    // Adding new knowledge types doesn't require touching DecisionSystem.
+
+    std::vector<DecisionModifier> GenerateDecisionModifiers(EntityId agentId) const
+    {
+        std::vector<DecisionModifier> mods;
+
+        for (const auto& e : knowledgeGraph.edges)
+        {
+            const auto* fromNode = knowledgeGraph.FindNodeById(e.fromNodeId);
+            if (!fromNode || fromNode->ownerAgentId != agentId) continue;
+
+            const auto* toNode = knowledgeGraph.FindNodeById(e.toNodeId);
+            if (!toNode) continue;
+
+            // Skip weak edges
+            if (e.confidence < 0.1f) continue;
+
+            auto toGroups = ConceptRegistry::GetGroups(toNode->concept);
+
+            // Knowledge that A causes/signals something dangerous → flee boost for A
+            if ((e.relation == KnowledgeRelation::Causes ||
+                 e.relation == KnowledgeRelation::Signals) &&
+                (HasGroup(toGroups, SemanticGroup::Danger) ||
+                 HasGroup(toGroups, SemanticGroup::Threat)))
+            {
+                DecisionModifier mod;
+                mod.type = ModifierType::FleeBoost;
+                mod.triggerConcept = fromNode->concept;
+                mod.magnitude = e.confidence * e.strength * 0.3f;
+                mod.confidence = e.confidence;
+                mods.push_back(mod);
+            }
+
+            // Knowledge that A causes something valued → approach boost for A
+            if (e.relation == KnowledgeRelation::Causes &&
+                (toNode->concept == ConceptTag::Satiety ||
+                 toNode->concept == ConceptTag::Comfort ||
+                 toNode->concept == ConceptTag::Warmth ||
+                 toNode->concept == ConceptTag::Safety))
+            {
+                DecisionModifier mod;
+                mod.type = ModifierType::ApproachBoost;
+                mod.triggerConcept = fromNode->concept;
+                mod.magnitude = e.confidence * e.strength * 0.3f;
+                mod.confidence = e.confidence;
+                mods.push_back(mod);
+            }
+
+            // Knowledge that A signals B → alert boost for A
+            if (e.relation == KnowledgeRelation::Signals)
+            {
+                DecisionModifier mod;
+                mod.type = ModifierType::AlertBoost;
+                mod.triggerConcept = fromNode->concept;
+                mod.magnitude = e.confidence * 0.2f;
+                mod.confidence = e.confidence;
+                mods.push_back(mod);
+            }
+        }
+
+        return mods;
     }
 };

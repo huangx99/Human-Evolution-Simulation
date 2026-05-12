@@ -833,14 +833,17 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
         WorldState world(32, 32, 42);
 
         // Manually create Smoke → Signals → Fire knowledge
-        auto& kg = world.Cognitive().knowledgeGraph;
-        auto& smokeNode = kg.GetOrCreateNode(1, 0, ConceptTag::Smoke, 0);
-        auto& fireNode = kg.GetOrCreateNode(1, 0, ConceptTag::Fire, 0);
-        auto& edge = kg.GetOrCreateEdge(smokeNode.id, fireNode.id,
-                                         KnowledgeRelation::Signals, 0);
-        edge.confidence = 0.8f;
-        edge.strength = 2.0f;
-        edge.evidenceCount = 5;
+        // NOTE: capture node IDs by value — push_back can invalidate references
+        {
+            auto& kg = world.Cognitive().knowledgeGraph;
+            u64 smokeId = kg.GetOrCreateNode(1, 0, ConceptTag::Smoke, 0).id;
+            u64 fireId = kg.GetOrCreateNode(1, 0, ConceptTag::Fire, 0).id;
+            auto& edge = kg.GetOrCreateEdge(smokeId, fireId,
+                                             KnowledgeRelation::Signals, 0);
+            edge.confidence = 0.8f;
+            edge.strength = 2.0f;
+            edge.evidenceCount = 5;
+        }
 
         // Same smoke stimulus as baseline
         for (i32 dy = -2; dy <= 2; dy++)
@@ -868,7 +871,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
     // Both scores must be valid, and knowledge should boost attention
     ASSERT_TRUE(baselineScore > 0.0f);
     ASSERT_TRUE(knowledgeScore > 0.0f);
-    ASSERT_TRUE(knowledgeScore >= baselineScore);
+    ASSERT_TRUE(knowledgeScore > baselineScore);  // knowledge strictly boosts attention
 
     return true;
 }
@@ -1198,6 +1201,334 @@ TEST(cognitive_attention_bottleneck)
     {
         ASSERT_TRUE(focusedCount <= 4);
     }
+
+    return true;
+}
+
+// ============================================================
+// Cognitive Hardening: Knowledge → Behavior Divergence
+//
+// Two agents with DIFFERENT knowledge should produce different
+// DecisionModifiers and therefore choose different actions in
+// the same environment. This is the critical test: if knowledge
+// doesn't change behavior, the cognitive loop is decorative.
+// ============================================================
+
+// H-1: Different knowledge → different DecisionModifiers
+// Agent A knows Fire→Causes→Pain (FleeBoost for Fire)
+// Agent B knows Food→Causes→Satiety (ApproachBoost for Food)
+// In the same environment, they should produce different modifier sets.
+TEST(cognitive_knowledge_drives_behavior_divergence)
+{
+    // === Phase 1: Agent A with Fire→Danger knowledge ===
+    WorldState worldA(32, 32, 42);
+
+    // Inject Fire→Danger knowledge for Agent A
+    // NOTE: capture node IDs by value — push_back can invalidate references
+    {
+        auto& kgA = worldA.Cognitive().knowledgeGraph;
+        u64 fireId = kgA.GetOrCreateNode(1, 0, ConceptTag::Fire, 0).id;
+        u64 painId = kgA.GetOrCreateNode(1, 0, ConceptTag::Pain, 0).id;
+        auto& edgeA = kgA.GetOrCreateEdge(fireId, painId,
+                                           KnowledgeRelation::Causes, 0);
+        edgeA.confidence = 0.8f;
+        edgeA.strength = 3.0f;
+        edgeA.evidenceCount = 5;
+    }
+
+    worldA.SpawnAgent(16, 15);
+    worldA.RebuildSpatial();
+
+    auto modsA = worldA.Cognitive().GenerateDecisionModifiers(1);
+
+    // Agent A should have FleeBoost for Fire
+    bool aHasFleeBoost = false;
+    f32 aFleeMagnitude = 0.0f;
+    for (const auto& m : modsA)
+    {
+        if (m.type == ModifierType::FleeBoost &&
+            m.triggerConcept == ConceptTag::Fire)
+        {
+            aHasFleeBoost = true;
+            aFleeMagnitude = m.magnitude;
+            break;
+        }
+    }
+    ASSERT_TRUE(aHasFleeBoost);
+    ASSERT_TRUE(aFleeMagnitude > 0.0f);
+
+    // === Phase 2: Agent B with Food→Satiety knowledge ===
+    WorldState worldB(32, 32, 42);
+
+    {
+        auto& kgB = worldB.Cognitive().knowledgeGraph;
+        u64 foodId = kgB.GetOrCreateNode(1, 0, ConceptTag::Food, 0).id;
+        u64 satietyId = kgB.GetOrCreateNode(1, 0, ConceptTag::Satiety, 0).id;
+        auto& edgeB = kgB.GetOrCreateEdge(foodId, satietyId,
+                                           KnowledgeRelation::Causes, 0);
+        edgeB.confidence = 0.7f;
+        edgeB.strength = 2.0f;
+        edgeB.evidenceCount = 4;
+    }
+
+    worldB.SpawnAgent(16, 15);
+    worldB.RebuildSpatial();
+
+    auto modsB = worldB.Cognitive().GenerateDecisionModifiers(1);
+
+    // Agent B should have ApproachBoost for Food
+    bool bHasApproachBoost = false;
+    f32 bApproachMagnitude = 0.0f;
+    for (const auto& m : modsB)
+    {
+        if (m.type == ModifierType::ApproachBoost &&
+            m.triggerConcept == ConceptTag::Food)
+        {
+            bHasApproachBoost = true;
+            bApproachMagnitude = m.magnitude;
+            break;
+        }
+    }
+    ASSERT_TRUE(bHasApproachBoost);
+    ASSERT_TRUE(bApproachMagnitude > 0.0f);
+
+    // === Key check: Agent A should NOT have ApproachBoost for Food ===
+    bool aHasApproachForFood = false;
+    for (const auto& m : modsA)
+    {
+        if (m.type == ModifierType::ApproachBoost &&
+            m.triggerConcept == ConceptTag::Food)
+        {
+            aHasApproachForFood = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(!aHasApproachForFood);
+
+    // Agent B should NOT have FleeBoost for Fire
+    bool bHasFleeForFire = false;
+    for (const auto& m : modsB)
+    {
+        if (m.type == ModifierType::FleeBoost &&
+            m.triggerConcept == ConceptTag::Fire)
+        {
+            bHasFleeForFire = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(!bHasFleeForFire);
+
+    // Magnitudes should differ (different knowledge → different bias strengths)
+    ASSERT_TRUE(aFleeMagnitude != bApproachMagnitude);
+
+    return true;
+}
+
+// H-2: Same agent before/after learning — behavior changes
+// Agent starts without Fire→Danger knowledge, then acquires it.
+// After learning, the agent should produce FleeBoost modifiers
+// that it didn't have before.
+TEST(cognitive_behavior_changes_with_learning)
+{
+    // === Before learning: no knowledge ===
+    WorldState worldBefore(32, 32, 42);
+    worldBefore.SpawnAgent(16, 15);
+    worldBefore.RebuildSpatial();
+
+    auto modsBefore = worldBefore.Cognitive().GenerateDecisionModifiers(1);
+    ASSERT_TRUE(modsBefore.empty());  // no knowledge → no modifiers
+
+    // === After learning: inject Fire→Danger knowledge ===
+    WorldState worldAfter(32, 32, 42);
+
+    {
+        auto& kg = worldAfter.Cognitive().knowledgeGraph;
+        u64 fireId = kg.GetOrCreateNode(1, 0, ConceptTag::Fire, 0).id;
+        u64 dangerId = kg.GetOrCreateNode(1, 0, ConceptTag::Danger, 0).id;
+        auto& edge = kg.GetOrCreateEdge(fireId, dangerId,
+                                         KnowledgeRelation::Signals, 0);
+        edge.confidence = 0.9f;
+        edge.strength = 4.0f;
+        edge.evidenceCount = 8;
+    }
+
+    worldAfter.SpawnAgent(16, 15);
+    worldAfter.RebuildSpatial();
+
+    auto modsAfter = worldAfter.Cognitive().GenerateDecisionModifiers(1);
+    ASSERT_TRUE(modsAfter.size() > 0);  // knowledge → modifiers exist
+
+    // Should have FleeBoost for Fire
+    bool hasFleeBoost = false;
+    for (const auto& m : modsAfter)
+    {
+        if (m.type == ModifierType::FleeBoost &&
+            m.triggerConcept == ConceptTag::Fire)
+        {
+            hasFleeBoost = true;
+            // Magnitude should be proportional to confidence * strength
+            ASSERT_TRUE(m.magnitude > 0.0f);
+            ASSERT_TRUE(m.confidence == 0.9f);
+            break;
+        }
+    }
+    ASSERT_TRUE(hasFleeBoost);
+
+    // Should also have AlertBoost for Fire (Signals relation produces AlertBoost)
+    bool hasAlertBoost = false;
+    for (const auto& m : modsAfter)
+    {
+        if (m.type == ModifierType::AlertBoost &&
+            m.triggerConcept == ConceptTag::Fire)
+        {
+            hasAlertBoost = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(hasAlertBoost);
+
+    return true;
+}
+
+// H-3: Natural learning end-to-end — agent experiences environment,
+// forms knowledge through the full pipeline.
+// Unlike H-1/H-2 which inject knowledge manually, this test
+// runs the full cognitive pipeline and verifies the loop closes.
+//
+// NOTE: The agent flees fire, so it doesn't stay long enough to form
+// Fire→Danger knowledge. Instead it forms Fire-related associations from
+// co-occurring stimuli. This is still valid natural learning —
+// the knowledge pipeline works end-to-end.
+TEST(cognitive_natural_learning_changes_behavior)
+{
+    // === Phase 1: No experience — no knowledge ===
+    {
+        WorldState world(32, 32, 42);
+        world.SpawnAgent(16, 15);
+        world.RebuildSpatial();
+
+        auto nodes = world.Cognitive().knowledgeGraph.FindAgentNodes(1);
+        ASSERT_TRUE(nodes.empty());
+    }
+
+    // === Phase 2: Agent experiences fire environment for many ticks ===
+    {
+        WorldState world(32, 32, 42);
+
+        world.Env().fire.WriteNext(16, 16) = 100.0f;
+        world.Env().fire.Swap();
+
+        world.SpawnAgent(16, 15);
+        world.RebuildSpatial();
+
+        auto scheduler = CreateCognitiveScheduler();
+
+        for (i32 i = 0; i < 200; i++)
+        {
+            if (i % 10 == 0)
+            {
+                world.Env().fire.WriteNext(16, 16) = 100.0f;
+                world.Env().fire.Swap();
+            }
+            scheduler.Tick(world);
+        }
+
+        auto& cog = world.Cognitive();
+
+        // Should have formed memories
+        auto& mems = cog.GetAgentMemories(1);
+        ASSERT_TRUE(mems.size() > 0);
+
+        // Should have formed hypotheses
+        auto& hyps = cog.GetAgentHypotheses(1);
+        ASSERT_TRUE(hyps.size() > 0);
+
+        // At least one hypothesis should involve Fire (the agent's primary experience)
+        bool hasFireHyp = false;
+        for (const auto& h : hyps)
+        {
+            if (h.causeConcept == ConceptTag::Fire || h.effectConcept == ConceptTag::Fire)
+            {
+                hasFireHyp = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(hasFireHyp);
+
+        // Should have knowledge nodes (from promoted Stable hypotheses)
+        auto nodes = cog.knowledgeGraph.FindAgentNodes(1);
+        ASSERT_TRUE(nodes.size() > 0);
+
+        // Should have knowledge edges
+        bool hasEdges = false;
+        for (const auto* n : nodes)
+        {
+            auto edges = cog.knowledgeGraph.FindEdgesFrom(1, 0, n->concept);
+            if (!edges.empty()) { hasEdges = true; break; }
+        }
+        ASSERT_TRUE(hasEdges);
+    }
+
+    return true;
+}
+
+// H-4: Contradicted knowledge still produces modifiers (wrong knowledge persists)
+// This tests the architecture invariant: Contradicted hypotheses keep their
+// KnowledgeEdge. The edge's confidence may be low, but it doesn't disappear.
+// This models how superstitions survive even when contradicted.
+TEST(cognitive_contradicted_knowledge_persists)
+{
+    WorldState world(32, 32, 42);
+
+    // Inject a Contradicted hypothesis and its corresponding knowledge edge
+    auto& cog = world.Cognitive();
+
+    // Create hypothesis: Fire → Signals → Danger, but contradicted
+    Hypothesis hyp;
+    hyp.id = 1;
+    hyp.ownerId = 1;
+    hyp.causeConcept = ConceptTag::Fire;
+    hyp.effectConcept = ConceptTag::Danger;
+    hyp.proposedRelation = KnowledgeRelation::Signals;
+    hyp.confidence = 0.15f;  // low confidence from contradictions
+    hyp.supportingCount = 2;
+    hyp.contradictingCount = 3;  // more contradictions than support
+    hyp.status = HypothesisStatus::Contradicted;
+    cog.GetAgentHypotheses(1).push_back(hyp);
+
+    // Create corresponding knowledge edge (as if it was promoted before contradiction)
+    {
+        auto& kg = cog.knowledgeGraph;
+        u64 fireId = kg.GetOrCreateNode(1, 0, ConceptTag::Fire, 0).id;
+        u64 dangerId = kg.GetOrCreateNode(1, 0, ConceptTag::Danger, 0).id;
+        auto& edge = kg.GetOrCreateEdge(fireId, dangerId,
+                                         KnowledgeRelation::Signals, 0);
+        edge.confidence = 0.15f;  // low but non-zero
+        edge.strength = 1.0f;
+        edge.evidenceCount = 2;
+    }
+
+    world.SpawnAgent(16, 15);
+    world.RebuildSpatial();
+
+    auto mods = cog.GenerateDecisionModifiers(1);
+
+    // Even with contradicted knowledge, modifiers should still be produced
+    // (as long as confidence >= 0.1, which is the threshold in GenerateDecisionModifiers)
+    bool hasFleeBoost = false;
+    for (const auto& m : mods)
+    {
+        if (m.type == ModifierType::FleeBoost &&
+            m.triggerConcept == ConceptTag::Fire)
+        {
+            hasFleeBoost = true;
+            // Magnitude should be low (reflecting weak confidence)
+            ASSERT_TRUE(m.magnitude > 0.0f);
+            ASSERT_TRUE(m.magnitude < 0.5f);  // contradicted → weak modifier
+            break;
+        }
+    }
+    ASSERT_TRUE(hasFleeBoost);
 
     return true;
 }

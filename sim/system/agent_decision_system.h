@@ -2,18 +2,19 @@
 
 // AgentDecisionSystem: runtime action selection based on perception + knowledge.
 //
-// This system scores three action candidates (flee, food, wander) using:
-// 1. Runtime sensor data (nearestFire, nearestSmell, localTemperature)
-// 2. Knowledge graph (learned danger/safety associations)
+// ARCHITECTURE NOTE: This system uses DecisionModifiers generated from the
+// knowledge graph, NOT hand-written knowledge checks. When a new knowledge
+// type is added (e.g. "SharpEdge →Causes→ Cut"), the modifier system
+// automatically produces an approach/avoidance bias. No code changes needed here.
 //
-// Knowledge feedback: if an agent has learned that Fire→Causes→Danger,
-// the flee score increases even if the fire is small. If an agent has
-// learned that Food→Causes→Satiety, the food approach score increases.
+// The only hard-coded logic is basic sensor thresholds (fire proximity,
+// hunger + smell). Knowledge-driven behavior comes from modifiers.
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"
 #include "sim/cognitive/concept_tag.h"
 #include "sim/cognitive/knowledge_relation.h"
+#include "sim/cognitive/decision_modifier.h"
 
 class AgentDecisionSystem : public ISystem
 {
@@ -28,46 +29,41 @@ public:
             f32 foodScore = 0.0f;
             f32 wanderScore = 0.1f;
 
-            // Base flee score from fire proximity
+            // === Base sensor-driven scoring ===
             if (agent.nearestFire > 10.0f)
                 fleeScore = agent.nearestFire * 2.0f;
 
-            // Knowledge feedback: known danger amplifies flee
-            // If agent knows Fire→Danger, even small fire triggers stronger flee
-            if (agent.nearestFire > 3.0f)
-            {
-                f32 fireDanger = cog.GetKnownDanger(agent.id, ConceptTag::Fire);
-                if (fireDanger > 0.0f)
-                    fleeScore += fireDanger * 50.0f;
-            }
-
-            // Knowledge feedback: smoke means fire nearby (if agent knows this)
-            // Uses cognitive summary from CognitivePerceptionSystem, NOT raw world field
-            if (cog.HasKnowledgeLink(agent.id, ConceptTag::Smoke,
-                                     ConceptTag::Fire, KnowledgeRelation::Signals))
-            {
-                auto smokeIt = cog.agentPerceivedSmoke.find(agent.id);
-                if (smokeIt != cog.agentPerceivedSmoke.end() && smokeIt->second > 5.0f)
-                    fleeScore += smokeIt->second * 3.0f;
-            }
-
-            // Base food score from hunger + smell
             if (agent.hunger > 30.0f && agent.nearestSmell > 5.0f)
                 foodScore = agent.hunger * agent.nearestSmell * 0.01f;
 
-            // Knowledge feedback: known food safety amplifies approach
-            if (agent.hunger > 20.0f)
-            {
-                if (cog.HasKnowledgeLink(agent.id, ConceptTag::Food,
-                                         ConceptTag::Satiety, KnowledgeRelation::Causes))
-                {
-                    foodScore *= 1.5f;  // 50% bonus: agent knows food is good
-                }
-            }
-
-            // Temperature wander
             if (agent.localTemperature > 40.0f)
                 wanderScore += (agent.localTemperature - 40.0f) * 0.1f;
+
+            // === Knowledge-driven scoring via DecisionModifiers ===
+            auto mods = cog.GenerateDecisionModifiers(agent.id);
+            for (const auto& mod : mods)
+            {
+                switch (mod.type)
+                {
+                case ModifierType::FleeBoost:
+                    // If agent perceives the trigger concept, boost flee
+                    if (IsConceptPerceived(agent, mod.triggerConcept, cog))
+                        fleeScore += mod.magnitude * 50.0f;
+                    break;
+
+                case ModifierType::ApproachBoost:
+                    // If agent perceives the trigger concept and is hungry, boost food
+                    if (IsConceptPerceived(agent, mod.triggerConcept, cog) && agent.hunger > 20.0f)
+                        foodScore += mod.magnitude * 30.0f;
+                    break;
+
+                case ModifierType::AlertBoost:
+                    // Alert boost: if agent perceives the signal, boost flee slightly
+                    if (IsConceptPerceived(agent, mod.triggerConcept, cog))
+                        fleeScore += mod.magnitude * 20.0f;
+                    break;
+                }
+            }
 
             if (fleeScore > foodScore && fleeScore > wanderScore)
                 agent.currentAction = AgentAction::Flee;
@@ -75,6 +71,33 @@ public:
                 agent.currentAction = AgentAction::MoveToFood;
             else
                 agent.currentAction = AgentAction::Wander;
+        }
+    }
+
+private:
+    // Check if agent currently perceives a concept (via cognitive summary)
+    bool IsConceptPerceived(const Agent& agent, ConceptTag concept,
+                             const CognitiveModule& cog) const
+    {
+        switch (concept)
+        {
+        case ConceptTag::Smoke:
+        {
+            auto it = cog.agentPerceivedSmoke.find(agent.id);
+            return it != cog.agentPerceivedSmoke.end() && it->second > 5.0f;
+        }
+        case ConceptTag::Fire:
+            return agent.nearestFire > 5.0f;
+        case ConceptTag::Food:
+        case ConceptTag::Meat:
+        case ConceptTag::Fruit:
+            return agent.nearestSmell > 5.0f;
+        case ConceptTag::Heat:
+            return agent.localTemperature > 35.0f;
+        case ConceptTag::Cold:
+            return agent.localTemperature < 5.0f;
+        default:
+            return false;
         }
     }
 };

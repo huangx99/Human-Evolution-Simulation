@@ -19,23 +19,38 @@ enum class HypothesisStatus : u8
 // Hypotheses can be WRONG — this is by design. Agents don't discover
 // truth; they form beliefs from limited experience.
 //
-// === LIFECYCLE ===
+// === LIFECYCLE (exact rules) ===
 //
-// Formation: CognitiveDiscoverySystem detects co-occurrence in memories.
-//   Initial state: Weak, confidence = 0.2, supportingCount = 1
+// 1. FORMATION (CognitiveDiscoverySystem):
+//    Two memories with related concepts observed within maxTickGap ticks.
+//    Initial: status=Weak, confidence=0.2, supportingCount=1
 //
-// Reinforcement: each time the co-occurrence is observed again:
-//   supportingCount++, confidence += 0.1 (capped at 1.0)
+// 2. REINFORCEMENT (CognitiveDiscoverySystem):
+//    Each time the same co-occurrence is observed:
+//      supportingCount += 1
+//      confidence = min(1.0, confidence + 0.1)
+//      lastObservedTick = now
 //
-// Promotion to Stable: when confidence >= 0.6 AND supportingCount >= 3
-//   → CognitiveKnowledgeSystem creates a KnowledgeEdge
+// 3. PROMOTION Weak → Stable (CognitiveDiscoverySystem):
+//    Condition: confidence >= 0.6 AND supportingCount >= 3
+//    Effect: CognitiveKnowledgeSystem creates a KnowledgeEdge
 //
-// Contradiction: when cause is observed but effect is NOT observed:
-//   contradictingCount++, confidence -= 0.1
-//   If contradictingCount > supportingCount → status = Contradicted
+// 4. CONTRADICTION (CognitiveDiscoverySystem):
+//    When causeConcept is observed but effectConcept is NOT observed
+//    (within maxTickGap/2 ticks of last observation):
+//      contradictingCount += 1
+//      confidence = max(0.0, confidence - 0.1)
 //
-// Contradicted hypotheses keep their KnowledgeEdge (wrong knowledge persists).
-// This models how real beliefs survive even when contradicted.
+// 5. DEMOTION Stable → Contradicted:
+//    Condition: contradictingCount > supportingCount
+//    Effect: status changes, but KnowledgeEdge PERSISTS
+//    (wrong knowledge sticks — this models real beliefs)
+//
+// 6. WRONG KNOWLEDGE PERSISTS:
+//    Contradicted hypotheses keep their KnowledgeEdge.
+//    The edge's confidence may be low, but it doesn't disappear.
+//    This models how superstitions, taboos, and misconceptions
+//    survive in real cultures even when contradicted.
 
 struct Hypothesis
 {

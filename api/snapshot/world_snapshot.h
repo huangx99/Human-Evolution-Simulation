@@ -68,7 +68,57 @@ struct CognitiveSnapshot
         size_t knowledgeNodeCount;
     };
 
+    // Per-agent debug: what the agent perceived, focused, remembers, believes
+    struct AgentDebugState
+    {
+        EntityId id;
+
+        // This tick's stimuli
+        struct StimulusInfo
+        {
+            u16 sense;
+            u32 concept;
+            f32 intensity;
+            f32 confidence;
+        };
+        std::vector<StimulusInfo> perceivedStimuli;
+        std::vector<StimulusInfo> focusedStimuli;
+
+        // Persistent state
+        struct HypothesisInfo
+        {
+            u32 causeConcept;
+            u32 effectConcept;
+            u8 relation;
+            f32 confidence;
+            u32 supportingCount;
+            u32 contradictingCount;
+            u8 status;  // 0=Weak, 1=Stable, 2=Contradicted
+        };
+        std::vector<HypothesisInfo> hypotheses;
+
+        struct KnowledgeEdgeInfo
+        {
+            u32 fromConcept;
+            u32 toConcept;
+            u8 relation;
+            f32 confidence;
+            u32 evidenceCount;
+        };
+        std::vector<KnowledgeEdgeInfo> knowledgeEdges;
+
+        // Decision modifiers active this tick
+        struct ModifierInfo
+        {
+            u8 type;  // ModifierType
+            u32 triggerConcept;
+            f32 magnitude;
+        };
+        std::vector<ModifierInfo> decisionModifiers;
+    };
+
     std::vector<AgentCognitiveState> agentStates;
+    std::vector<AgentDebugState> agentDebugStates;
 
     // Knowledge graph summary
     size_t totalKnowledgeNodes;
@@ -249,6 +299,89 @@ struct WorldSnapshot
                 }
 
                 snap.cognitive.agentStates.push_back(acs);
+            }
+
+            // Per-agent debug state (for cognitive debugging)
+            for (const auto& agent : world.Agents().agents)
+            {
+                CognitiveSnapshot::AgentDebugState ads;
+                ads.id = agent.id;
+
+                // Perceived stimuli this tick
+                for (const auto& s : cog.frameStimuli)
+                {
+                    if (s.observerId == agent.id)
+                    {
+                        ads.perceivedStimuli.push_back({
+                            static_cast<u16>(s.sense),
+                            static_cast<u32>(s.concept),
+                            s.intensity,
+                            s.confidence
+                        });
+                    }
+                }
+
+                // Focused stimuli this tick
+                for (const auto& f : cog.frameFocused)
+                {
+                    if (f.stimulus.observerId == agent.id)
+                    {
+                        ads.focusedStimuli.push_back({
+                            static_cast<u16>(f.stimulus.sense),
+                            static_cast<u32>(f.stimulus.concept),
+                            f.stimulus.intensity,
+                            f.attentionScore
+                        });
+                    }
+                }
+
+                // Hypotheses
+                auto hypIt = cog.agentHypotheses.find(agent.id);
+                if (hypIt != cog.agentHypotheses.end())
+                {
+                    for (const auto& h : hypIt->second)
+                    {
+                        ads.hypotheses.push_back({
+                            static_cast<u32>(h.causeConcept),
+                            static_cast<u32>(h.effectConcept),
+                            static_cast<u8>(h.proposedRelation),
+                            h.confidence,
+                            h.supportingCount,
+                            h.contradictingCount,
+                            static_cast<u8>(h.status)
+                        });
+                    }
+                }
+
+                // Knowledge edges
+                for (const auto& e : cog.knowledgeGraph.edges)
+                {
+                    const auto* fromNode = cog.knowledgeGraph.FindNodeById(e.fromNodeId);
+                    if (!fromNode || fromNode->ownerAgentId != agent.id) continue;
+                    const auto* toNode = cog.knowledgeGraph.FindNodeById(e.toNodeId);
+                    if (!toNode) continue;
+
+                    ads.knowledgeEdges.push_back({
+                        static_cast<u32>(fromNode->concept),
+                        static_cast<u32>(toNode->concept),
+                        static_cast<u8>(e.relation),
+                        e.confidence,
+                        e.evidenceCount
+                    });
+                }
+
+                // Decision modifiers
+                auto mods = cog.GenerateDecisionModifiers(agent.id);
+                for (const auto& m : mods)
+                {
+                    ads.decisionModifiers.push_back({
+                        static_cast<u8>(m.type),
+                        static_cast<u32>(m.triggerConcept),
+                        m.magnitude
+                    });
+                }
+
+                snap.cognitive.agentDebugStates.push_back(ads);
             }
         }
 
