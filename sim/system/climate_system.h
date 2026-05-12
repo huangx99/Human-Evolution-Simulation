@@ -1,5 +1,17 @@
 #pragma once
 
+// ClimateSystem: FIELD PROPAGATION ONLY.
+//
+// This system handles:
+//   - Temperature oscillation (day/night cycle via sine wave)
+//   - Humidity derivation from temperature
+//   - Wind direction randomization
+//
+// This system must NOT handle:
+//   - "Cold weather freezes water" → that's SemanticReactionSystem
+//   - "Wind spreads fire faster" → that's a reaction rule modifier, not climate logic
+//   - "Seasons affect growth" → entity capability/state, not field logic
+
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"
 #include <cmath>

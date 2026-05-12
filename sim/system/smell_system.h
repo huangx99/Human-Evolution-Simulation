@@ -1,5 +1,19 @@
 #pragma once
 
+// SmellSystem: FIELD PROPAGATION ONLY.
+//
+// This system handles:
+//   - Smell value decay over time
+//   - Smell diffusion to adjacent cells
+//   - Wind-driven smell transport
+//
+// This system must NOT handle:
+//   - "What produces smell" → that's SemanticReactionSystem (e.g. Dead+Flesh → EmitSmell)
+//   - "Rotting meat smells worse than rotting grass" → entity capabilities, not field logic
+//   - "Fire produces smoke smell" → should be a SemanticReactionRule (Burning → EmitSmell)
+//
+// If you need entity-aware smell behavior, create a SemanticReactionRule instead.
+
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"
 #include <cmath>
@@ -18,6 +32,7 @@ public:
         // Copy current to next
         info.smell.CopyCurrentToNext();
 
+        // Propagation: decay, diffusion, wind transport
         for (i32 y = 0; y < h; y++)
         {
             for (i32 x = 0; x < w; x++)
@@ -56,7 +71,11 @@ public:
             }
         }
 
-        // Fire emits smell
+        // BOUNDARY NOTE: "fire emits smell" is a semantic judgment.
+        // Ideally this should be a SemanticReactionRule:
+        //   HasCapability(HeatEmission) → EmitSmell(delta = intensity * 0.5)
+        // Kept here as a simple coupling for now. Move to reaction system when
+        // fire smell needs to depend on fuel type (wood smoke vs stone heat).
         for (i32 y = 0; y < h; y++)
         {
             for (i32 x = 0; x < w; x++)

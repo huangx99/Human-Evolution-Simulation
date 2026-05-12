@@ -1,5 +1,20 @@
 #pragma once
 
+// FireSystem: FIELD PROPAGATION ONLY.
+//
+// This system handles:
+//   - Fire intensity decay over time
+//   - Fire spread to adjacent cells (physics-based, not entity-based)
+//   - Temperature/humidity side-effects of existing fire
+//   - Danger field propagation
+//
+// This system must NOT handle:
+//   - "What catches fire" → that's SemanticReactionSystem (Flammable + Dry + Heat → Burning)
+//   - "What emits heat"  → that's SemanticReactionSystem (entity with HeatEmission capability)
+//   - "Torches burn differently from grass" → entity capabilities, not field logic
+//
+// If you need to add entity-aware fire behavior, create a SemanticReactionRule instead.
+
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"
 #include <cmath>
@@ -25,6 +40,7 @@ public:
 
                 if (current > 0.0f)
                 {
+                    // Propagation: fire decays, spreads, heats, dries
                     env.fire.WriteNext(x, y) = std::max(0.0f, current - burnRate);
                     SpreadFire(world, x, y, current);
                     env.temperature.WriteNext(x, y) += current * 0.05f;
@@ -33,6 +49,9 @@ public:
                 }
                 else
                 {
+                    // BOUNDARY NOTE: spontaneous ignition from temperature/humidity is a
+                    // semantic judgment ("hot+dry → fire"). Ideally this should be a
+                    // SemanticReactionRule. Kept here as a simple environment hazard for now.
                     f32 temp = env.temperature.At(x, y);
                     f32 hum = env.humidity.At(x, y);
                     if (temp > 50.0f && hum < 30.0f && sim.random.Next01() < 0.005f)
