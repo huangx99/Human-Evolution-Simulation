@@ -91,6 +91,18 @@ void CommandBuffer::Execute(WorldState& world, const Command& cmd)
         }
         break;
     }
+    case CommandType::ModifyHunger:
+    {
+        for (auto& agent : world.Agents().agents)
+        {
+            if (agent.id == cmd.entityId)
+            {
+                agent.hunger = std::max(0.0f, std::min(100.0f, agent.hunger + cmd.value));
+                break;
+            }
+        }
+        break;
+    }
     default:
         break;
     }

@@ -17,7 +17,6 @@ public:
     void Update(WorldState& world) override
     {
         auto& env = world.Env();
-        auto& info = world.Info();
         auto& sim = world.Sim();
 
         for (const auto& rule : rules)
@@ -44,26 +43,27 @@ private:
     bool CheckInputs(WorldState& world, i32 x, i32 y, const ReactionRule& rule)
     {
         auto& env = world.Env();
+        auto& info = world.Info();
 
         for (const auto& input : rule.inputs)
         {
-            if (input == "fire")
+            switch (input)
             {
+            case ElementId::Fire:
                 if (env.fire.At(x, y) <= 0.0f) return false;
-            }
-            else if (input == "dry_grass")
-            {
+                break;
+            case ElementId::DryGrass:
                 if (env.humidity.At(x, y) >= 35.0f) return false;
-            }
-            else if (input == "water")
-            {
+                break;
+            case ElementId::Water:
                 if (env.humidity.At(x, y) < 80.0f) return false;
+                break;
+            case ElementId::Smoke:
+                if (info.smoke.At(x, y) <= 0.0f) return false;
+                break;
+            default:
+                break;
             }
-            else if (input == "smoke")
-            {
-                if (world.Info().smoke.At(x, y) <= 0.0f) return false;
-            }
-            // Add more input types as needed
         }
         return true;
     }
@@ -77,26 +77,36 @@ private:
         {
             f32 fieldValue = 0.0f;
 
-            if (cond.field == "temperature")
+            switch (cond.field)
+            {
+            case FieldId::Temperature:
                 fieldValue = env.temperature.At(x, y);
-            else if (cond.field == "humidity")
+                break;
+            case FieldId::Humidity:
                 fieldValue = env.humidity.At(x, y);
-            else if (cond.field == "fire")
+                break;
+            case FieldId::Fire:
                 fieldValue = env.fire.At(x, y);
-            else if (cond.field == "smell")
+                break;
+            case FieldId::Smell:
                 fieldValue = info.smell.At(x, y);
-            else if (cond.field == "danger")
+                break;
+            case FieldId::Danger:
                 fieldValue = info.danger.At(x, y);
-            else if (cond.field == "smoke")
+                break;
+            case FieldId::Smoke:
                 fieldValue = info.smoke.At(x, y);
-            else if (cond.field == "wind_speed")
+                break;
+            case FieldId::WindSpeed:
             {
                 f32 wx = env.wind.x;
                 f32 wy = env.wind.y;
                 fieldValue = std::sqrt(wx * wx + wy * wy);
+                break;
             }
-            else
-                continue;  // Unknown field, skip
+            default:
+                continue;
+            }
 
             if (!EvaluateCondition(cond, fieldValue)) return false;
         }

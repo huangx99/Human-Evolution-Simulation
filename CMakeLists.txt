@@ -43,6 +43,7 @@ add_executable(human_evolution_tests
     app/tests/random_test.cpp
     app/tests/determinism_test.cpp
     app/tests/architecture_test.cpp
+    app/tests/ecology_test.cpp
 )
 target_link_libraries(human_evolution_tests
     human_evolution_core

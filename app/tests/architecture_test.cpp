@@ -155,7 +155,7 @@ TEST(snapshot_boundary)
 TEST(reaction_rule)
 {
     Condition cond;
-    cond.field = "temperature";
+    cond.field = FieldId::Temperature;
     cond.op = ConditionOp::Greater;
     cond.value = 50.0f;
 

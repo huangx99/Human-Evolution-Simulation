@@ -38,7 +38,7 @@ public:
                     if (temp > 50.0f && hum < 30.0f && sim.random.Next01() < 0.005f)
                     {
                         env.fire.WriteNext(x, y) = 40.0f;
-                        world.events.Publish({EventType::FireStarted, sim.clock.currentTick, 0, x, y, 40.0f});
+                        world.events.Emit({EventType::FireStarted, sim.clock.currentTick, 0, x, y, 40.0f});
                     }
                 }
             }
@@ -82,7 +82,7 @@ private:
             if (env.fire.At(nx, ny) <= 0.0f && sim.random.Next01() < adjustedChance)
             {
                 env.fire.WriteNext(nx, ny) = intensity * 0.6f;
-                world.events.Publish({EventType::FireStarted, sim.clock.currentTick, 0, nx, ny, intensity * 0.6f});
+                world.events.Emit({EventType::FireStarted, sim.clock.currentTick, 0, nx, ny, intensity * 0.6f});
             }
         }
     }

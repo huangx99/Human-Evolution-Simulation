@@ -4,6 +4,48 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <cmath>
+
+// Identifies a material/element in the world
+enum class ElementId : u16
+{
+    None = 0,
+
+    // Environment elements
+    Fire,
+    Water,
+    DryGrass,
+    Smoke,
+    Ash,
+
+    // Future: materials
+    Wood,
+    Stone,
+    Grass,
+    Dirt,
+    Sand,
+
+    Count
+};
+
+// Identifies a readable/writable field on a cell
+enum class FieldId : u16
+{
+    None = 0,
+
+    // Environment fields
+    Temperature,
+    Humidity,
+    Fire,
+    WindSpeed,
+
+    // Information fields
+    Smell,
+    Danger,
+    Smoke,
+
+    Count
+};
 
 enum class ConditionOp : u8
 {
@@ -16,7 +58,7 @@ enum class ConditionOp : u8
 
 struct Condition
 {
-    std::string field;      // "temperature", "humidity", "fire", "smell", "danger"
+    FieldId field = FieldId::None;
     ConditionOp op;
     f32 value;
 };
@@ -45,8 +87,8 @@ struct ReactionRule
     std::string id;
     std::string name;
 
-    // Inputs: what elements must be present
-    std::vector<std::string> inputs;  // "fire", "dry_grass", "water", etc.
+    // Inputs: what elements must be present at the cell
+    std::vector<ElementId> inputs;
 
     // Conditions: field-based checks
     std::vector<Condition> conditions;
@@ -58,9 +100,7 @@ struct ReactionRule
     bool repeatable = false;  // can trigger every tick
 };
 
-// Evaluate a condition against world fields
-using FieldGetter = std::function<f32(i32 x, i32 y)>;
-
+// Evaluate a condition against a field value
 inline bool EvaluateCondition(const Condition& cond, f32 fieldValue)
 {
     switch (cond.op)

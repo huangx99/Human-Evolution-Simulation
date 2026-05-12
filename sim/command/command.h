@@ -12,6 +12,7 @@ enum class CommandType : u8
     SetAgentAction,
     DamageAgent,
     FeedAgent,
+    ModifyHunger,
 
     // Environment commands
     IgniteFire,

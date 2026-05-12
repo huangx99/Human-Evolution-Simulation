@@ -15,7 +15,11 @@ public:
 
         for (auto& agent : world.Agents().agents)
         {
-            agent.hunger = std::min(100.0f, agent.hunger + 0.5f);
+            // Hunger increases every tick
+            world.commands.Submit(Command{
+                CommandType::ModifyHunger, sim.clock.currentTick,
+                agent.id, 0, 0, 0, 0, 0.5f
+            });
 
             i32 dx = 0, dy = 0;
 
@@ -75,32 +79,38 @@ public:
                 break;
             }
 
-            // Submit move command instead of direct modification
+            // Submit move command
             i32 newX = agent.position.x + dx;
             i32 newY = agent.position.y + dy;
             if (env.temperature.InBounds(newX, newY))
             {
-                world.commands.Push(Command{
+                world.commands.Submit(Command{
                     CommandType::MoveAgent, sim.clock.currentTick,
                     agent.id, 0, 0, newX, newY, 0.0f
                 });
             }
 
-            // Eating
+            // Eating: submit FeedAgent command
             if (info.smell.InBounds(agent.position.x, agent.position.y))
             {
                 if (info.smell.At(agent.position.x, agent.position.y) > 20.0f)
                 {
-                    agent.hunger = std::max(0.0f, agent.hunger - 5.0f);
+                    world.commands.Submit(Command{
+                        CommandType::FeedAgent, sim.clock.currentTick,
+                        agent.id, 0, 0, 0, 0, 5.0f
+                    });
                 }
             }
 
-            // Heat damage
+            // Heat damage: submit DamageAgent command
             if (agent.localTemperature > 50.0f)
             {
-                agent.health -= (agent.localTemperature - 50.0f) * 0.1f;
+                f32 damage = (agent.localTemperature - 50.0f) * 0.1f;
+                world.commands.Submit(Command{
+                    CommandType::DamageAgent, sim.clock.currentTick,
+                    agent.id, 0, 0, 0, 0, damage
+                });
             }
-            agent.health = std::max(0.0f, std::min(100.0f, agent.health));
         }
     }
 };

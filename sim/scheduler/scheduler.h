@@ -23,6 +23,12 @@ public:
             {
                 system->Update(world);
             }
+
+            // EventResolve phase: dispatch queued events
+            if (static_cast<SimPhase>(p) == SimPhase::EventResolve)
+            {
+                world.events.Dispatch();
+            }
         }
 
         // CommandApply phase: apply pending commands
