@@ -9,43 +9,47 @@ class FireSystem : public ISystem
 public:
     void Update(WorldState& world) override
     {
-        Grid<f32> newFire = world.fire;
+        Grid<f32> newFire = world.env.fire;
 
-        for (i32 y = 0; y < world.height; y++)
+        for (i32 y = 0; y < world.env.height; y++)
         {
-            for (i32 x = 0; x < world.width; x++)
+            for (i32 x = 0; x < world.env.width; x++)
             {
-                f32 current = world.fire.At(x, y);
+                f32 current = world.env.fire.At(x, y);
 
                 if (current > 0.0f)
                 {
-                    // Fire burns out slowly
                     newFire.At(x, y) = std::max(0.0f, current - burnRate);
-
-                    // Spread to neighbors
                     SpreadFire(world, newFire, x, y, current);
+                    world.env.temperature.At(x, y) += current * 0.05f;
+                    world.env.humidity.At(x, y) = std::max(0.0f, world.env.humidity.At(x, y) - current * 0.02f);
 
-                    // Fire heats the local temperature
-                    world.temperature.At(x, y) += current * 0.05f;
-
-                    // Fire reduces humidity
-                    world.humidity.At(x, y) = std::max(0.0f, world.humidity.At(x, y) - current * 0.02f);
+                    // Fire emits danger
+                    world.info.danger.At(x, y) = std::max(world.info.danger.At(x, y), current);
                 }
                 else
                 {
-                    // Spontaneous ignition: hot + dry + random chance
-                    f32 temp = world.temperature.At(x, y);
-                    f32 hum = world.humidity.At(x, y);
-
-                    if (temp > 50.0f && hum < 30.0f && world.random.Next01() < 0.005f)
+                    f32 temp = world.env.temperature.At(x, y);
+                    f32 hum = world.env.humidity.At(x, y);
+                    if (temp > 50.0f && hum < 30.0f && world.sim.random.Next01() < 0.005f)
                     {
                         newFire.At(x, y) = 40.0f;
+                        world.events.Publish({EventType::FireStarted, world.sim.clock.currentTick, 0, x, y, 40.0f});
                     }
                 }
             }
         }
 
-        world.fire = newFire;
+        // Decay danger field
+        for (i32 y = 0; y < world.env.height; y++)
+        {
+            for (i32 x = 0; x < world.env.width; x++)
+            {
+                world.info.danger.At(x, y) *= 0.9f;
+            }
+        }
+
+        world.env.fire = newFire;
     }
 
 private:
@@ -65,15 +69,15 @@ private:
             i32 nx = x + dx[i];
             i32 ny = y + dy[i];
 
-            if (!world.fire.InBounds(nx, ny)) continue;
+            if (!world.env.fire.InBounds(nx, ny)) continue;
 
-            // Fire spreads more easily to dry areas
-            f32 humidity = world.humidity.At(nx, ny);
+            f32 humidity = world.env.humidity.At(nx, ny);
             f32 adjustedChance = spreadChance * (1.0f - humidity / 100.0f);
 
-            if (world.fire.At(nx, ny) <= 0.0f && world.random.Next01() < adjustedChance)
+            if (world.env.fire.At(nx, ny) <= 0.0f && world.sim.random.Next01() < adjustedChance)
             {
                 newFire.At(nx, ny) = intensity * 0.6f;
+                world.events.Publish({EventType::FireStarted, world.sim.clock.currentTick, 0, nx, ny, intensity * 0.6f});
             }
         }
     }

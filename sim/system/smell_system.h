@@ -9,18 +9,18 @@ class SmellSystem : public ISystem
 public:
     void Update(WorldState& world) override
     {
-        Grid<f32> newSmell(world.width, world.height, 0.0f);
+        i32 w = world.info.width;
+        i32 h = world.info.height;
+        Grid<f32> newSmell(w, h, 0.0f);
 
-        for (i32 y = 0; y < world.height; y++)
+        for (i32 y = 0; y < h; y++)
         {
-            for (i32 x = 0; x < world.width; x++)
+            for (i32 x = 0; x < w; x++)
             {
-                f32 current = world.smell.At(x, y);
+                f32 current = world.info.smell.At(x, y);
 
-                // Step 1: Natural decay
                 f32 value = current * decayRate;
 
-                // Step 2: Diffusion - lose some to neighbors, gain from neighbors
                 f32 lossToNeighbors = 0.0f;
                 f32 gainFromNeighbors = 0.0f;
 
@@ -32,40 +32,39 @@ public:
                     i32 nx = x + dx[i];
                     i32 ny = y + dy[i];
 
-                    if (world.smell.InBounds(nx, ny))
+                    if (world.info.smell.InBounds(nx, ny))
                     {
                         lossToNeighbors += value * diffusionRate;
-                        gainFromNeighbors += world.smell.At(nx, ny) * diffusionRate * 0.25f;
+                        gainFromNeighbors += world.info.smell.At(nx, ny) * diffusionRate * 0.25f;
                     }
                 }
 
                 value = value - lossToNeighbors + gainFromNeighbors;
 
-                // Step 3: Wind - carry smell downwind
-                i32 wx = x - static_cast<i32>(world.wind.x);
-                i32 wy = y - static_cast<i32>(world.wind.y);
-                if (world.smell.InBounds(wx, wy))
+                i32 wx = x - static_cast<i32>(world.env.wind.x);
+                i32 wy = y - static_cast<i32>(world.env.wind.y);
+                if (world.info.smell.InBounds(wx, wy))
                 {
-                    value += world.smell.At(wx, wy) * windStrength;
+                    value += world.info.smell.At(wx, wy) * windStrength;
                 }
 
                 newSmell.At(x, y) = std::max(0.0f, value);
             }
         }
 
-        // Emit food smell from burning cells
-        for (i32 y = 0; y < world.height; y++)
+        // Fire emits smell (food source)
+        for (i32 y = 0; y < h; y++)
         {
-            for (i32 x = 0; x < world.width; x++)
+            for (i32 x = 0; x < w; x++)
             {
-                if (world.fire.At(x, y) > 5.0f)
+                if (world.env.fire.At(x, y) > 5.0f)
                 {
-                    newSmell.At(x, y) += world.fire.At(x, y) * 0.5f;
+                    newSmell.At(x, y) += world.env.fire.At(x, y) * 0.5f;
                 }
             }
         }
 
-        world.smell = newSmell;
+        world.info.smell = newSmell;
     }
 
 private:

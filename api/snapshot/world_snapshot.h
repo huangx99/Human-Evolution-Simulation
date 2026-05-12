@@ -23,7 +23,6 @@ struct WorldSnapshot
     i32 width, height;
     f32 windX, windY;
 
-    // Flattened field data (only sampled points to keep size manageable)
     struct CellSample
     {
         i32 x, y;
@@ -31,43 +30,45 @@ struct WorldSnapshot
         f32 humidity;
         f32 fire;
         f32 smell;
+        f32 danger;
     };
 
-    std::vector<CellSample> hotCells;   // cells with fire > 0 or smell > 1
+    std::vector<CellSample> hotCells;
     std::vector<AgentSnapshot> agents;
 
-    static WorldSnapshot Capture(const WorldState& world, f32 fireThreshold = 0.0f, f32 smellThreshold = 0.0f)
+    static WorldSnapshot Capture(const WorldState& world)
     {
         WorldSnapshot snap;
-        snap.tick = world.clock.currentTick;
-        snap.width = world.width;
-        snap.height = world.height;
-        snap.windX = world.wind.x;
-        snap.windY = world.wind.y;
+        snap.tick = world.sim.clock.currentTick;
+        snap.width = world.env.width;
+        snap.height = world.env.height;
+        snap.windX = world.env.wind.x;
+        snap.windY = world.env.wind.y;
 
-        const u64* rstate = world.random.GetState();
+        const u64* rstate = world.sim.random.GetState();
         snap.randomState[0] = rstate[0];
         snap.randomState[1] = rstate[1];
 
-        for (i32 y = 0; y < world.height; y++)
+        for (i32 y = 0; y < world.env.height; y++)
         {
-            for (i32 x = 0; x < world.width; x++)
+            for (i32 x = 0; x < world.env.width; x++)
             {
-                f32 f = world.fire.At(x, y);
-                f32 s = world.smell.At(x, y);
-                if (f > fireThreshold || s > smellThreshold)
+                f32 f = world.env.fire.At(x, y);
+                f32 s = world.info.smell.At(x, y);
+                f32 d = world.info.danger.At(x, y);
+                if (f > 0.0f || s > 1.0f || d > 0.0f)
                 {
                     snap.hotCells.push_back({
                         x, y,
-                        world.temperature.At(x, y),
-                        world.humidity.At(x, y),
-                        f, s
+                        world.env.temperature.At(x, y),
+                        world.env.humidity.At(x, y),
+                        f, s, d
                     });
                 }
             }
         }
 
-        for (const auto& agent : world.agents)
+        for (const auto& agent : world.agents.agents)
         {
             snap.agents.push_back({
                 agent.id,
@@ -80,13 +81,13 @@ struct WorldSnapshot
         return snap;
     }
 
-    // Serialize to deterministic text format
     std::string Serialize() const
     {
         std::ostringstream os;
         os << std::fixed << std::setprecision(2);
 
         os << "tick=" << tick << "\n";
+        os << "random_state=" << randomState[0] << "," << randomState[1] << "\n";
         os << "wind=" << windX << "," << windY << "\n";
         os << "hot_cells=" << hotCells.size() << "\n";
 
@@ -96,7 +97,8 @@ struct WorldSnapshot
                << " t=" << c.temperature
                << " h=" << c.humidity
                << " f=" << c.fire
-               << " s=" << c.smell << "\n";
+               << " s=" << c.smell
+               << " d=" << c.danger << "\n";
         }
 
         os << "agents=" << agents.size() << "\n";
