@@ -11,6 +11,11 @@
 // Reads: CognitiveModule::frameFocused.
 // Writes: CognitiveModule::frameMemories, agent persistent memories.
 // Also: emits CognitiveMemoryFormed events.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: CognitiveModule (frameFocused), AgentModule (agents)
+// WRITES: CognitiveModule (agentMemories, frameMemories)
+// PHASE: SimPhase::Perception
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

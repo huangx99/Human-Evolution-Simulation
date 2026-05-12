@@ -13,6 +13,11 @@
 //   - "Fire produces smoke smell" → should be a SemanticReactionRule (Burning → EmitSmell)
 //
 // If you need entity-aware smell behavior, create a SemanticReactionRule instead.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: InformationModule (smell)
+// WRITES: InformationModule (smell) via WriteNext
+// PHASE: SimPhase::Propagation
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

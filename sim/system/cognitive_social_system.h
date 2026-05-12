@@ -17,6 +17,11 @@
 // Pipeline position: runs in SimPhase::Action.
 // Reads: agent positions, agent actions.
 // Writes: CognitiveModule::frameSocialSignals only.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: AgentModule (agents), CognitiveModule (knowledgeGraph)
+// WRITES: CognitiveModule (frameSocialSignals) via EventBus
+// PHASE: SimPhase::Action
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

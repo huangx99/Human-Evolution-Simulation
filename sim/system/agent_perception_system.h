@@ -4,6 +4,11 @@
 #include "sim/world/world_state.h"
 #include <cmath>
 
+// OWNERSHIP: Engine (sim/system/)
+// READS: EnvironmentModule (fire, temperature), InformationModule (smell, danger), AgentModule (agents)
+// WRITES: AgentModule (perception fields: nearestFire, localTemperature, nearestSmell, localDanger)
+// PHASE: SimPhase::Perception
+
 class AgentPerceptionSystem : public ISystem
 {
 public:

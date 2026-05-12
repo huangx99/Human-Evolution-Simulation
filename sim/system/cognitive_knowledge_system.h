@@ -13,6 +13,11 @@
 // Pipeline position: runs AFTER CognitiveDiscoverySystem (same SimPhase::Decision).
 // Reads: CognitiveModule::agentHypotheses, frameDiscoveries.
 // Writes: CognitiveModule::knowledgeGraph.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: CognitiveModule (agentHypotheses, frameDiscoveries), AgentModule (agents), SimulationModule (clock)
+// WRITES: CognitiveModule (knowledgeGraph)
+// PHASE: SimPhase::Decision
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

@@ -183,8 +183,7 @@ static bool IsSpatialDirtyCommand(const Command& cmd)
     return std::visit([](const auto& inner) -> bool {
         return std::visit([](const auto& typed) -> bool {
             using T = std::decay_t<decltype(typed)>;
-            return std::is_same_v<T, MoveAgentCommand> ||
-                   std::is_same_v<T, AddEntityStateCommand> ||
+            return std::is_same_v<T, AddEntityStateCommand> ||
                    std::is_same_v<T, RemoveEntityStateCommand> ||
                    std::is_same_v<T, AddEntityCapabilityCommand> ||
                    std::is_same_v<T, RemoveEntityCapabilityCommand>;

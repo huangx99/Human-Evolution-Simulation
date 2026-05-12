@@ -4,6 +4,11 @@
 #include "sim/world/world_state.h"
 #include <cmath>
 
+// OWNERSHIP: Engine (sim/system/)
+// READS: AgentModule (agents), EnvironmentModule (fire, temperature), InformationModule (smell), SimulationModule (clock, random)
+// WRITES: AgentModule (position, hunger, health) via CommandBuffer (MoveAgentCommand, ModifyHungerCommand, FeedAgentCommand, DamageAgentCommand)
+// PHASE: SimPhase::Action
+
 class AgentActionSystem : public ISystem
 {
 public:

@@ -22,6 +22,11 @@
 // Pipeline position: runs in SimPhase::Decision.
 // Reads: CognitiveModule::agentMemories (recent episodic memories).
 // Writes: CognitiveModule::agentHypotheses, frameDiscoveries.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: CognitiveModule (agentMemories), AgentModule (agents), SimulationModule (clock)
+// WRITES: CognitiveModule (agentHypotheses, frameDiscoveries)
+// PHASE: SimPhase::Decision
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

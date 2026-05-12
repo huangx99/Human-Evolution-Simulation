@@ -8,6 +8,11 @@
 #include <vector>
 #include <cmath>
 
+// OWNERSHIP: Rule (rules/reaction/)
+// READS: EcologyModule (entities), EnvironmentModule (temperature, humidity, fire), InformationModule (smell, danger, smoke), SimulationModule (random, clock)
+// WRITES: EcologyModule (entity state, capabilities) via CommandBuffer, InformationModule (smell, smoke) via CommandBuffer, EnvironmentModule (fire, temperature) via CommandBuffer
+// PHASE: SimPhase::Reaction
+
 class SemanticReactionSystem : public ISystem
 {
 public:

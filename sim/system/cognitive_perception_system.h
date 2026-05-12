@@ -16,6 +16,11 @@
 // Pipeline position: runs AFTER AgentPerceptionSystem (same SimPhase::Perception).
 // Reads: Agent runtime fields, environment fields, ecology entities.
 // Writes: CognitiveModule::frameStimuli.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: EnvironmentModule (fire, temperature), InformationModule (smell, danger, smoke), AgentModule (agents), EcologyModule (entities)
+// WRITES: CognitiveModule (frameStimuli)
+// PHASE: SimPhase::Perception
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

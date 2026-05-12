@@ -9,6 +9,11 @@
 //
 // The only hard-coded logic is basic sensor thresholds (fire proximity,
 // hunger + smell). Knowledge-driven behavior comes from modifiers.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: AgentModule (agents), CognitiveModule (GenerateDecisionModifiers), EnvironmentModule (fire), InformationModule (smell)
+// WRITES: AgentModule (currentAction) via CommandBuffer (SetAgentActionCommand)
+// PHASE: SimPhase::Decision
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

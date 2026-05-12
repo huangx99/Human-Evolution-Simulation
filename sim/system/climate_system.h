@@ -11,6 +11,11 @@
 //   - "Cold weather freezes water" → that's SemanticReactionSystem
 //   - "Wind spreads fire faster" → that's a reaction rule modifier, not climate logic
 //   - "Seasons affect growth" → entity capability/state, not field logic
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: EnvironmentModule (temperature, humidity), SimulationModule (random)
+// WRITES: EnvironmentModule (temperature, humidity) via WriteNext
+// PHASE: SimPhase::Environment
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

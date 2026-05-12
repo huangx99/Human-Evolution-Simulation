@@ -14,6 +14,11 @@
 //   - "Torches burn differently from grass" → entity capabilities, not field logic
 //
 // If you need to add entity-aware fire behavior, create a SemanticReactionRule instead.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: EnvironmentModule (fire, temperature, humidity)
+// WRITES: EnvironmentModule (fire, temperature) via WriteNext
+// PHASE: SimPhase::Propagation
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

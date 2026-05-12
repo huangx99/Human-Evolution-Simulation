@@ -19,6 +19,11 @@
 // Pipeline position: runs AFTER CognitivePerceptionSystem (same SimPhase::Perception).
 // Reads: CognitiveModule::frameStimuli, agent state, knowledgeGraph.
 // Writes: CognitiveModule::frameFocused.
+//
+// OWNERSHIP: Engine (sim/system/)
+// READS: CognitiveModule (frameStimuli)
+// WRITES: CognitiveModule (frameFocused)
+// PHASE: SimPhase::Perception
 
 #include "sim/system/i_system.h"
 #include "sim/world/world_state.h"

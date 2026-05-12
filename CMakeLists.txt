@@ -22,6 +22,11 @@ target_include_directories(human_evolution_core PUBLIC ${CMAKE_SOURCE_DIR})
 add_library(human_evolution_sim INTERFACE)
 target_include_directories(human_evolution_sim INTERFACE ${CMAKE_SOURCE_DIR})
 
+# === Rules library (header-only, depends on sim) ===
+add_library(human_evolution_rules INTERFACE)
+target_include_directories(human_evolution_rules INTERFACE ${CMAKE_SOURCE_DIR})
+target_link_libraries(human_evolution_rules INTERFACE human_evolution_sim)
+
 # === Headless console app ===
 add_executable(human_evolution_sim_app
     app/headless_console/main.cpp
@@ -29,6 +34,7 @@ add_executable(human_evolution_sim_app
 target_link_libraries(human_evolution_sim_app
     human_evolution_core
     human_evolution_sim
+    human_evolution_rules
 )
 set_target_properties(human_evolution_sim_app PROPERTIES
     OUTPUT_NAME "human_evolution_sim"
@@ -49,6 +55,7 @@ add_executable(human_evolution_tests
 target_link_libraries(human_evolution_tests
     human_evolution_core
     human_evolution_sim
+    human_evolution_rules
 )
 target_compile_definitions(human_evolution_tests PRIVATE HE_DEBUG)
 
