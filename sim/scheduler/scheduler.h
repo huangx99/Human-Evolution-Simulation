@@ -16,28 +16,38 @@ public:
 
     void Tick(WorldState& world)
     {
-        // Execute all systems in phase order
         for (size_t p = 0; p < static_cast<size_t>(SimPhase::Count); p++)
         {
+            SimPhase phase = static_cast<SimPhase>(p);
+
+            // Run registered systems for this phase
             for (auto& system : systems[p])
             {
                 system->Update(world);
             }
 
-            // EventResolve phase: dispatch queued events
-            if (static_cast<SimPhase>(p) == SimPhase::EventResolve)
+            // Phase-specific built-in behavior
+            switch (phase)
             {
+            case SimPhase::BeginTick:
+                if (!world.spatial.IsInitialized())
+                    world.RebuildSpatial();
+                break;
+            case SimPhase::CommandApply:
+                world.commands.Apply(world);
+                break;
+            case SimPhase::EventResolve:
                 world.events.Dispatch();
+                break;
+            case SimPhase::EndTick:
+                world.Env().SwapAll();
+                world.Info().SwapAll();
+                world.Sim().clock.Step();
+                break;
+            default:
+                break;
             }
         }
-
-        // CommandApply phase: apply pending commands (auto-rebuilds spatial index)
-        world.commands.Apply(world);
-
-        // EndTick phase: swap field buffers and step clock
-        world.Env().SwapAll();
-        world.Info().SwapAll();
-        world.Sim().clock.Step();
     }
 
 private:

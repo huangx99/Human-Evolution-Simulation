@@ -157,14 +157,10 @@ void CommandBuffer::Execute(WorldState& world, const Command& cmd)
     case CommandType::ModifyFieldValue:
     {
         FieldId field = static_cast<FieldId>(cmd.targetX);
+        i32 mode = cmd.targetY; // 0=Add, 1=Set
         f32 newVal = cmd.value;
-        if (cmd.targetY == 1) // absolute set
+        if (mode == 0) // Add mode: current + value
         {
-            // setTo is already in cmd.value
-        }
-        else
-        {
-            // delta mode: read current + add
             f32 current = 0.0f;
             auto& env = world.Env();
             auto& info = world.Info();

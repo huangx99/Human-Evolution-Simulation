@@ -229,12 +229,8 @@ private:
             {
                 cmd.type = CommandType::ModifyFieldValue;
                 cmd.targetX = static_cast<i32>(effect.field);
-                cmd.value = effect.delta;
-                if (effect.delta == 0.0f)
-                {
-                    cmd.targetY = 1;
-                    cmd.value = effect.setTo;
-                }
+                cmd.targetY = static_cast<i32>(effect.mode);
+                cmd.value = effect.value;
                 world.commands.Submit(cmd);
                 break;
             }

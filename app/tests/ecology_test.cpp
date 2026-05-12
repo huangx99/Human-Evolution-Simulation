@@ -291,8 +291,9 @@ TEST(reaction_effect_types)
     ReactionEffect modTemp;
     modTemp.type = EffectType::ModifyField;
     modTemp.field = FieldId::Temperature;
-    modTemp.delta = 5.0f;
-    ASSERT_TRUE(modTemp.delta == 5.0f);
+    modTemp.mode = FieldModifyMode::Add;
+    modTemp.value = 5.0f;
+    ASSERT_TRUE(modTemp.value == 5.0f);
 
     return true;
 }

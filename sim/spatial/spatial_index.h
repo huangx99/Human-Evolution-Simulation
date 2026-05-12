@@ -20,6 +20,7 @@
 #include "sim/ecology/ecology_registry.h"
 #include <vector>
 #include <utility>
+#include <algorithm>
 
 class SpatialIndex
 {
@@ -27,11 +28,17 @@ public:
     SpatialIndex() = default;
 
     SpatialIndex(i32 worldW, i32 worldH, i32 chunkSize = 16)
-        : chunkSize(chunkSize)
+        : worldW(worldW), worldH(worldH)
+        , chunkSize(chunkSize)
         , chunksX((worldW + chunkSize - 1) / chunkSize)
         , chunksY((worldH + chunkSize - 1) / chunkSize)
         , chunks(chunksX * chunksY)
     {
+    }
+
+    bool InBounds(i32 x, i32 y) const
+    {
+        return x >= 0 && x < worldW && y >= 0 && y < worldH;
     }
 
     void Rebuild(EcologyRegistry& ecology)
@@ -41,23 +48,23 @@ public:
 
         for (auto& entity : ecology.All())
         {
-            if (entity.x >= 0 && entity.y >= 0)
+            if (InBounds(entity.x, entity.y))
             {
-                auto& chunk = ChunkAt(entity.x, entity.y);
-                chunk.entities.push_back(&entity);
+                ChunkAt(entity.x, entity.y).entities.push_back(&entity);
             }
         }
+        initialized = true;
     }
 
     void Insert(EcologyEntity& entity)
     {
-        if (entity.x >= 0 && entity.y >= 0)
+        if (InBounds(entity.x, entity.y))
             ChunkAt(entity.x, entity.y).entities.push_back(&entity);
     }
 
     void Remove(EcologyEntity& entity)
     {
-        if (entity.x < 0 || entity.y < 0) return;
+        if (!InBounds(entity.x, entity.y)) return;
         auto& chunk = ChunkAt(entity.x, entity.y);
         for (auto it = chunk.entities.begin(); it != chunk.entities.end(); ++it)
         {
@@ -69,7 +76,7 @@ public:
         }
     }
 
-    // All positions that have at least one entity
+    // Unique positions that have at least one entity
     std::vector<std::pair<i32, i32>> AllPositions() const
     {
         std::vector<std::pair<i32, i32>> positions;
@@ -77,7 +84,9 @@ public:
         {
             for (const auto* e : chunk.entities)
             {
-                positions.push_back({e->x, e->y});
+                std::pair<i32, i32> pos = {e->x, e->y};
+                if (std::find(positions.begin(), positions.end(), pos) == positions.end())
+                    positions.push_back(pos);
             }
         }
         return positions;
@@ -144,13 +153,17 @@ public:
         return result;
     }
 
+    bool IsInitialized() const { return initialized; }
     i32 ChunkCount() const { return chunksX * chunksY; }
     i32 GetChunkSize() const { return chunkSize; }
 
 private:
+    i32 worldW = 0;
+    i32 worldH = 0;
     i32 chunkSize = 16;
     i32 chunksX = 0;
     i32 chunksY = 0;
+    bool initialized = false;
     std::vector<SpatialChunk> chunks;
 
     SpatialChunk& ChunkAt(i32 x, i32 y)

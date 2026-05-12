@@ -159,7 +159,13 @@ Propagation → Perception → Decision → Action → CommandApply →
 EventResolve → Snapshot → EndTick
 ```
 
-系统注册到某个阶段，Scheduler 自动按序执行。
+系统注册到某个阶段，Scheduler 自动按序执行。每个阶段有内置行为：
+- **BeginTick**：检查 SpatialIndex 是否已初始化，未初始化则自动 Rebuild
+- **CommandApply**：执行 CommandBuffer（ecology 命令后自动重建 SpatialIndex）
+- **EventResolve**：分发 EventBus 中的事件
+- **EndTick**：Swap 所有 Field2D 双缓冲，时钟步进
+
+CommandApply 在 EventResolve 前执行，确保事件处理器看到的是命令执行后的世界状态。
 
 ### 生态语义层
 
@@ -225,6 +231,16 @@ addBurning.state = MaterialState::Burning;
 rule.effects = {addBurning};
 
 sys.AddRule(rule);
+```
+
+ModifyField 效果使用 `FieldModifyMode` 明确语义：
+
+```cpp
+ReactionEffect modTemp;
+modTemp.type = EffectType::ModifyField;
+modTemp.field = FieldId::Temperature;
+modTemp.mode = FieldModifyMode::Add;   // 或 FieldModifyMode::Set
+modTemp.value = 5.0f;
 ```
 
 ### 新增谓词类型

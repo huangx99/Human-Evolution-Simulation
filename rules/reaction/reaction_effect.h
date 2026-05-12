@@ -18,6 +18,12 @@ enum class EffectType : u8
     EmitSmoke,          // add to smoke field
 };
 
+enum class FieldModifyMode : u8
+{
+    Add,    // additive: current + value
+    Set,    // absolute: replace with value
+};
+
 struct ReactionEffect
 {
     EffectType type;
@@ -28,8 +34,11 @@ struct ReactionEffect
     // For AddCapability / RemoveCapability
     Capability capability = Capability::None;
 
-    // For ModifyField / EmitSmell / EmitSmoke
+    // For ModifyField
     FieldId field = FieldId::None;
-    f32 delta = 0.0f;       // additive change to field
-    f32 setTo = 0.0f;       // absolute set (if delta is 0, use setTo)
+    FieldModifyMode mode = FieldModifyMode::Add;
+    f32 value = 0.0f;       // delta (Add mode) or absolute (Set mode)
+
+    // For EmitSmell / EmitSmoke
+    f32 delta = 0.0f;       // additive change to smell/smoke field
 };

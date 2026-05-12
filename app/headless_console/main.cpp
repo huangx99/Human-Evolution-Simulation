@@ -7,6 +7,10 @@
 #include "sim/system/agent_perception_system.h"
 #include "sim/system/agent_decision_system.h"
 #include "sim/system/agent_action_system.h"
+#include "rules/reaction/semantic_reaction_system.h"
+#include "rules/reaction/semantic_predicate.h"
+#include "rules/reaction/reaction_effect.h"
+#include "rules/reaction/semantic_reaction_rule.h"
 #include "api/snapshot/world_snapshot.h"
 #include <iostream>
 #include <fstream>
@@ -87,6 +91,19 @@ void PrintWorldState(const WorldState& world, i32 interval)
                   << " action=" << actionStr << std::endl;
     }
 
+    // Ecology entities
+    auto& ecology = world.Ecology().entities;
+    for (const auto& entity : ecology.All())
+    {
+        std::cout << "  " << entity.name << " (" << entity.x << "," << entity.y << ")";
+        if (HasState(entity.state, MaterialState::Burning))   std::cout << " [BURNING]";
+        if (HasState(entity.state, MaterialState::Dead))      std::cout << " [DEAD]";
+        if (HasState(entity.state, MaterialState::Wet))       std::cout << " [WET]";
+        if (HasState(entity.state, MaterialState::Dry))       std::cout << " [DRY]";
+        if (entity.HasCapability(Capability::HeatEmission))   std::cout << " [HEAT]";
+        std::cout << std::endl;
+    }
+
     std::cout << std::endl;
 }
 
@@ -112,8 +129,102 @@ int main(int argc, char* argv[])
     world.SpawnAgent(10, 20);
     world.SpawnAgent(25, 10);
 
+    // Ecology entities
+    auto& ecology = world.Ecology().entities;
+
+    auto& hotStone = ecology.Create(MaterialId::Stone, "hot_stone");
+    hotStone.x = 16; hotStone.y = 16;
+    hotStone.AddCapability(Capability::HeatEmission);
+
+    auto& dryGrass = ecology.Create(MaterialId::DryGrass, "dry_grass");
+    dryGrass.x = 17; dryGrass.y = 16;
+
+    auto& dryGrass2 = ecology.Create(MaterialId::DryGrass, "dry_grass_2");
+    dryGrass2.x = 15; dryGrass2.y = 16;
+
+    auto& wetWood = ecology.Create(MaterialId::Wood, "wet_wood");
+    wetWood.x = 18; wetWood.y = 16;
+    wetWood.state = MaterialState::Wet;
+
+    auto& corpse = ecology.Create(MaterialId::Flesh, "corpse");
+    corpse.x = 8; corpse.y = 8;
+    corpse.state = MaterialState::Dead;
+
+    auto& coal = ecology.Create(MaterialId::Coal, "coal");
+    coal.x = 20; coal.y = 20;
+
+    world.RebuildSpatial();
+
+    // Reaction rules
+    auto reactionSys = std::make_unique<SemanticReactionSystem>();
+
+    // Ignition: Flammable + Dry + NearbyHeat → Burning + HeatEmission
+    {
+        SemanticReactionRule rule;
+        rule.id = "ignite";
+        rule.name = "Flammable+Dry+Heat → Burning";
+        rule.probability = 1.0f;
+
+        SemanticPredicate isFlammable;
+        isFlammable.type = PredicateType::HasCapability;
+        isFlammable.capability = Capability::Flammable;
+
+        SemanticPredicate isDry;
+        isDry.type = PredicateType::HasState;
+        isDry.state = MaterialState::Dry;
+
+        SemanticPredicate nearbyHeat;
+        nearbyHeat.type = PredicateType::NearbyCapability;
+        nearbyHeat.capability = Capability::HeatEmission;
+        nearbyHeat.radius = 2;
+
+        rule.conditions = {isFlammable, isDry, nearbyHeat};
+
+        ReactionEffect addBurning;
+        addBurning.type = EffectType::AddState;
+        addBurning.state = MaterialState::Burning;
+
+        ReactionEffect addHeat;
+        addHeat.type = EffectType::AddCapability;
+        addHeat.capability = Capability::HeatEmission;
+
+        rule.effects = {addBurning, addHeat};
+        reactionSys->AddRule(rule);
+    }
+
+    // Decay: Flesh + Dead + Temp>25 → EmitSmell
+    {
+        SemanticReactionRule rule;
+        rule.id = "decay";
+        rule.name = "Corpse decay in warm conditions";
+        rule.probability = 1.0f;
+
+        SemanticPredicate isFlesh;
+        isFlesh.type = PredicateType::HasMaterial;
+        isFlesh.material = MaterialId::Flesh;
+
+        SemanticPredicate isDead;
+        isDead.type = PredicateType::HasState;
+        isDead.state = MaterialState::Dead;
+
+        SemanticPredicate isWarm;
+        isWarm.type = PredicateType::FieldGreaterThan;
+        isWarm.field = FieldId::Temperature;
+        isWarm.value = 25.0f;
+
+        rule.conditions = {isFlesh, isDead, isWarm};
+
+        ReactionEffect emitSmell;
+        emitSmell.type = EffectType::EmitSmell;
+        emitSmell.delta = 5.0f;
+
+        rule.effects = {emitSmell};
+        reactionSys->AddRule(rule);
+    }
+
     Scheduler scheduler;
     scheduler.AddSystem(SimPhase::Environment,  std::make_unique<ClimateSystem>());
+    scheduler.AddSystem(SimPhase::Reaction,     std::move(reactionSys));
     scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<FireSystem>());
     scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<SmellSystem>());
     scheduler.AddSystem(SimPhase::Perception,   std::make_unique<AgentPerceptionSystem>());
