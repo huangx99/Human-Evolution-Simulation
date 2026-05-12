@@ -40,7 +40,8 @@ public:
                 }
                 else
                 {
-                    // SameCell: predicates can be satisfied by different entities.
+                    // CellWide: predicates can be satisfied by different entities.
+                    // Effects apply to ALL entities in the cell — use only for environment reactions.
                     if (!EvaluatePredicates(world, x, y, rule, spatial)) continue;
                     SubmitEffects(world, x, y, rule);
                 }
@@ -233,6 +234,18 @@ private:
         auto& env = world.Env();
         auto& info = world.Info();
 
+        // WindSpeed is global, not spatial — no bounds check needed
+        if (field == FieldId::WindSpeed)
+        {
+            f32 wx = env.wind.x;
+            f32 wy = env.wind.y;
+            return std::sqrt(wx * wx + wy * wy);
+        }
+
+        // All other fields are spatial — reject invalid coordinates
+        if (!IsFieldInBounds(env, info, x, y, field))
+            return 0.0f;
+
         switch (field)
         {
         case FieldId::Temperature: return env.temperature.At(x, y);
@@ -241,13 +254,22 @@ private:
         case FieldId::Smell:       return info.smell.At(x, y);
         case FieldId::Danger:      return info.danger.At(x, y);
         case FieldId::Smoke:       return info.smoke.At(x, y);
-        case FieldId::WindSpeed:
-        {
-            f32 wx = env.wind.x;
-            f32 wy = env.wind.y;
-            return std::sqrt(wx * wx + wy * wy);
-        }
         default: return 0.0f;
+        }
+    }
+
+    static bool IsFieldInBounds(EnvironmentModule& env, InformationModule& info,
+                                i32 x, i32 y, FieldId field)
+    {
+        switch (field)
+        {
+        case FieldId::Temperature: return env.temperature.InBounds(x, y);
+        case FieldId::Humidity:    return env.humidity.InBounds(x, y);
+        case FieldId::Fire:        return env.fire.InBounds(x, y);
+        case FieldId::Smell:       return info.smell.InBounds(x, y);
+        case FieldId::Danger:      return info.danger.InBounds(x, y);
+        case FieldId::Smoke:       return info.smoke.InBounds(x, y);
+        default: return false;
         }
     }
 

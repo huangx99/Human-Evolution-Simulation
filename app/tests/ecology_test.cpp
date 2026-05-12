@@ -848,7 +848,7 @@ TEST(reaction_same_cell_applies_to_all)
     SemanticReactionSystem sys;
 
     auto rule = MakeIgnitionRule();
-    rule.targetMode = ReactionTargetMode::SameCell;  // explicit opt-in
+    rule.targetMode = ReactionTargetMode::CellWide;  // explicit opt-in
     sys.AddRule(rule);
 
     sys.Update(world);
