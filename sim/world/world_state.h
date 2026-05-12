@@ -8,24 +8,31 @@
 #include "sim/world/ecology_module.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
+#include "sim/spatial/spatial_index.h"
 
 struct WorldState
 {
     ModuleRegistry modules;
     EventBus events;
     CommandBuffer commands;
+    SpatialIndex spatial;
 
     i32 width;
     i32 height;
 
     WorldState(i32 w, i32 h, u64 seed)
-        : width(w), height(h)
+        : width(w), height(h), spatial(w, h)
     {
         modules.Register<SimulationModule>(seed);
         modules.Register<EnvironmentModule>(w, h);
         modules.Register<InformationModule>(w, h);
         modules.Register<AgentModule>();
         modules.Register<EcologyModule>();
+    }
+
+    void RebuildSpatial()
+    {
+        spatial.Rebuild(Ecology().entities);
     }
 
     SimulationModule& Sim() { return modules.Get<SimulationModule>(); }

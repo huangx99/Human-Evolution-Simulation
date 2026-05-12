@@ -2,24 +2,24 @@
 
 #include "sim/ecology/ecology_entity.h"
 #include "core/types/types.h"
-#include <vector>
+#include <deque>
 #include <string>
 
 // Manages all ecology entities in the world.
-// Provides creation, lookup, and query by capability/affordance.
+// Uses deque so pointers/references remain valid across insertions.
 class EcologyRegistry
 {
 public:
     // Create an entity with a base material
     EcologyEntity& Create(MaterialId material, const std::string& name = "")
     {
-        EcologyEntity entity;
+        entities.push_back({});
+        auto& entity = entities.back();
         entity.id = nextId++;
         entity.material = material;
         entity.state = MaterialDB::GetDefaultState(material);
         entity.name = name;
-        entities.push_back(std::move(entity));
-        return entities.back();
+        return entity;
     }
 
     // Find entity by ID
@@ -124,12 +124,12 @@ public:
     }
 
     // Access all entities
-    std::vector<EcologyEntity>& All() { return entities; }
-    const std::vector<EcologyEntity>& All() const { return entities; }
+    std::deque<EcologyEntity>& All() { return entities; }
+    const std::deque<EcologyEntity>& All() const { return entities; }
 
     size_t Count() const { return entities.size(); }
 
 private:
-    std::vector<EcologyEntity> entities;
+    std::deque<EcologyEntity> entities;
     EntityId nextId = 1;
 };

@@ -515,11 +515,10 @@ TEST(semantic_exec_hot_stone)
     auto& dryGrass = ecology.Create(MaterialId::DryGrass, "dry_grass");
     dryGrass.x = 6; dryGrass.y = 5;
 
-    // Add ignition rule
+    // Build spatial index, then run one tick
+    world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
-
-    // Run one tick: evaluate → submit commands → apply
     sys.Update(world);
     world.commands.Apply(world);
 
@@ -548,6 +547,7 @@ TEST(semantic_exec_torch_ignites)
     auto& dryGrass = ecology.Create(MaterialId::DryGrass, "dry_grass");
     dryGrass.x = 5; dryGrass.y = 6;
 
+    world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
     sys.Update(world);
@@ -575,6 +575,7 @@ TEST(semantic_exec_wet_wood_no_burn)
     wetWood.x = 6; wetWood.y = 5;
     wetWood.state = MaterialState::Wet;  // override default Dry state
 
+    world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
     sys.Update(world);
@@ -631,6 +632,7 @@ TEST(semantic_exec_rotten_meat)
 
     rule.effects = {emitSmell};
 
+    world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(rule);
     sys.Update(world);
@@ -659,6 +661,7 @@ TEST(semantic_exec_wet_grass_no_burn)
     wetGrass.x = 6; wetGrass.y = 5;
     wetGrass.state = MaterialState::Wet;
 
+    world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
     sys.Update(world);

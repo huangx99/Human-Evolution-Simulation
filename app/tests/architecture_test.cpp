@@ -8,6 +8,7 @@
 #include "sim/event/event_bus.h"
 #include "sim/command/command.h"
 #include "rules/reaction/semantic_predicate.h"
+#include "sim/spatial/spatial_index.h"
 #include "api/snapshot/world_snapshot.h"
 #include <memory>
 
@@ -188,6 +189,52 @@ TEST(expansion_new_field)
     diseaseField.WriteNext(3, 3) = 75.0f;
     diseaseField.Swap();
     ASSERT_EQ(diseaseField.At(3, 3), 75.0f);
+
+    return true;
+}
+
+// Test: SpatialIndex basic operations
+TEST(spatial_index_basics)
+{
+    WorldState world(32, 32, 42);
+    auto& ecology = world.Ecology().entities;
+
+    // deque guarantees pointer/reference stability across insertions
+    auto& e1 = ecology.Create(MaterialId::Stone, "stone1");
+    e1.x = 3; e1.y = 3;   // chunk (0,0)
+
+    auto& e2 = ecology.Create(MaterialId::Wood, "wood1");
+    e2.x = 20; e2.y = 5;  // chunk (1,0)
+
+    auto& e3 = ecology.Create(MaterialId::Grass, "grass1");
+    e3.x = 20; e3.y = 20; // chunk (1,1)
+
+    world.RebuildSpatial();
+
+    // AllPositions should return 3 positions
+    auto positions = world.spatial.AllPositions();
+    ASSERT_EQ(static_cast<i32>(positions.size()), 3);
+
+    // QueryArea around (3,3) radius 0 should find e1
+    auto q1 = world.spatial.QueryArea(3, 3, 0);
+    ASSERT_EQ(static_cast<i32>(q1.size()), 1);
+    ASSERT_EQ(q1[0]->id, e1.id);
+
+    // QueryArea around (20,5) radius 0 should find e2
+    auto q2 = world.spatial.QueryArea(20, 5, 0);
+    ASSERT_EQ(static_cast<i32>(q2.size()), 1);
+    ASSERT_EQ(q2[0]->id, e2.id);
+
+    // QueryArea around (0,0) radius 30 should find all 3
+    auto q3 = world.spatial.QueryArea(0, 0, 30);
+    ASSERT_EQ(static_cast<i32>(q3.size()), 3);
+
+    // QueryAreaWithCapability for Flammable should find e2 (Wood) and e3 (Grass)
+    auto q4 = world.spatial.QueryAreaWithCapability(0, 0, 30, Capability::Flammable);
+    ASSERT_EQ(static_cast<i32>(q4.size()), 2);
+
+    // Chunk count for 32x32 world with chunk size 16 = 2x2 = 4
+    ASSERT_EQ(world.spatial.ChunkCount(), 4);
 
     return true;
 }

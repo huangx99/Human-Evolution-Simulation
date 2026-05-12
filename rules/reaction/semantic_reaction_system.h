@@ -18,20 +18,19 @@ public:
 
     void Update(WorldState& world) override
     {
-        auto& env = world.Env();
         auto& sim = world.Sim();
+        auto& spatial = world.spatial;
+
+        auto positions = spatial.AllPositions();
 
         for (const auto& rule : rules)
         {
-            for (i32 y = 0; y < env.height; y++)
+            for (auto& [x, y] : positions)
             {
-                for (i32 x = 0; x < env.width; x++)
-                {
-                    if (!EvaluatePredicates(world, x, y, rule)) continue;
-                    if (sim.random.Next01() > rule.probability) continue;
+                if (!EvaluatePredicates(world, x, y, rule, spatial)) continue;
+                if (sim.random.Next01() > rule.probability) continue;
 
-                    SubmitEffects(world, x, y, rule);
-                }
+                SubmitEffects(world, x, y, rule);
             }
         }
     }
@@ -39,52 +38,61 @@ public:
 private:
     std::vector<SemanticReactionRule> rules;
 
-    bool EvaluatePredicates(WorldState& world, i32 x, i32 y, const SemanticReactionRule& rule)
+    bool EvaluatePredicates(WorldState& world, i32 x, i32 y,
+                            const SemanticReactionRule& rule, const SpatialIndex& spatial)
     {
         for (const auto& pred : rule.conditions)
         {
-            if (!EvaluatePredicate(world, x, y, pred)) return false;
+            if (!EvaluatePredicate(world, x, y, pred, spatial)) return false;
         }
         return true;
     }
 
-    bool EvaluatePredicate(WorldState& world, i32 x, i32 y, const SemanticPredicate& pred)
+    bool EvaluatePredicate(WorldState& world, i32 x, i32 y,
+                           const SemanticPredicate& pred, const SpatialIndex& spatial)
     {
         auto& env = world.Env();
         auto& info = world.Info();
-        auto& ecology = world.Ecology().entities;
 
         switch (pred.type)
         {
         case PredicateType::HasCapability:
         {
-            for (auto* e : ecology.At(x, y))
+            auto nearby = spatial.QueryArea(x, y, 0);
+            for (auto* e : nearby)
             {
-                if (e->HasCapability(pred.capability)) return true;
+                if (e->x == x && e->y == y && e->HasCapability(pred.capability))
+                    return true;
             }
             return false;
         }
         case PredicateType::HasAffordance:
         {
-            for (auto* e : ecology.At(x, y))
+            auto nearby = spatial.QueryArea(x, y, 0);
+            for (auto* e : nearby)
             {
-                if (e->HasAffordance(pred.affordance)) return true;
+                if (e->x == x && e->y == y && e->HasAffordance(pred.affordance))
+                    return true;
             }
             return false;
         }
         case PredicateType::HasState:
         {
-            for (auto* e : ecology.At(x, y))
+            auto nearby = spatial.QueryArea(x, y, 0);
+            for (auto* e : nearby)
             {
-                if (e->HasState(pred.state)) return true;
+                if (e->x == x && e->y == y && e->HasState(pred.state))
+                    return true;
             }
             return false;
         }
         case PredicateType::HasMaterial:
         {
-            for (auto* e : ecology.At(x, y))
+            auto nearby = spatial.QueryArea(x, y, 0);
+            for (auto* e : nearby)
             {
-                if (e->material == pred.material) return true;
+                if (e->x == x && e->y == y && e->material == pred.material)
+                    return true;
             }
             return false;
         }
@@ -105,45 +113,27 @@ private:
         }
         case PredicateType::NearbyCapability:
         {
-            auto& env = world.Env();
-            for (i32 dy = -pred.radius; dy <= pred.radius; dy++)
+            auto nearby = spatial.QueryAreaWithCapability(x, y, pred.radius, pred.capability);
+            for (auto* e : nearby)
             {
-                for (i32 dx = -pred.radius; dx <= pred.radius; dx++)
-                {
-                    if (dx == 0 && dy == 0) continue;
-                    i32 nx = x + dx;
-                    i32 ny = y + dy;
-                    if (!env.temperature.InBounds(nx, ny)) continue;
-                    f32 dist = std::sqrt(static_cast<f32>(dx * dx + dy * dy));
-                    if (dist > pred.radius) continue;
-
-                    for (auto* e : ecology.At(nx, ny))
-                    {
-                        if (e->HasCapability(pred.capability)) return true;
-                    }
-                }
+                if (e->x == x && e->y == y) continue;
+                f32 dx = static_cast<f32>(e->x - x);
+                f32 dy = static_cast<f32>(e->y - y);
+                f32 dist = std::sqrt(dx * dx + dy * dy);
+                if (dist <= pred.radius) return true;
             }
             return false;
         }
         case PredicateType::NearbyState:
         {
-            auto& env = world.Env();
-            for (i32 dy = -pred.radius; dy <= pred.radius; dy++)
+            auto nearby = spatial.QueryAreaWithState(x, y, pred.radius, pred.state);
+            for (auto* e : nearby)
             {
-                for (i32 dx = -pred.radius; dx <= pred.radius; dx++)
-                {
-                    if (dx == 0 && dy == 0) continue;
-                    i32 nx = x + dx;
-                    i32 ny = y + dy;
-                    if (!env.temperature.InBounds(nx, ny)) continue;
-                    f32 dist = std::sqrt(static_cast<f32>(dx * dx + dy * dy));
-                    if (dist > pred.radius) continue;
-
-                    for (auto* e : ecology.At(nx, ny))
-                    {
-                        if (e->HasState(pred.state)) return true;
-                    }
-                }
+                if (e->x == x && e->y == y) continue;
+                f32 dx = static_cast<f32>(e->x - x);
+                f32 dy = static_cast<f32>(e->y - y);
+                f32 dist = std::sqrt(dx * dx + dy * dy);
+                if (dist <= pred.radius) return true;
             }
             return false;
         }
@@ -242,7 +232,7 @@ private:
                 cmd.value = effect.delta;
                 if (effect.delta == 0.0f)
                 {
-                    cmd.targetY = 1; // flag: use setTo
+                    cmd.targetY = 1;
                     cmd.value = effect.setTo;
                 }
                 world.commands.Submit(cmd);
