@@ -1,32 +1,26 @@
 #pragma once
 
 #include "sim/world/module_registry.h"
-#include "core/container/field2d.h"
-#include "core/types/types.h"
+#include "sim/field/field_ref.h"
+
+// DEPRECATED alias facade — spatial fields delegate to FieldModule.
+// Use FieldModule via world.Fields() in new code.
+// Wind is scalar (not 2D), so kept as plain f32 and synced separately.
 
 struct EnvironmentModule : public IModule
 {
-    i32 width;
-    i32 height;
-
-    Field2D<f32> temperature;
-    Field2D<f32> humidity;
-    Field2D<f32> fire;
+    FieldRef temperature;
+    FieldRef humidity;
+    FieldRef fire;
 
     struct Wind { f32 x = 0.0f; f32 y = 0.0f; } wind;
 
-    EnvironmentModule(i32 w, i32 h)
-        : width(w), height(h)
-        , temperature(w, h, 20.0f)
-        , humidity(w, h, 50.0f)
-        , fire(w, h, 0.0f)
+    EnvironmentModule(FieldModule& fm)
+        : temperature(&fm, fm.FindByKey(FieldKey("human_evolution.temperature")))
+        , humidity(&fm, fm.FindByKey(FieldKey("human_evolution.humidity")))
+        , fire(&fm, fm.FindByKey(FieldKey("human_evolution.fire")))
     {
     }
 
-    void SwapAll()
-    {
-        temperature.Swap();
-        humidity.Swap();
-        fire.Swap();
-    }
+    void SwapAll() {}  // no-op — FieldModule.SwapAll() handles spatial fields
 };

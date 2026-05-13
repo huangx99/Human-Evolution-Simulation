@@ -1,10 +1,10 @@
 #include "test_framework.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include "sim/world/module_registry.h"
 #include "core/container/field2d.h"
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
-#include "sim/system/climate_system.h"
+#include "rules/human_evolution/environment/climate_system.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command.h"
 #include "rules/reaction/semantic_predicate.h"
@@ -24,10 +24,9 @@ TEST(module_registration)
     ASSERT_TRUE(world.modules.Has<AgentModule>());
     ASSERT_TRUE(world.modules.Has<EcologyModule>());
 
-    // Should be able to access
-    auto& env = world.modules.Get<EnvironmentModule>();
-    ASSERT_EQ(env.width, 8);
-    ASSERT_EQ(env.height, 8);
+    // Should be able to access world dimensions
+    ASSERT_EQ(world.Width(), 8);
+    ASSERT_EQ(world.Height(), 8);
 
     return true;
 }
@@ -59,9 +58,15 @@ TEST(scheduler_phase_order)
         PhaseTracker(SimPhase phase, std::vector<SimPhase>& order)
             : phase(phase), order(order) {}
 
-        void Update(WorldState&) override
+        void Update(SystemContext&) override
         {
             order.push_back(phase);
+        }
+
+        SystemDescriptor Descriptor() const override
+        {
+            static const char* const DEPS[] = {};
+            return {"PhaseTracker", phase, nullptr, 0, nullptr, 0, DEPS, 0, true, true};
         }
 
     private:
@@ -227,9 +232,9 @@ TEST(semantic_predicate_construction)
 
     SemanticPredicate fieldPred;
     fieldPred.type = PredicateType::FieldGreaterThan;
-    fieldPred.field = FieldId::Temperature;
+    fieldPred.field = FieldKey("human_evolution.temperature");
     fieldPred.value = 50.0f;
-    ASSERT_TRUE(fieldPred.field == FieldId::Temperature);
+    ASSERT_TRUE(fieldPred.field == FieldKey("human_evolution.temperature"));
     ASSERT_TRUE(fieldPred.value > 49.0f);
 
     return true;

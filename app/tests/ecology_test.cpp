@@ -1,5 +1,5 @@
 #include "test_framework.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include "sim/ecology/material_id.h"
 #include "sim/ecology/material_state.h"
 #include "sim/ecology/capability.h"
@@ -7,7 +7,7 @@
 #include "sim/ecology/material_db.h"
 #include "sim/ecology/ecology_entity.h"
 #include "sim/ecology/ecology_registry.h"
-#include "sim/ecology/field_id.h"
+#include "sim/field/field_id.h"
 #include "rules/reaction/semantic_predicate.h"
 #include "rules/reaction/reaction_effect.h"
 #include "rules/reaction/semantic_reaction_rule.h"
@@ -185,7 +185,7 @@ TEST(ecology_demo_capability_reaction)
     // Predicate: humidity must be low
     SemanticPredicate dryAir;
     dryAir.type = PredicateType::FieldLessThan;
-    dryAir.field = FieldId::Humidity;
+    dryAir.field = FieldKey("human_evolution.humidity");
     dryAir.value = 35.0f;
 
     rule.conditions = {heatSource, dryAir};
@@ -261,9 +261,9 @@ TEST(semantic_predicate_types)
     // FieldGreaterThan predicate
     SemanticPredicate hotField;
     hotField.type = PredicateType::FieldGreaterThan;
-    hotField.field = FieldId::Temperature;
+    hotField.field = FieldKey("human_evolution.temperature");
     hotField.value = 40.0f;
-    ASSERT_TRUE(hotField.field == FieldId::Temperature);
+    ASSERT_TRUE(hotField.field == FieldKey("human_evolution.temperature"));
 
     // NearbyCapability predicate
     SemanticPredicate nearbyHeat;
@@ -290,7 +290,7 @@ TEST(reaction_effect_types)
 
     ReactionEffect modTemp;
     modTemp.type = EffectType::ModifyField;
-    modTemp.field = FieldId::Temperature;
+    modTemp.field = FieldKey("human_evolution.temperature");
     modTemp.mode = FieldModifyMode::Add;
     modTemp.value = 5.0f;
     ASSERT_TRUE(modTemp.value == 5.0f);
@@ -366,7 +366,7 @@ TEST(semantic_rain_extinguish)
 
     SemanticPredicate highHumidity;
     highHumidity.type = PredicateType::FieldGreaterThan;
-    highHumidity.field = FieldId::Humidity;
+    highHumidity.field = FieldKey("human_evolution.humidity");
     highHumidity.value = 80.0f;
 
     rule.conditions = {isBurning, highHumidity};
@@ -407,14 +407,14 @@ TEST(semantic_corpse_decay)
 
     SemanticPredicate isWarm;
     isWarm.type = PredicateType::FieldGreaterThan;
-    isWarm.field = FieldId::Temperature;
+    isWarm.field = FieldKey("human_evolution.temperature");
     isWarm.value = 25.0f;
 
     rule.conditions = {isOrganic, isDead, isWarm};
 
     ReactionEffect emitSmell;
     emitSmell.type = EffectType::EmitSmell;
-    emitSmell.field = FieldId::Smell;
+    emitSmell.field = FieldKey("human_evolution.smell");
     emitSmell.delta = 1.0f;
 
     rule.effects = {emitSmell};
@@ -520,7 +520,7 @@ TEST(semantic_exec_hot_stone)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
 
     // Verify: dry grass should now be Burning and have HeatEmission
@@ -551,7 +551,7 @@ TEST(semantic_exec_torch_ignites)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
 
     ASSERT_TRUE(dryGrass.HasState(MaterialState::Burning));
@@ -579,7 +579,7 @@ TEST(semantic_exec_wet_wood_no_burn)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
 
     // Verify: wet wood should NOT be Burning
@@ -621,14 +621,14 @@ TEST(semantic_exec_rotten_meat)
 
     SemanticPredicate isWarm;
     isWarm.type = PredicateType::FieldGreaterThan;
-    isWarm.field = FieldId::Temperature;
+    isWarm.field = FieldKey("human_evolution.temperature");
     isWarm.value = 25.0f;
 
     rule.conditions = {isFlesh, isDead, isWarm};
 
     ReactionEffect emitSmell;
     emitSmell.type = EffectType::EmitSmell;
-    emitSmell.field = FieldId::Smell;
+    emitSmell.field = FieldKey("human_evolution.smell");
     emitSmell.delta = 5.0f;
 
     rule.effects = {emitSmell};
@@ -636,7 +636,7 @@ TEST(semantic_exec_rotten_meat)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(rule);
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
     world.Info().smell.Swap();
 
@@ -665,7 +665,7 @@ TEST(semantic_exec_wet_grass_no_burn)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
 
     ASSERT_TRUE(!wetGrass.HasState(MaterialState::Burning));
@@ -693,7 +693,7 @@ TEST(extension_coal_ignites_grass)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
 
     // Coal's HeatEmission should ignite the dry grass
@@ -733,7 +733,7 @@ TEST(extension_rotting_plant_smell)
 
     SemanticPredicate isWarm;
     isWarm.type = PredicateType::FieldGreaterThan;
-    isWarm.field = FieldId::Temperature;
+    isWarm.field = FieldKey("human_evolution.temperature");
     isWarm.value = 20.0f;
 
     rule.conditions = {isDead, isDecomposing, isWarm};
@@ -747,7 +747,7 @@ TEST(extension_rotting_plant_smell)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(rule);
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
     world.Info().smell.Swap();
 
@@ -774,7 +774,7 @@ TEST(extension_coal_no_ignite_wet)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(MakeIgnitionRule());
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
 
     // Wet grass should NOT burn — rule requires Dry state
@@ -812,7 +812,7 @@ TEST(reaction_same_entity_no_cross_contamination)
     ASSERT_TRUE(rule.targetMode == ReactionTargetMode::SameEntity);
     sys.AddRule(rule);
 
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
 
     // dry_grass IS Flammable+Dry → should burn
@@ -851,7 +851,7 @@ TEST(reaction_same_cell_applies_to_all)
     rule.targetMode = ReactionTargetMode::CellWide;  // explicit opt-in
     sys.AddRule(rule);
 
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
 
     // Both should burn in SameCell mode
@@ -898,7 +898,7 @@ TEST(reaction_same_entity_corpse_decay)
 
     SemanticPredicate isWarm;
     isWarm.type = PredicateType::FieldGreaterThan;
-    isWarm.field = FieldId::Temperature;
+    isWarm.field = FieldKey("human_evolution.temperature");
     isWarm.value = 25.0f;
 
     rule.conditions = {isFlesh, isDead, isWarm};
@@ -911,7 +911,7 @@ TEST(reaction_same_entity_corpse_decay)
     world.RebuildSpatial();
     SemanticReactionSystem sys;
     sys.AddRule(rule);
-    sys.Update(world);
+    { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
     world.Info().smell.Swap();
 
@@ -959,7 +959,7 @@ TEST(command_modify_field_bounds_check)
 
     // Try to modify a field at invalid coordinates
     world.commands.Push(0,
-        ModifyFieldValueCommand{-1, -1, FieldId::Temperature, 0, 999.0f});
+        ModifyFieldValueCommand{-1, -1, FieldKey("human_evolution.temperature"), 0, 999.0f});
     world.commands.Apply(world);
 
     // Should not crash — bounds check rejects the command

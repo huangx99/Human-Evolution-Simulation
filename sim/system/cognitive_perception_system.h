@@ -23,15 +23,16 @@
 // PHASE: SimPhase::Perception
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include "sim/cognitive/concept_tag.h"
 #include <cmath>
 
 class CognitivePerceptionSystem : public ISystem
 {
 public:
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& env = world.Env();
         auto& info = world.Info();
         auto& cog = world.Cognitive();
@@ -175,6 +176,21 @@ public:
                 cog.frameStimuli.push_back(s);
             }
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Environment, AccessMode::Read},
+            {ModuleTag::Information, AccessMode::Read},
+            {ModuleTag::Agent, AccessMode::Read},
+            {ModuleTag::Ecology, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Cognitive, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {};
+        return {"CognitivePerceptionSystem", SimPhase::Perception, READS, 4, WRITES, 1, DEPS, 0, true, false};
     }
 
 private:

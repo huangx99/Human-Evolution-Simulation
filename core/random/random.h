@@ -7,16 +7,16 @@ class Random
 public:
     explicit Random(u64 seed);
 
-    u32 NextU32();
-    u64 NextU64();
-    f32 Next01();
-    i32 NextRange(i32 min, i32 max);
+    u32 NextU32() const;
+    u64 NextU64() const;
+    f32 Next01() const;
+    i32 NextRange(i32 min, i32 max) const;
 
     const u64* GetState() const { return state; }
 
 private:
-    u64 state[2];
+    mutable u64 state[2];
 
-    u64 Rotl(u64 x, i32 k);
-    u64 NextU64Internal();
+    u64 Rotl(u64 x, i32 k) const;
+    u64 NextU64Internal() const;
 };

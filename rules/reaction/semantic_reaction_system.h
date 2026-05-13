@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include "rules/reaction/semantic_reaction_rule.h"
 #include "sim/command/command.h"
 #include "sim/event/event.h"
@@ -21,8 +21,9 @@ public:
         rules.push_back(rule);
     }
 
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& sim = world.Sim();
         auto& spatial = world.spatial;
 
@@ -52,6 +53,24 @@ public:
                 }
             }
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Ecology, AccessMode::Read},
+            {ModuleTag::Environment, AccessMode::Read},
+            {ModuleTag::Information, AccessMode::Read},
+            {ModuleTag::Simulation, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Ecology, AccessMode::Write},
+            {ModuleTag::Information, AccessMode::Write},
+            {ModuleTag::Environment, AccessMode::Write},
+            {ModuleTag::Event, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {};
+        return {"SemanticReactionSystem", SimPhase::Reaction, READS, 4, WRITES, 4, DEPS, 0, true, false};
     }
 
 private:
@@ -234,48 +253,13 @@ private:
         }
     }
 
-    f32 GetFieldValue(WorldState& world, i32 x, i32 y, FieldId field)
+    f32 GetFieldValue(WorldState& world, i32 x, i32 y, FieldKey field)
     {
-        auto& env = world.Env();
-        auto& info = world.Info();
-
-        // WindSpeed is global, not spatial — no bounds check needed
-        if (field == FieldId::WindSpeed)
-        {
-            f32 wx = env.wind.x;
-            f32 wy = env.wind.y;
-            return std::sqrt(wx * wx + wy * wy);
-        }
-
-        // All other fields are spatial — reject invalid coordinates
-        if (!IsFieldInBounds(env, info, x, y, field))
-            return 0.0f;
-
-        switch (field)
-        {
-        case FieldId::Temperature: return env.temperature.At(x, y);
-        case FieldId::Humidity:    return env.humidity.At(x, y);
-        case FieldId::Fire:        return env.fire.At(x, y);
-        case FieldId::Smell:       return info.smell.At(x, y);
-        case FieldId::Danger:      return info.danger.At(x, y);
-        case FieldId::Smoke:       return info.smoke.At(x, y);
-        default: return 0.0f;
-        }
-    }
-
-    static bool IsFieldInBounds(EnvironmentModule& env, InformationModule& info,
-                                i32 x, i32 y, FieldId field)
-    {
-        switch (field)
-        {
-        case FieldId::Temperature: return env.temperature.InBounds(x, y);
-        case FieldId::Humidity:    return env.humidity.InBounds(x, y);
-        case FieldId::Fire:        return env.fire.InBounds(x, y);
-        case FieldId::Smell:       return info.smell.InBounds(x, y);
-        case FieldId::Danger:      return info.danger.InBounds(x, y);
-        case FieldId::Smoke:       return info.smoke.InBounds(x, y);
-        default: return false;
-        }
+        auto& fm = world.Fields();
+        auto idx = fm.FindByKey(field);
+        if (!idx) return 0.0f;
+        if (!fm.InBounds(idx, x, y)) return 0.0f;
+        return fm.Read(idx, x, y);
     }
 
     // --- Effect submission ---

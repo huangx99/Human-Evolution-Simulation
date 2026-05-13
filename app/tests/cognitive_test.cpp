@@ -2,9 +2,9 @@
 #include "sim/world/world_state.h"
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
-#include "sim/system/climate_system.h"
-#include "sim/system/fire_system.h"
-#include "sim/system/smell_system.h"
+#include "rules/human_evolution/environment/climate_system.h"
+#include "rules/human_evolution/environment/fire_system.h"
+#include "rules/human_evolution/environment/smell_system.h"
 #include "sim/system/agent_perception_system.h"
 #include "sim/system/agent_decision_system.h"
 #include "sim/system/agent_action_system.h"
@@ -201,15 +201,21 @@ TEST(cognitive_memory_decay)
     }
     ASSERT_TRUE(peakFireStrength > 0.0f);
 
-    // Remove fire completely
-    world.Env().fire.current.Fill(0.0f);
-    world.Env().fire.next.Fill(0.0f);
+    // Remove fire and clear all stimuli to prevent new memory formation
+    world.Env().fire.FillBoth(0.0f);
+    world.Env().temperature.FillBoth(20.0f);
+    world.Info().smell.FillBoth(0.0f);
+    world.Info().danger.FillBoth(0.0f);
+    world.Info().smoke.FillBoth(0.0f);
 
     // Run enough ticks for ShortTerm memories to decay (0.98^100 ≈ 0.13)
     for (i32 i = 0; i < 100; i++)
     {
-        world.Env().fire.current.Fill(0.0f);
-        world.Env().fire.next.Fill(0.0f);
+        world.Env().fire.FillBoth(0.0f);
+        world.Env().temperature.FillBoth(20.0f);
+        world.Info().smell.FillBoth(0.0f);
+        world.Info().danger.FillBoth(0.0f);
+        world.Info().smoke.FillBoth(0.0f);
         scheduler.Tick(world);
     }
 
@@ -911,13 +917,11 @@ TEST(cognitive_memory_decay_unreinforced)
     ASSERT_TRUE(peakStrength > 0.0f);
 
     // Remove fire and run many ticks without reinforcement
-    world.Env().fire.current.Fill(0.0f);
-    world.Env().fire.next.Fill(0.0f);
+    world.Env().fire.FillBoth(0.0f);
 
     for (i32 i = 0; i < 100; i++)
     {
-        world.Env().fire.current.Fill(0.0f);
-        world.Env().fire.next.Fill(0.0f);
+        world.Env().fire.FillBoth(0.0f);
         scheduler.Tick(world);
     }
 

@@ -5,7 +5,7 @@
 #include "sim/ecology/affordance.h"
 #include "sim/ecology/material_state.h"
 #include "sim/ecology/material_id.h"
-#include "sim/ecology/field_id.h"
+#include "sim/field/field_id.h"
 
 enum class PredicateType : u8
 {
@@ -37,7 +37,7 @@ struct SemanticPredicate
     MaterialId material = MaterialId::None;
 
     // For FieldGreaterThan / FieldLessThan / FieldEquals
-    FieldId field = FieldId::None;
+    FieldKey field;
     f32 value = 0.0f;
 
     // For NearbyCapability / NearbyState

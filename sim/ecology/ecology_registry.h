@@ -128,6 +128,12 @@ public:
     const std::deque<EcologyEntity>& All() const { return entities; }
 
     size_t Count() const { return entities.size(); }
+    EntityId NextId() const { return nextId; }
+
+    // State management for replay save/restore
+    void Clear() { entities.clear(); }
+    void InsertCopy(const EcologyEntity& e) { entities.push_back(e); }
+    void SetNextId(EntityId id) { nextId = id; }
 
 private:
     std::deque<EcologyEntity> entities;

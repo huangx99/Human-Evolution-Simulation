@@ -18,14 +18,15 @@
 // PHASE: SimPhase::Perception
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include "sim/cognitive/concept_tag.h"
 
 class CognitiveMemorySystem : public ISystem
 {
 public:
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& cog = world.Cognitive();
         auto& sim = world.Sim();
 
@@ -72,6 +73,19 @@ public:
                 mem.strength
             });
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Cognitive, AccessMode::Read},
+            {ModuleTag::Agent, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Cognitive, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {"CognitiveAttentionSystem"};
+        return {"CognitiveMemorySystem", SimPhase::Perception, READS, 2, WRITES, 1, DEPS, 1, true, false};
     }
 
 private:

@@ -89,7 +89,7 @@ struct ReplayLog
                         os << " entity=" << typed.id << " cap=0x" << std::hex << typed.capability << std::dec;
                     else if constexpr (std::is_same_v<T, ModifyFieldValueCommand>)
                         os << " pos=" << typed.x << "," << typed.y
-                           << " field=" << static_cast<int>(typed.field)
+                           << " field=" << typed.field.value
                            << " mode=" << typed.mode << " value=" << typed.value;
                     else if constexpr (std::is_same_v<T, EmitSmokeCommand>)
                         os << " pos=" << typed.x << "," << typed.y << " amount=" << typed.amount;

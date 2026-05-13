@@ -38,6 +38,9 @@ public:
     i32 Width() const { return width; }
     i32 Height() const { return height; }
 
+    const T* Data() const { return data.data(); }
+    size_t DataSize() const { return data.size(); }
+
 private:
     i32 width;
     i32 height;

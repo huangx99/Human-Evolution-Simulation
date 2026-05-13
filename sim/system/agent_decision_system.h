@@ -16,7 +16,7 @@
 // PHASE: SimPhase::Decision
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include "sim/cognitive/concept_tag.h"
 #include "sim/cognitive/knowledge_relation.h"
 #include "sim/cognitive/decision_modifier.h"
@@ -24,8 +24,9 @@
 class AgentDecisionSystem : public ISystem
 {
 public:
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& cog = world.Cognitive();
 
         for (auto& agent : world.Agents().agents)
@@ -77,6 +78,21 @@ public:
             else
                 agent.currentAction = AgentAction::Wander;
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Agent, AccessMode::Read},
+            {ModuleTag::Cognitive, AccessMode::Read},
+            {ModuleTag::Environment, AccessMode::Read},
+            {ModuleTag::Information, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Command, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {};
+        return {"AgentDecisionSystem", SimPhase::Decision, READS, 4, WRITES, 1, DEPS, 0, true, false};
     }
 
 private:

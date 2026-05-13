@@ -20,7 +20,7 @@
 
 #include "core/types/types.h"
 #include "sim/entity/agent_action.h"
-#include "sim/ecology/field_id.h"
+#include "sim/field/field_id.h"
 #include <variant>
 #include <type_traits>
 
@@ -73,7 +73,7 @@ struct AddEntityStateCommand         { EntityId id; u32 state; };
 struct RemoveEntityStateCommand      { EntityId id; u32 state; };
 struct AddEntityCapabilityCommand    { EntityId id; u32 capability; };
 struct RemoveEntityCapabilityCommand { EntityId id; u32 capability; };
-struct ModifyFieldValueCommand       { i32 x, y; FieldId field; i32 mode; f32 value; };
+struct ModifyFieldValueCommand       { i32 x, y; FieldKey field; i32 mode; f32 value; };
 struct EmitSmokeCommand              { i32 x, y; f32 amount; };
 
 // === Sub-variants by domain (prevents type explosion) ===

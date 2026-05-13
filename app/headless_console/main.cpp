@@ -1,9 +1,9 @@
 #include "sim/world/world_state.h"
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
-#include "sim/system/climate_system.h"
-#include "sim/system/fire_system.h"
-#include "sim/system/smell_system.h"
+#include "rules/human_evolution/environment/climate_system.h"
+#include "rules/human_evolution/environment/fire_system.h"
+#include "rules/human_evolution/environment/smell_system.h"
 #include "sim/system/agent_perception_system.h"
 #include "sim/system/agent_decision_system.h"
 #include "sim/system/agent_action_system.h"
@@ -60,8 +60,8 @@ void PrintWorldState(const WorldState& world, i32 interval)
 
     std::cout << "=== Tick: " << world.Sim().clock.currentTick << " ===" << std::endl;
 
-    i32 cx = env.width / 2;
-    i32 cy = env.height / 2;
+    i32 cx = world.Width() / 2;
+    i32 cy = world.Height() / 2;
     std::cout << "Temperature (center): " << std::fixed << std::setprecision(1)
               << env.temperature.At(cx, cy) << " C" << std::endl;
     std::cout << "Humidity (center): " << env.humidity.At(cx, cy) << "%" << std::endl;
@@ -70,9 +70,9 @@ void PrintWorldState(const WorldState& world, i32 interval)
 
     i32 fireCount = 0;
     f32 maxFire = 0.0f;
-    for (i32 y = 0; y < env.height; y++)
+    for (i32 y = 0; y < world.Height(); y++)
     {
-        for (i32 x = 0; x < env.width; x++)
+        for (i32 x = 0; x < world.Width(); x++)
         {
             f32 f = env.fire.At(x, y);
             if (f > 0.0f) { fireCount++; if (f > maxFire) maxFire = f; }
@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
 
         SemanticPredicate isWarm;
         isWarm.type = PredicateType::FieldGreaterThan;
-        isWarm.field = FieldId::Temperature;
+        isWarm.field = FieldKey("human_evolution.temperature");
         isWarm.value = 25.0f;
 
         rule.conditions = {isFlesh, isDead, isWarm};

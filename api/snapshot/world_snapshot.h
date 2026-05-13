@@ -172,8 +172,8 @@ struct WorldSnapshot
     {
         WorldSnapshot snap;
         snap.tick = world.Sim().clock.currentTick;
-        snap.width = world.Env().width;
-        snap.height = world.Env().height;
+        snap.width = world.Width();
+        snap.height = world.Height();
         snap.windX = world.Env().wind.x;
         snap.windY = world.Env().wind.y;
 

@@ -1,6 +1,6 @@
 #include "sim/command/command_buffer.h"
 #include "sim/world/world_state.h"
-#include "sim/ecology/field_id.h"
+#include "sim/field/field_module.h"
 
 // === ExecuteOne overloads — one per concrete command type ===
 
@@ -124,50 +124,16 @@ static void ExecuteOne(WorldState& world, const RemoveEntityCapabilityCommand& c
 
 static void ExecuteOne(WorldState& world, const ModifyFieldValueCommand& cmd)
 {
-    auto& env = world.Env();
-    auto& info = world.Info();
-
-    // Bounds check — reject commands with invalid coordinates
-    bool inBounds = false;
-    switch (cmd.field)
-    {
-    case FieldId::Temperature: inBounds = env.temperature.InBounds(cmd.x, cmd.y); break;
-    case FieldId::Humidity:    inBounds = env.humidity.InBounds(cmd.x, cmd.y); break;
-    case FieldId::Fire:        inBounds = env.fire.InBounds(cmd.x, cmd.y); break;
-    case FieldId::Smell:       inBounds = info.smell.InBounds(cmd.x, cmd.y); break;
-    case FieldId::Danger:      inBounds = info.danger.InBounds(cmd.x, cmd.y); break;
-    case FieldId::Smoke:       inBounds = info.smoke.InBounds(cmd.x, cmd.y); break;
-    default: break;
-    }
-    if (!inBounds) return;
+    auto& fm = world.Fields();
+    auto idx = fm.FindByKey(cmd.field);
+    if (!idx) return;
+    if (!fm.InBounds(idx, cmd.x, cmd.y)) return;
 
     f32 newVal = cmd.value;
     if (cmd.mode == 0) // Add mode: current + value
-    {
-        f32 current = 0.0f;
-        switch (cmd.field)
-        {
-        case FieldId::Temperature: current = env.temperature.At(cmd.x, cmd.y); break;
-        case FieldId::Humidity:    current = env.humidity.At(cmd.x, cmd.y); break;
-        case FieldId::Fire:        current = env.fire.At(cmd.x, cmd.y); break;
-        case FieldId::Smell:       current = info.smell.At(cmd.x, cmd.y); break;
-        case FieldId::Danger:      current = info.danger.At(cmd.x, cmd.y); break;
-        case FieldId::Smoke:       current = info.smoke.At(cmd.x, cmd.y); break;
-        default: break;
-        }
-        newVal = current + cmd.value;
-    }
+        newVal = fm.Read(idx, cmd.x, cmd.y) + cmd.value;
 
-    switch (cmd.field)
-    {
-    case FieldId::Temperature: env.temperature.WriteNext(cmd.x, cmd.y) = newVal; break;
-    case FieldId::Humidity:    env.humidity.WriteNext(cmd.x, cmd.y) = newVal; break;
-    case FieldId::Fire:        env.fire.WriteNext(cmd.x, cmd.y) = newVal; break;
-    case FieldId::Smell:       info.smell.WriteNext(cmd.x, cmd.y) = newVal; break;
-    case FieldId::Danger:      info.danger.WriteNext(cmd.x, cmd.y) = newVal; break;
-    case FieldId::Smoke:       info.smoke.WriteNext(cmd.x, cmd.y) = newVal; break;
-    default: break;
-    }
+    fm.WriteNext(idx, cmd.x, cmd.y, newVal);
 }
 
 static void ExecuteOne(WorldState& world, const EmitSmokeCommand& cmd)

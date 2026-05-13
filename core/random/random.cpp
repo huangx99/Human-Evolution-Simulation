@@ -16,12 +16,12 @@ Random::Random(u64 seed)
     state[1] = SplitMix64(z);
 }
 
-u64 Random::Rotl(u64 x, i32 k)
+u64 Random::Rotl(u64 x, i32 k) const
 {
     return (x << k) | (x >> (64 - k));
 }
 
-u64 Random::NextU64Internal()
+u64 Random::NextU64Internal() const
 {
     // Xoroshiro128+
     u64 s0 = state[0];
@@ -35,22 +35,22 @@ u64 Random::NextU64Internal()
     return result;
 }
 
-u32 Random::NextU32()
+u32 Random::NextU32() const
 {
     return static_cast<u32>(NextU64Internal() >> 32);
 }
 
-u64 Random::NextU64()
+u64 Random::NextU64() const
 {
     return NextU64Internal();
 }
 
-f32 Random::Next01()
+f32 Random::Next01() const
 {
     return static_cast<f32>(NextU64Internal() >> 40) / static_cast<f32>(1ULL << 24);
 }
 
-i32 Random::NextRange(i32 min, i32 max)
+i32 Random::NextRange(i32 min, i32 max) const
 {
     if (min >= max) return min;
     u32 range = static_cast<u32>(max - min);

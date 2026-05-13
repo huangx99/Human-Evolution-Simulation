@@ -29,7 +29,7 @@
 // PHASE: SimPhase::Decision
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include "sim/cognitive/concept_tag.h"
 #include "sim/cognitive/knowledge_relation.h"
 #include <vector>
@@ -112,8 +112,9 @@ public:
         // Add more rules here as needed...
     }
 
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& cog = world.Cognitive();
         auto& sim = world.Sim();
         Tick now = sim.clock.currentTick;
@@ -208,6 +209,20 @@ public:
             // Contradiction detection: check if any memory contradicts existing hypotheses
             DetectContradictions(agent.id, memories, cog, now, world);
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Cognitive, AccessMode::Read},
+            {ModuleTag::Agent, AccessMode::Read},
+            {ModuleTag::Simulation, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Cognitive, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {"CognitiveMemorySystem"};
+        return {"CognitiveDiscoverySystem", SimPhase::Decision, READS, 3, WRITES, 1, DEPS, 1, true, false};
     }
 
 private:

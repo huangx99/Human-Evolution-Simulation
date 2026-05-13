@@ -26,15 +26,16 @@
 // PHASE: SimPhase::Perception
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include <algorithm>
 #include <cmath>
 
 class CognitiveAttentionSystem : public ISystem
 {
 public:
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& cog = world.Cognitive();
 
         // Group stimuli by observer
@@ -77,6 +78,18 @@ public:
                 cog.frameFocused.push_back(candidates[i]);
             }
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Cognitive, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Cognitive, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {"CognitivePerceptionSystem"};
+        return {"CognitiveAttentionSystem", SimPhase::Perception, READS, 1, WRITES, 1, DEPS, 1, true, false};
     }
 
 private:

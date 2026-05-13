@@ -1,21 +1,48 @@
 #pragma once
 
 #include "sim/system/i_system.h"
+#include "sim/system/system_context.h"
+#include "sim/runtime/simulation_hash.h"
 #include "sim/scheduler/phase.h"
 #include <vector>
 #include <memory>
 #include <array>
+#include <iostream>
+#include <cassert>
+#include <cstring>
 
 class Scheduler
 {
 public:
     void AddSystem(SimPhase phase, std::unique_ptr<ISystem> system)
     {
+        const auto& desc = system->Descriptor();
+
+        // Validate phase consistency: descriptor phase must match registration phase
+        assert(desc.phase == phase && "SystemDescriptor phase mismatch with registration phase");
+
+        // Log registration
+        std::cout << "[Scheduler] Registered: " << desc.name
+                  << " (phase=" << PhaseName(phase)
+                  << ", reads=" << desc.readCount
+                  << ", writes=" << desc.writeCount
+                  << ", deps=" << desc.dependsOnCount
+                  << ", det=" << (desc.deterministic ? "Y" : "N")
+                  << ", par=" << (desc.parallelSafe ? "Y" : "N")
+                  << ")" << std::endl;
+
         systems[static_cast<size_t>(phase)].push_back(std::move(system));
     }
 
     void Tick(WorldState& world)
     {
+        // Print system table on first tick
+        if (!tablePrinted)
+        {
+            PrintSystemTable();
+            tablePrinted = true;
+        }
+
         for (size_t p = 0; p < static_cast<size_t>(SimPhase::Count); p++)
         {
             SimPhase phase = static_cast<SimPhase>(p);
@@ -23,7 +50,9 @@ public:
             // Run registered systems for this phase
             for (auto& system : systems[p])
             {
-                system->Update(world);
+                const auto& desc = system->Descriptor();
+                SystemContext ctx(world, &desc);
+                system->Update(ctx);
             }
 
             // Phase-specific built-in behavior
@@ -32,6 +61,14 @@ public:
             case SimPhase::BeginTick:
                 if (!world.spatial.IsInitialized())
                     world.RebuildSpatial();
+                // Sync scalar wind: FieldModule → env.wind (for code that reads env.wind.x/y)
+                {
+                    auto& fm = world.Fields();
+                    auto wx = fm.FindByKey(FieldKey("human_evolution.wind_x"));
+                    auto wy = fm.FindByKey(FieldKey("human_evolution.wind_y"));
+                    world.Env().wind.x = fm.Read(wx, 0, 0);
+                    world.Env().wind.y = fm.Read(wy, 0, 0);
+                }
                 world.Cognitive().ClearFrame();
                 break;
             case SimPhase::CommandApply:
@@ -41,8 +78,17 @@ public:
                 world.events.Dispatch();
                 break;
             case SimPhase::EndTick:
-                world.Env().SwapAll();
-                world.Info().SwapAll();
+                world.lastTickHash = ComputeWorldHash(world, HashTier::Full);
+                // Sync scalar wind: env.wind → FieldModule (for hash/replay)
+                {
+                    auto& fm = world.Fields();
+                    auto wx = fm.FindByKey(FieldKey("human_evolution.wind_x"));
+                    auto wy = fm.FindByKey(FieldKey("human_evolution.wind_y"));
+                    fm.WriteNext(wx, 0, 0, world.Env().wind.x);
+                    fm.WriteNext(wy, 0, 0, world.Env().wind.y);
+                }
+                // Swap all double buffers (FieldModule is the single swap point)
+                world.Fields().SwapAll();
                 world.Sim().clock.Step();
                 break;
             default:
@@ -51,7 +97,74 @@ public:
         }
     }
 
+    // Count total registered systems
+    size_t SystemCount() const
+    {
+        size_t count = 0;
+        for (auto& vec : systems)
+            count += vec.size();
+        return count;
+    }
+
 private:
     std::array<std::vector<std::unique_ptr<ISystem>>,
                static_cast<size_t>(SimPhase::Count)> systems;
+    bool tablePrinted = false;
+
+    static const char* PhaseName(SimPhase phase)
+    {
+        switch (phase)
+        {
+        case SimPhase::BeginTick:     return "BeginTick";
+        case SimPhase::Environment:   return "Environment";
+        case SimPhase::Reaction:      return "Reaction";
+        case SimPhase::Propagation:   return "Propagation";
+        case SimPhase::Perception:    return "Perception";
+        case SimPhase::Decision:      return "Decision";
+        case SimPhase::Action:        return "Action";
+        case SimPhase::CommandApply:  return "CommandApply";
+        case SimPhase::EventResolve:  return "EventResolve";
+        case SimPhase::Snapshot:      return "Snapshot";
+        case SimPhase::EndTick:       return "EndTick";
+        default:                      return "Unknown";
+        }
+    }
+
+    void PrintSystemTable()
+    {
+        std::cout << "\n=== System Table ===" << std::endl;
+        std::cout << "Phase            | System                  | R  | W  | Dep | Det | Par" << std::endl;
+        std::cout << "-----------------|-------------------------|----|----|-----|-----|----" << std::endl;
+
+        for (size_t p = 0; p < static_cast<size_t>(SimPhase::Count); p++)
+        {
+            for (auto& system : systems[p])
+            {
+                const auto& desc = system->Descriptor();
+                std::cout << PhaseName(desc.phase);
+                // Pad phase name to 17 chars
+                size_t phaseLen = strlen(PhaseName(desc.phase));
+                for (size_t i = phaseLen; i < 17; i++) std::cout << ' ';
+
+                std::cout << "| ";
+                std::cout << desc.name;
+                // Pad system name to 24 chars
+                size_t nameLen = strlen(desc.name);
+                for (size_t i = nameLen; i < 24; i++) std::cout << ' ';
+
+                std::cout << "| " << desc.readCount;
+                if (desc.readCount < 10) std::cout << ' ';
+                std::cout << " | " << desc.writeCount;
+                if (desc.writeCount < 10) std::cout << ' ';
+                std::cout << " | " << desc.dependsOnCount;
+                if (desc.dependsOnCount < 10) std::cout << "   ";
+                else std::cout << "  ";
+                std::cout << "| " << (desc.deterministic ? "Y" : "N") << "   ";
+                std::cout << "| " << (desc.parallelSafe ? "Y" : "N");
+
+                std::cout << std::endl;
+            }
+        }
+        std::cout << "==================\n" << std::endl;
+    }
 };

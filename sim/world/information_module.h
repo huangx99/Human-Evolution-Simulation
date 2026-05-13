@@ -1,30 +1,23 @@
 #pragma once
 
 #include "sim/world/module_registry.h"
-#include "core/container/field2d.h"
-#include "core/types/types.h"
+#include "sim/field/field_ref.h"
+
+// DEPRECATED alias facade — fields delegate to FieldModule.
+// Use FieldModule via world.Fields() in new code.
 
 struct InformationModule : public IModule
 {
-    i32 width;
-    i32 height;
+    FieldRef smell;
+    FieldRef danger;
+    FieldRef smoke;
 
-    Field2D<f32> smell;
-    Field2D<f32> danger;
-    Field2D<f32> smoke;
-
-    InformationModule(i32 w, i32 h)
-        : width(w), height(h)
-        , smell(w, h, 0.0f)
-        , danger(w, h, 0.0f)
-        , smoke(w, h, 0.0f)
+    InformationModule(FieldModule& fm)
+        : smell(&fm, fm.FindByKey(FieldKey("human_evolution.smell")))
+        , danger(&fm, fm.FindByKey(FieldKey("human_evolution.danger")))
+        , smoke(&fm, fm.FindByKey(FieldKey("human_evolution.smoke")))
     {
     }
 
-    void SwapAll()
-    {
-        smell.Swap();
-        danger.Swap();
-        smoke.Swap();
-    }
+    void SwapAll() {}  // no-op — FieldModule.SwapAll() handles it
 };

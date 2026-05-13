@@ -3,7 +3,7 @@
 #include "core/types/types.h"
 #include "sim/ecology/capability.h"
 #include "sim/ecology/material_state.h"
-#include "sim/ecology/field_id.h"
+#include "sim/field/field_id.h"
 #include <cstdint>
 
 // Architecture: state/field mutations go through CommandBuffer (deterministic, replayable).
@@ -38,7 +38,7 @@ struct ReactionEffect
     Capability capability = Capability::None;
 
     // For ModifyField
-    FieldId field = FieldId::None;
+    FieldKey field;
     FieldModifyMode mode = FieldModifyMode::Add;
     f32 value = 0.0f;       // delta (Add mode) or absolute (Set mode)
 

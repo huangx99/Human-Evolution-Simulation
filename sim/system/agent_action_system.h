@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include <cmath>
 
 // OWNERSHIP: Engine (sim/system/)
@@ -12,8 +12,9 @@
 class AgentActionSystem : public ISystem
 {
 public:
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& env = world.Env();
         auto& info = world.Info();
         auto& sim = world.Sim();
@@ -109,5 +110,20 @@ public:
                     DamageAgentCommand{agent.id, damage});
             }
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Agent, AccessMode::Read},
+            {ModuleTag::Environment, AccessMode::Read},
+            {ModuleTag::Information, AccessMode::Read},
+            {ModuleTag::Simulation, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Command, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {"AgentDecisionSystem"};
+        return {"AgentActionSystem", SimPhase::Action, READS, 4, WRITES, 1, DEPS, 1, true, false};
     }
 };

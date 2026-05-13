@@ -24,15 +24,16 @@
 // PHASE: SimPhase::Action
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include "sim/cognitive/concept_tag.h"
 #include <cmath>
 
 class CognitiveSocialSystem : public ISystem
 {
 public:
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& cog = world.Cognitive();
         auto& sim = world.Sim();
         auto& agents = world.Agents().agents;
@@ -57,6 +58,20 @@ public:
                 EmitSignal(cog, b, a, dist, now);
             }
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Agent, AccessMode::Read},
+            {ModuleTag::Cognitive, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Cognitive, AccessMode::Write},
+            {ModuleTag::Event, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {"CognitiveKnowledgeSystem"};
+        return {"CognitiveSocialSystem", SimPhase::Action, READS, 2, WRITES, 2, DEPS, 1, true, false};
     }
 
 private:

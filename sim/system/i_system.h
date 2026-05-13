@@ -1,6 +1,8 @@
 #pragma once
 
-struct WorldState;
+#include "sim/scheduler/system_descriptor.h"
+
+class SystemContext;
 
 // Architecture boundary:
 //
@@ -26,5 +28,6 @@ class ISystem
 {
 public:
     virtual ~ISystem() = default;
-    virtual void Update(WorldState& world) = 0;
+    virtual void Update(SystemContext& ctx) = 0;
+    virtual SystemDescriptor Descriptor() const = 0;
 };

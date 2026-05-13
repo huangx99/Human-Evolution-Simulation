@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sim/system/i_system.h"
-#include "sim/world/world_state.h"
+#include "sim/system/system_context.h"
 #include <cmath>
 
 // OWNERSHIP: Engine (sim/system/)
@@ -12,8 +12,9 @@
 class AgentPerceptionSystem : public ISystem
 {
 public:
-    void Update(WorldState& world) override
+    void Update(SystemContext& ctx) override
     {
+        auto& world = ctx.World();
         auto& env = world.Env();
         auto& info = world.Info();
         auto& agentMod = world.Agents();
@@ -50,5 +51,19 @@ public:
                 }
             }
         }
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess READS[] = {
+            {ModuleTag::Environment, AccessMode::Read},
+            {ModuleTag::Information, AccessMode::Read},
+            {ModuleTag::Agent, AccessMode::Read}
+        };
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Agent, AccessMode::Write}
+        };
+        static const char* const DEPS[] = {};
+        return {"AgentPerceptionSystem", SimPhase::Perception, READS, 3, WRITES, 1, DEPS, 0, true, false};
     }
 };
