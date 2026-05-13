@@ -6,6 +6,8 @@
 #include "sim/world/agent_module.h"
 #include "sim/world/ecology_module.h"
 #include "sim/cognitive/cognitive_module.h"
+#include "sim/pattern/pattern_module.h"
+#include "sim/pattern/pattern_registry.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
@@ -26,6 +28,7 @@ struct WorldState
     WorldState(i32 w, i32 h, u64 seed, IRulePack& rulePack)
         : width(w), height(h), spatial(w, h)
     {
+        PatternTypes::RegisterCoreTypes();
         modules.Register<SimulationModule>(seed);
         modules.Register<FieldModule>(w, h);
 
@@ -42,18 +45,21 @@ struct WorldState
         modules.Register<AgentModule>();
         modules.Register<EcologyModule>();
         modules.Register<CognitiveModule>();
+        modules.Register<PatternModule>();
     }
 
     // Convenience constructor: no RulePack (for engine-only tests).
     WorldState(i32 w, i32 h, u64 seed)
         : width(w), height(h), spatial(w, h)
     {
+        PatternTypes::RegisterCoreTypes();
         modules.Register<SimulationModule>(seed);
         modules.Register<FieldModule>(w, h);
 
         modules.Register<AgentModule>();
         modules.Register<EcologyModule>();
         modules.Register<CognitiveModule>();
+        modules.Register<PatternModule>();
     }
 
     // Deferred RulePack init: register fields.
@@ -76,12 +82,14 @@ struct WorldState
     AgentModule& Agents() { return modules.Get<AgentModule>(); }
     EcologyModule& Ecology() { return modules.Get<EcologyModule>(); }
     CognitiveModule& Cognitive() { return modules.Get<CognitiveModule>(); }
+    PatternModule& Patterns() { return modules.Get<PatternModule>(); }
 
     const SimulationModule& Sim() const { return modules.Get<SimulationModule>(); }
     const FieldModule& Fields() const { return modules.Get<FieldModule>(); }
     const AgentModule& Agents() const { return modules.Get<AgentModule>(); }
     const EcologyModule& Ecology() const { return modules.Get<EcologyModule>(); }
     const CognitiveModule& Cognitive() const { return modules.Get<CognitiveModule>(); }
+    const PatternModule& Patterns() const { return modules.Get<PatternModule>(); }
 
     // RulePack context access (for snapshot/replay)
     IRuleContext* RuleContext() { return ruleContext_; }

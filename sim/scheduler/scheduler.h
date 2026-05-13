@@ -107,6 +107,7 @@ private:
         case SimPhase::Action:        return "Action";
         case SimPhase::CommandApply:  return "CommandApply";
         case SimPhase::EventResolve:  return "EventResolve";
+        case SimPhase::Analysis:      return "Analysis";
         case SimPhase::Snapshot:      return "Snapshot";
         case SimPhase::EndTick:       return "EndTick";
         default:                      return "Unknown";

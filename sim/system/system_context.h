@@ -31,6 +31,8 @@ public:
     const EcologyModule&     Ecology()   const { return world_.Ecology(); }
     const CognitiveModule&   Cognitive() const { return world_.Cognitive(); }
           CognitiveModule&   Cognitive()       { return world_.Cognitive(); }
+    const PatternModule&     Patterns()  const { return world_.Patterns(); }
+          PatternModule&     Patterns()        { return world_.Patterns(); }
 
     // Commands and Events
     CommandBuffer& Commands() { return world_.commands; }

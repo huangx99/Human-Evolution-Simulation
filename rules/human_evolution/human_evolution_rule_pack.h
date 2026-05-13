@@ -16,6 +16,10 @@
 #include "sim/system/cognitive_knowledge_system.h"
 #include "sim/system/cognitive_social_system.h"
 #include "rules/human_evolution/systems/agent_decision_system.h"
+#include "sim/pattern/pattern_detection_system.h"
+#include "sim/pattern/pattern_registry.h"
+#include "sim/pattern/detectors/high_frequency_path_detector.h"
+#include "sim/pattern/detectors/stable_field_zone_detector.h"
 
 // HumanEvolutionRulePack: defines the Human Evolution world.
 //
@@ -71,6 +75,27 @@ public:
         // Action pipeline
         systems.push_back({SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Action,      std::make_unique<CognitiveSocialSystem>()});
+
+        // Pattern detection (read-only observer)
+        {
+            // Register Human Evolution pattern types
+            PatternRegistry::Instance().Register(
+                PatternKey("human_evolution.stable_fire_zone"), "stable_fire_zone");
+
+            auto patternSys = std::make_unique<PatternDetectionSystem>();
+            patternSys->AddDetector(std::make_unique<HighFrequencyPathDetector>(10));
+
+            // Watch fire field: stable fire zones where fire > 0.5 for 50+ ticks
+            FieldWatchSpec fireWatch;
+            fireWatch.patternKey = PatternKey("human_evolution.stable_fire_zone");
+            fireWatch.field = ctx_.environment.fire;
+            fireWatch.threshold = 0.5f;
+            fireWatch.minDuration = 50;
+            patternSys->AddDetector(std::make_unique<StableFieldZoneDetector>(
+                std::vector<FieldWatchSpec>{fireWatch}));
+
+            systems.push_back({SimPhase::Analysis, std::move(patternSys)});
+        }
 
         return systems;
     }
