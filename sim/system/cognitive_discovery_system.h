@@ -54,6 +54,9 @@ class CognitiveDiscoverySystem : public ISystem
 public:
     CognitiveDiscoverySystem() = default;
 
+    explicit CognitiveDiscoverySystem(std::vector<DiscoveryRule> rules)
+        : rules(std::move(rules)) {}
+
     // Allow RulePack to inject domain-specific discovery rules.
     // Called after concepts are registered (runtime ConceptTypeIds available).
     void SetRules(std::vector<DiscoveryRule> newRules)

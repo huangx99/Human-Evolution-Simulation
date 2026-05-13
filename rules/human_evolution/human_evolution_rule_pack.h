@@ -175,7 +175,7 @@ public:
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>()});
 
         // Decision pipeline
-        systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>()});
+        systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(BuildDiscoveryRules())});
         systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>()});
         systems.push_back({SimPhase::Decision,    std::make_unique<AgentDecisionSystem>(ctx_.concepts)});
 
@@ -235,6 +235,39 @@ public:
 
 private:
     HumanEvolutionContext ctx_;
+
+    std::vector<DiscoveryRule> BuildDiscoveryRules() const
+    {
+        const auto& c = ctx_.concepts;
+        return {
+            // Smoke → Signals → Fire
+            {c.smoke,     c.fire,      KnowledgeRelation::Signals},
+            // Fire → Causes → Pain
+            {c.fire,      c.pain,      KnowledgeRelation::Causes},
+            // Fire → Causes → Warmth
+            {c.fire,      c.warmth,    KnowledgeRelation::Causes},
+            // Heat → Causes → Comfort
+            {c.heat,      c.comfort,   KnowledgeRelation::Causes},
+            // Cold → Causes → Pain
+            {c.cold,      c.pain,      KnowledgeRelation::Causes},
+            // Meat → Causes → Satiety
+            {c.meat,      c.satiety,   KnowledgeRelation::Causes},
+            // Fruit → Causes → Satiety
+            {c.fruit,     c.satiety,   KnowledgeRelation::Causes},
+            // Food → Causes → Satiety
+            {c.food,      c.satiety,   KnowledgeRelation::Causes},
+            // Danger → Signals → Fear
+            {c.danger,    c.fear,      KnowledgeRelation::Signals},
+            // Beast → Signals → Danger
+            {c.beast,     c.danger,    KnowledgeRelation::Signals},
+            // Predator → Signals → Danger
+            {c.predator,  c.danger,    KnowledgeRelation::Signals},
+            // Burning → Causes → Pain
+            {c.burning,   c.pain,      KnowledgeRelation::Causes},
+            // Drowning → Causes → Death
+            {c.drowning,  c.death,     KnowledgeRelation::Causes},
+        };
+    }
 };
 
 // === Test helpers ===
