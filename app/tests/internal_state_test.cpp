@@ -273,6 +273,37 @@ TEST(internal_state_baseline_in_full_hash)
     return true;
 }
 
+// Test 7b: Baseline ONLY changes FullHash, not CoreHash
+TEST(baseline_only_changes_full_hash_not_core_hash)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+
+    world.SpawnAgent(5, 5);
+
+    // Establish baseline
+    Scheduler scheduler;
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.Tick(world);
+
+    u64 coreBefore = ComputeWorldHash(world, HashTier::Core);
+    u64 fullBefore = ComputeWorldHash(world, HashTier::Full);
+
+    // Directly modify baseline WITHOUT changing agent state
+    world.InternalStateBaselines().baselines[1] = {12.0f, 88.0f};
+
+    u64 coreAfter = ComputeWorldHash(world, HashTier::Core);
+    u64 fullAfter = ComputeWorldHash(world, HashTier::Full);
+
+    // Core must NOT change (baseline is not in Core tier)
+    ASSERT_EQ(coreBefore, coreAfter);
+
+    // Full MUST change (baseline is in Full tier)
+    ASSERT_TRUE(fullBefore != fullAfter);
+
+    return true;
+}
+
 // Test 8: Same baseline produces same FullHash (deterministic replay)
 TEST(internal_state_baseline_replay_deterministic)
 {
@@ -370,16 +401,18 @@ TEST(small_delta_does_not_produce_stimulus)
     scheduler.Tick(world);
 
     auto& cog = world.Cognitive();
+    i32 count = 0;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 1)
+        if (stim.observerId == 1 &&
+            (stim.concept == ConceptTag::Pain ||
+             stim.concept == ConceptTag::Satiety ||
+             stim.concept == ConceptTag::Hunger))
         {
-            // No Pain, Satiety, or Hunger from tiny delta
-            ASSERT_TRUE(stim.concept != ConceptTag::Pain);
-            ASSERT_TRUE(stim.concept != ConceptTag::Satiety);
-            ASSERT_TRUE(stim.concept != ConceptTag::Hunger);
+            count++;
         }
     }
+    ASSERT_EQ(count, 0);
 
     return true;
 }

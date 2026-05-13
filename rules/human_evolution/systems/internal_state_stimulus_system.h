@@ -34,6 +34,8 @@ public:
         {
             if (!agent.alive)
                 continue;
+            // Dead-agent baselines are retained intentionally for now.
+            // Cleanup should be handled by a later lifecycle/GC pass.
 
             auto it = baselines.find(agent.id);
             if (it == baselines.end())
