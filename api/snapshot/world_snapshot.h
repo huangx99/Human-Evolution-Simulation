@@ -130,7 +130,24 @@ struct CognitiveSnapshot
     size_t frameFocusedCount;
     size_t frameMemoriesCount;
     size_t frameDiscoveriesCount;
-    size_t frameSocialSignalsCount;
+};
+
+struct SocialSnapshot
+{
+    size_t activeSignalsCount = 0;
+    u64 nextSignalId = 0;
+
+    struct SignalInfo
+    {
+        u64 id;
+        u16 typeId;
+        EntityId sourceEntityId;
+        i32 originX, originY;
+        f32 intensity;
+        f32 confidence;
+        u32 ttl;
+    };
+    std::vector<SignalInfo> signals;
 };
 
 struct WorldSnapshot
@@ -168,6 +185,9 @@ struct WorldSnapshot
 
     // Cognitive state
     CognitiveSnapshot cognitive;
+
+    // Social signals
+    SocialSnapshot social;
 
     static WorldSnapshot Capture(const WorldState& world, const HumanEvolution::EnvironmentContext& envCtx)
     {
@@ -265,7 +285,26 @@ struct WorldSnapshot
             snap.cognitive.frameFocusedCount = cog.frameFocused.size();
             snap.cognitive.frameMemoriesCount = cog.frameMemories.size();
             snap.cognitive.frameDiscoveriesCount = cog.frameDiscoveries.size();
-            snap.cognitive.frameSocialSignalsCount = 0;  // Social signals moved to SocialSignalModule
+
+        // Social signals
+        {
+            const auto& social = world.SocialSignals();
+            snap.social.activeSignalsCount = social.activeSignals.size();
+            snap.social.nextSignalId = social.nextSignalId;
+            for (const auto& sig : social.activeSignals)
+            {
+                SocialSnapshot::SignalInfo info;
+                info.id = sig.id;
+                info.typeId = sig.typeId.index;
+                info.sourceEntityId = sig.sourceEntityId;
+                info.originX = sig.origin.x;
+                info.originY = sig.origin.y;
+                info.intensity = sig.intensity;
+                info.confidence = sig.confidence;
+                info.ttl = sig.ttl;
+                snap.social.signals.push_back(info);
+            }
+        }
 
             for (const auto& agent : world.Agents().agents)
             {
@@ -464,8 +503,11 @@ struct WorldSnapshot
            << " frame_stimuli=" << cognitive.frameStimuliCount
            << " frame_focused=" << cognitive.frameFocusedCount
            << " frame_memories=" << cognitive.frameMemoriesCount
-           << " frame_discoveries=" << cognitive.frameDiscoveriesCount
-           << " frame_signals=" << cognitive.frameSocialSignalsCount << "\n";
+           << " frame_discoveries=" << cognitive.frameDiscoveriesCount << "\n";
+
+        // Social signals
+        os << "social: active_signals=" << social.activeSignalsCount
+           << " next_id=" << social.nextSignalId << "\n";
 
         for (const auto& acs : cognitive.agentStates)
         {

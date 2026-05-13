@@ -84,11 +84,14 @@ private:
         Tick now,
         PerceivedStimulus& out)
     {
+        if (signal.effectiveRadius <= 0.0f)
+            return false;
+
         f32 dx = static_cast<f32>(signal.origin.x - observer.position.x);
         f32 dy = static_cast<f32>(signal.origin.y - observer.position.y);
         f32 distance = std::sqrt(dx * dx + dy * dy);
 
-        // Distance attenuation
+        // Distance attenuation: actual range = min(observer cap, signal cap)
         f32 distanceFactor = 1.0f - std::min(distance / signal.effectiveRadius, 1.0f);
         f32 intensity = signal.intensity * distanceFactor;
         f32 confidence = signal.confidence * distanceFactor;
@@ -102,7 +105,7 @@ private:
 
         out.observerId = observer.id;
         out.sourceEntityId = signal.sourceEntityId;
-        out.sense = SenseType::Sound;  // Social signals are "heard"
+        out.sense = MapSignalToSense(signal.typeId);
         out.concept = concept;
         out.location = signal.origin;
         out.intensity = intensity;
@@ -120,5 +123,18 @@ private:
         if (typeId == ctx_.social.deathWarning)
             return ConceptTag::Death;
         return ConceptTag::None;
+    }
+
+    SenseType MapSignalToSense(SocialSignalTypeId typeId) const
+    {
+        // Centralized signal-to-sense mapping.
+        // fear: "heard" as vocalization/behavioral cue
+        // death_warning: "heard" as alarm/distress
+        // Future signals (blood_trace, scent_trail) will map to Vision/Smell.
+        if (typeId == ctx_.social.fear)
+            return SenseType::Sound;
+        if (typeId == ctx_.social.deathWarning)
+            return SenseType::Sound;
+        return SenseType::Sound;  // default fallback
     }
 };

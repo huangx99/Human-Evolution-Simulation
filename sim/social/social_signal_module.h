@@ -11,6 +11,7 @@
 #include "sim/world/module_registry.h"
 #include "sim/social/social_signal.h"
 #include <vector>
+#include <algorithm>
 #include <cmath>
 
 struct SocialSignalModule : public IModule

@@ -155,23 +155,22 @@ private:
 
 // === Test helpers ===
 
-// Register all HumanEvolution systems (RulePack environment + engine agent).
-// Use in tests instead of manual AddSystem calls.
+// Register base HumanEvolution systems (environment + agent + cognitive perception).
+// Does NOT include Social, Attention, Memory, Discovery, Knowledge, Pattern, History.
+// Use for tests that only need the minimal pipeline.
 inline void RegisterHumanEvolutionSystems(Scheduler& scheduler, const HumanEvolution::EnvironmentContext& envCtx)
 {
-    // Environment systems (constructor-injected EnvironmentContext)
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
-
-    // Agent/cognitive systems (receive EnvironmentContext via constructor)
     scheduler.AddSystem(SimPhase::Perception, std::make_unique<AgentPerceptionSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Decision,   std::make_unique<AgentDecisionSystem>());
     scheduler.AddSystem(SimPhase::Action,     std::make_unique<AgentActionSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Perception, std::make_unique<CognitivePerceptionSystem>(envCtx));
 }
 
-// Create a fully configured HumanEvolution scheduler.
+// Create a base scheduler (environment + agent + cognitive perception).
+// Does NOT include Social, Attention, Memory, Pattern, History.
 inline Scheduler CreateHumanEvolutionScheduler(const HumanEvolution::EnvironmentContext& envCtx)
 {
     Scheduler scheduler;
@@ -179,46 +178,63 @@ inline Scheduler CreateHumanEvolutionScheduler(const HumanEvolution::Environment
     return scheduler;
 }
 
-// Create a scheduler without PatternDetectionSystem.
+// Create a base scheduler without PatternDetectionSystem.
 // Used to prove Pattern is a pure observer (doesn't affect world hash).
 inline Scheduler CreateHumanEvolutionSchedulerWithoutPattern(
     const HumanEvolution::EnvironmentContext& envCtx)
 {
-    Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<AgentPerceptionSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Decision,   std::make_unique<AgentDecisionSystem>());
-    scheduler.AddSystem(SimPhase::Action,     std::make_unique<AgentActionSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<CognitivePerceptionSystem>(envCtx));
-    return scheduler;
+    return CreateHumanEvolutionScheduler(envCtx);
 }
 
-// Create a scheduler with the full cognitive pipeline.
-// Extends the base systems with attention, memory, discovery, and knowledge.
+// Create a scheduler with the full cognitive pipeline (no Social).
+// Includes attention, memory, discovery, knowledge.
+// Use for tests that need the cognitive loop but not social signals.
 inline Scheduler CreateCognitiveScheduler(const HumanEvolution::EnvironmentContext& envCtx)
 {
     Scheduler scheduler;
 
-    // Environment systems (constructor-injected EnvironmentContext)
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
 
-    // Perception pipeline
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>());
 
-    // Decision pipeline
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>());
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>());
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>());
 
-    // Action pipeline
     scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(envCtx));
+
+    return scheduler;
+}
+
+// Create a scheduler with the full pipeline including Social signals.
+// Includes everything: environment, cognitive, social decay/perception/emission.
+// Use for tests that need the complete Phase 2.0 pipeline.
+inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
+{
+    Scheduler scheduler;
+
+    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SocialSignalDecaySystem>());
+
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx));
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>());
+
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>());
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>());
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>());
+
+    scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Action,      std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx));
 
     return scheduler;
 }
