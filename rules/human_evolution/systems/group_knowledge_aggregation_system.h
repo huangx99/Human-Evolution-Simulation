@@ -64,6 +64,7 @@ public:
             for (const auto& mem : *memories)
             {
                 if (!IsDangerRelated(mem.subject)) continue;
+                if (mem.createdTick > currentTick) continue;  // future-dated guard
                 if (currentTick - mem.createdTick > timeWindow) continue;
                 if (mem.strength < minStrength) continue;
 
@@ -176,7 +177,7 @@ public:
             {ModuleTag::Cognitive, AccessMode::Read}
         };
         static constexpr ModuleAccess WRITES[] = {
-            {ModuleTag::GroupKnowledge, AccessMode::Write}
+            {ModuleTag::GroupKnowledge, AccessMode::ReadWrite}
         };
         static const char* const DEPS[] = {};
         return {"GroupKnowledgeAggregationSystem", SimPhase::Analysis, READS, 2, WRITES, 1, DEPS, 0, true, false};

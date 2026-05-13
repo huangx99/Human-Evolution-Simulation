@@ -503,3 +503,56 @@ TEST(group_knowledge_aggregation_is_deterministic)
 
     return true;
 }
+
+// === Test 19: Insertion order does not affect result ===
+
+TEST(insertion_order_does_not_affect_result)
+{
+    // Same 4 agents and memories, but inserted in different orders.
+    // Results (record count, origins, contributors, confidence) must match.
+
+    auto runWithOrder = [](std::vector<int> order) -> std::vector<GroupKnowledgeRecord>
+    {
+        HumanEvolutionRulePack rp;
+        WorldState world(64, 64, 42, rp);
+        const auto& ctx = rp.GetHumanEvolutionContext();
+
+        EntityId agents[4];
+        for (int i = 0; i < 4; i++)
+            agents[i] = world.SpawnAgent(5 + i * 15, 5 + i * 15);
+
+        ConceptTypeId concepts[2] = {ctx.concepts.fire, ctx.concepts.danger};
+        Vec2i locations[4] = {{5, 5}, {6, 6}, {50, 50}, {51, 51}};
+
+        for (int idx : order)
+            AddMemory(world.Cognitive(), agents[idx], concepts[idx / 2],
+                      locations[idx], 0.7f, 0.8f, 0);
+
+        auto scheduler = CreateAggregationScheduler(ctx);
+        scheduler.Tick(world);
+
+        return world.GroupKnowledge().records;
+    };
+
+    auto r0123 = runWithOrder({0, 1, 2, 3});
+    auto r3210 = runWithOrder({3, 2, 1, 0});
+    auto r1302 = runWithOrder({1, 3, 0, 2});
+
+    ASSERT_EQ(r0123.size(), r3210.size());
+    ASSERT_EQ(r0123.size(), r1302.size());
+
+    for (size_t i = 0; i < r0123.size(); i++)
+    {
+        ASSERT_EQ(r0123[i].origin.x, r3210[i].origin.x);
+        ASSERT_EQ(r0123[i].origin.y, r3210[i].origin.y);
+        ASSERT_EQ(r0123[i].contributors, r3210[i].contributors);
+        ASSERT_NEAR(r0123[i].confidence, r3210[i].confidence, 0.001f);
+
+        ASSERT_EQ(r0123[i].origin.x, r1302[i].origin.x);
+        ASSERT_EQ(r0123[i].origin.y, r1302[i].origin.y);
+        ASSERT_EQ(r0123[i].contributors, r1302[i].contributors);
+        ASSERT_NEAR(r0123[i].confidence, r1302[i].confidence, 0.001f);
+    }
+
+    return true;
+}
