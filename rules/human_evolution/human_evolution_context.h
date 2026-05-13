@@ -6,6 +6,7 @@
 #include "sim/social/social_signal_id.h"
 #include "sim/social/observed_action_id.h"
 #include "sim/cognitive/concept_id.h"
+#include "sim/group_knowledge/group_knowledge_id.h"
 
 // HumanEvolutionContext: RulePack-specific context for the Human Evolution world.
 //
@@ -114,6 +115,14 @@ struct ConceptContext
     ConceptTypeId trust;
 };
 
+// Group knowledge type ids (registered via RegisterGroupKnowledgeTypes)
+struct GroupKnowledgeContext
+{
+    GroupKnowledgeTypeId sharedDangerZone;
+    GroupKnowledgeTypeId safePath;
+    GroupKnowledgeTypeId resourceCluster;
+};
+
 // Future extensions (uncomment when needed):
 // struct AgentContext { ... };
 // struct CognitiveContext { ... };
@@ -129,4 +138,5 @@ public:
     HumanEvolution::SocialContext social;
     HumanEvolution::ObservedActionContext observedActions;
     HumanEvolution::ConceptContext concepts;
+    HumanEvolution::GroupKnowledgeContext groupKnowledge;
 };

@@ -8,6 +8,7 @@
 #include "sim/social/social_signal_registry.h"
 #include "sim/social/observed_action_registry.h"
 #include "sim/cognitive/concept_registry.h"
+#include "sim/group_knowledge/group_knowledge_registry.h"
 #include <vector>
 #include <memory>
 
@@ -87,6 +88,10 @@ public:
     // Register domain-specific observed action types with ObservedActionRegistry.
     // Default: empty (no custom observed action types)
     virtual void RegisterObservedActions(ObservedActionRegistry&) {}
+
+    // Register domain-specific group knowledge types with GroupKnowledgeRegistry.
+    // Default: empty (no custom group knowledge types)
+    virtual void RegisterGroupKnowledgeTypes(GroupKnowledgeRegistry&) {}
 
     // --- System creation (called once during WorldState construction) ---
 

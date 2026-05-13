@@ -27,6 +27,7 @@ enum class ModuleTag : uint8_t
     Spatial,        // SpatialIndex
     Pattern,        // PatternModule (long-term structure detection)
     History,        // HistoryModule (significant historical events)
+    GroupKnowledge, // GroupKnowledgeModule (emergent shared knowledge)
     Count
 };
 

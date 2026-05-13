@@ -28,6 +28,7 @@
 #include "rules/human_evolution/social/human_evolution_social_signal_emission_system.h"
 #include "rules/human_evolution/social/human_evolution_imitation_observation_system.h"
 #include "rules/human_evolution/systems/internal_state_stimulus_system.h"
+#include "rules/human_evolution/systems/group_knowledge_aggregation_system.h"
 
 // HumanEvolutionRulePack: defines the Human Evolution world.
 //
@@ -78,6 +79,16 @@ public:
     {
         ctx_.observedActions.observedFlee = registry.Register(
             MakeObservedActionKey("human_evolution.observed_flee"), "observed_flee");
+    }
+
+    void RegisterGroupKnowledgeTypes(GroupKnowledgeRegistry& registry) override
+    {
+        ctx_.groupKnowledge.sharedDangerZone = registry.Register(
+            MakeGroupKnowledgeKey("human_evolution.shared_danger_zone"), "shared_danger_zone");
+        ctx_.groupKnowledge.safePath = registry.Register(
+            MakeGroupKnowledgeKey("human_evolution.safe_path"), "safe_path");
+        ctx_.groupKnowledge.resourceCluster = registry.Register(
+            MakeGroupKnowledgeKey("human_evolution.resource_cluster"), "resource_cluster");
     }
 
     void RegisterConcepts(ConceptTypeRegistry& registry) override
@@ -184,6 +195,10 @@ public:
         // Action pipeline
         systems.push_back({SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Action,      std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx_)});
+
+        // Group knowledge aggregation (after memory, before pattern)
+        systems.push_back({SimPhase::Analysis, std::make_unique<GroupKnowledgeAggregationSystem>(
+            ctx_.concepts, ctx_.groupKnowledge.sharedDangerZone)});
 
         // Pattern detection (read-only observer)
         {
@@ -399,6 +414,9 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
 
     scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Action,      std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx));
+
+    scheduler.AddSystem(SimPhase::Analysis,    std::make_unique<GroupKnowledgeAggregationSystem>(
+        ctx.concepts, ctx.groupKnowledge.sharedDangerZone));
 
     return scheduler;
 }

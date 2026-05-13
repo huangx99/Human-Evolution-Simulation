@@ -15,6 +15,8 @@
 #include "sim/social/observed_action_registry.h"
 #include "sim/cognitive/internal_state_baseline_module.h"
 #include "sim/cognitive/concept_registry.h"
+#include "sim/group_knowledge/group_knowledge_module.h"
+#include "sim/group_knowledge/group_knowledge_registry.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
@@ -58,6 +60,9 @@ struct WorldState
         // RulePack registers its cognitive concepts
         rulePack.RegisterConcepts(ConceptTypeRegistry::Instance());
 
+        // RulePack registers its group knowledge types
+        rulePack.RegisterGroupKnowledgeTypes(GroupKnowledgeRegistry::Instance());
+
         // Store RulePack context for snapshot/replay access
         ruleContext_ = &rulePack.GetContext();
 
@@ -68,6 +73,7 @@ struct WorldState
         modules.Register<PatternModule>();
         modules.Register<HistoryModule>();
         modules.Register<SocialSignalModule>();
+        modules.Register<GroupKnowledgeModule>();
     }
 
     // Convenience constructor: no RulePack (for engine-only tests).
@@ -85,6 +91,7 @@ struct WorldState
         modules.Register<PatternModule>();
         modules.Register<HistoryModule>();
         modules.Register<SocialSignalModule>();
+        modules.Register<GroupKnowledgeModule>();
     }
 
     // Deferred RulePack init: register fields.
@@ -98,6 +105,7 @@ struct WorldState
         rulePack.RegisterSocialSignals(SocialSignalRegistry::Instance());
         rulePack.RegisterObservedActions(ObservedActionRegistry::Instance());
         rulePack.RegisterConcepts(ConceptTypeRegistry::Instance());
+        rulePack.RegisterGroupKnowledgeTypes(GroupKnowledgeRegistry::Instance());
         ruleContext_ = &rulePack.GetContext();
     }
 
@@ -115,6 +123,7 @@ struct WorldState
     HistoryModule& History() { return modules.Get<HistoryModule>(); }
     SocialSignalModule& SocialSignals() { return modules.Get<SocialSignalModule>(); }
     InternalStateBaselineModule& InternalStateBaselines() { return modules.Get<InternalStateBaselineModule>(); }
+    GroupKnowledgeModule& GroupKnowledge() { return modules.Get<GroupKnowledgeModule>(); }
 
     const SimulationModule& Sim() const { return modules.Get<SimulationModule>(); }
     const FieldModule& Fields() const { return modules.Get<FieldModule>(); }
@@ -125,6 +134,7 @@ struct WorldState
     const HistoryModule& History() const { return modules.Get<HistoryModule>(); }
     const SocialSignalModule& SocialSignals() const { return modules.Get<SocialSignalModule>(); }
     const InternalStateBaselineModule& InternalStateBaselines() const { return modules.Get<InternalStateBaselineModule>(); }
+    const GroupKnowledgeModule& GroupKnowledge() const { return modules.Get<GroupKnowledgeModule>(); }
 
     // RulePack context access (for snapshot/replay)
     IRuleContext* RuleContext() { return ruleContext_; }

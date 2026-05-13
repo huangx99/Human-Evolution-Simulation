@@ -3,6 +3,7 @@
 #include "sim/world/world_state.h"
 #include "sim/command/command.h"
 #include "sim/social/social_signal.h"
+#include "sim/group_knowledge/group_knowledge_record.h"
 #include <cstring>
 #include <algorithm>
 #include <vector>
@@ -156,6 +157,19 @@ inline void HashEvent(SimHash& h, const Event& e)
     h.FeedF32(e.value);
 }
 
+inline void HashGroupKnowledgeRecord(SimHash& h, const GroupKnowledgeRecord& r)
+{
+    h.FeedU64(r.id);
+    h.FeedU16(r.typeId.index);
+    h.FeedI32(r.origin.x);
+    h.FeedI32(r.origin.y);
+    h.FeedF32(r.radius);
+    h.FeedF32(r.confidence);
+    h.FeedU32(r.contributors);
+    h.FeedU64(r.firstObservedTick);
+    h.FeedU64(r.lastReinforcedTick);
+}
+
 inline void HashSocialSignal(SimHash& h, const SocialSignal& s)
 {
     h.FeedU64(s.id);
@@ -270,6 +284,15 @@ inline u64 ComputeWorldHash(const WorldState& world, HashTier tier)
             h.FeedF32(base.hunger);
             h.FeedF32(base.health);
         }
+    }
+
+    // Group knowledge records
+    {
+        const auto& gk = world.GroupKnowledge();
+        h.FeedU64(gk.nextId);
+        h.FeedU64(static_cast<u64>(gk.records.size()));
+        for (const auto& r : gk.records)
+            HashGroupKnowledgeRecord(h, r);
     }
 
     if (tier == HashTier::Full)

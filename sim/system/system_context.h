@@ -6,6 +6,7 @@
 #include "sim/history/history_module.h"
 #include "sim/social/social_signal_module.h"
 #include "sim/cognitive/internal_state_baseline_module.h"
+#include "sim/group_knowledge/group_knowledge_module.h"
 
 // SystemContext: controlled access wrapper passed to every ISystem::Update().
 //
@@ -42,6 +43,8 @@ public:
           SocialSignalModule& SocialSignals()       { return world_.SocialSignals(); }
     const InternalStateBaselineModule& InternalStateBaselines() const { return world_.InternalStateBaselines(); }
           InternalStateBaselineModule& InternalStateBaselines()       { return world_.InternalStateBaselines(); }
+    const GroupKnowledgeModule& GroupKnowledge() const { return world_.GroupKnowledge(); }
+          GroupKnowledgeModule& GroupKnowledge()       { return world_.GroupKnowledge(); }
 
     // Commands and Events
     CommandBuffer& Commands() { return world_.commands; }
