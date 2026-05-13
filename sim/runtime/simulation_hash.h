@@ -85,7 +85,9 @@ inline void HashMemoryRecord(SimHash& h, const MemoryRecord& m)
     h.FeedU64(m.ownerId);
     h.FeedU8(static_cast<u8>(m.kind));
     h.FeedU16(m.subject.index);
+    h.FeedU64(static_cast<u64>(m.contextTags.size()));
     for (auto tag : m.contextTags) h.FeedU16(tag.index);
+    h.FeedU64(static_cast<u64>(m.resultTags.size()));
     for (auto tag : m.resultTags)  h.FeedU16(tag.index);
     h.FeedI32(m.location.x);
     h.FeedI32(m.location.y);

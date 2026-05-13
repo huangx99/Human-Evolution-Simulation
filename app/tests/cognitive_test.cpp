@@ -27,7 +27,7 @@ TEST(cognitive_perception_filtering)
 
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
     scheduler.Tick(world);
 
     auto& cog = world.Cognitive();
@@ -88,7 +88,7 @@ TEST(cognitive_attention_filtering)
 
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
     scheduler.Tick(world);
 
     auto& cog = world.Cognitive();
@@ -141,7 +141,7 @@ TEST(cognitive_memory_decay)
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 5; i++)
         scheduler.Tick(world);
@@ -205,7 +205,7 @@ TEST(cognitive_hypothesis_formation)
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 100; i++)
     {
@@ -255,7 +255,7 @@ TEST(cognitive_knowledge_polysemy)
         world.SpawnAgent(16, 16);
         world.RebuildSpatial();
 
-        auto scheduler = CreateCognitiveScheduler(g_envCtx);
+        auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
         for (i32 i = 0; i < 30; i++)
         {
@@ -296,7 +296,7 @@ TEST(cognitive_knowledge_polysemy)
         world.SpawnAgent(16, 14);
         world.RebuildSpatial();
 
-        auto scheduler = CreateCognitiveScheduler(g_envCtx);
+        auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
         for (i32 i = 0; i < 30; i++)
         {
@@ -345,7 +345,7 @@ TEST(cognitive_wrong_knowledge)
     worldA.SpawnAgent(16, 15);
     worldA.RebuildSpatial();
 
-    auto schedulerA = CreateCognitiveScheduler(g_envCtx);
+    auto schedulerA = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
     for (i32 i = 0; i < 40; i++)
     {
         if (i % 10 == 0)
@@ -369,7 +369,7 @@ TEST(cognitive_wrong_knowledge)
 
     worldB.SpawnAgent(16, 15);
 
-    auto schedulerB = CreateCognitiveScheduler(g_envCtx);
+    auto schedulerB = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
     for (i32 i = 0; i < 40; i++)
         schedulerB.Tick(worldB);
 
@@ -414,7 +414,7 @@ TEST(cognitive_knowledge_reinforcement)
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 50; i++)
     {
@@ -466,7 +466,7 @@ TEST(cognitive_individual_difference)
 
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 80; i++)
     {
@@ -519,7 +519,7 @@ TEST(cognitive_full_pipeline)
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 150; i++)
     {
@@ -571,7 +571,7 @@ TEST(cognitive_different_knowledge_graphs)
     world.SpawnAgent(16, 15);
     world.SpawnAgent(8, 7);
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 100; i++)
     {
@@ -643,7 +643,7 @@ TEST(cognitive_fire_danger_confidence)
     world.SpawnAgent(16, 16);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 200; i++)
     {
@@ -698,7 +698,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
         world.SpawnAgent(16, 16);
         world.RebuildSpatial();
 
-        auto scheduler = CreateCognitiveScheduler(g_envCtx);
+        auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
         scheduler.Tick(world);
 
         for (const auto& f : world.Cognitive().frameFocused)
@@ -737,7 +737,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
         world.SpawnAgent(16, 16);
         world.RebuildSpatial();
 
-        auto scheduler = CreateCognitiveScheduler(g_envCtx);
+        auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
         scheduler.Tick(world);
 
         for (const auto& f : world.Cognitive().frameFocused)
@@ -771,7 +771,7 @@ TEST(cognitive_memory_decay_unreinforced)
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 5; i++)
         scheduler.Tick(world);
@@ -835,7 +835,7 @@ TEST(cognitive_rule_driven_discovery)
     world.SpawnAgent(16, 16);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 100; i++)
     {
@@ -887,7 +887,7 @@ TEST(cognitive_knowledge_debug_dump)
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
     for (i32 i = 0; i < 150; i++)
     {
@@ -937,7 +937,7 @@ TEST(cognitive_memory_from_focused_only)
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
     scheduler.Tick(world);
 
     auto& cog = world.Cognitive();
@@ -1020,7 +1020,7 @@ TEST(cognitive_attention_bottleneck)
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
-    auto scheduler = CreateCognitiveScheduler(g_envCtx);
+    auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
     scheduler.Tick(world);
 
     auto& cog = world.Cognitive();
@@ -1247,7 +1247,7 @@ TEST(cognitive_natural_learning_changes_behavior)
         world.SpawnAgent(16, 15);
         world.RebuildSpatial();
 
-        auto scheduler = CreateCognitiveScheduler(g_envCtx);
+        auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
 
         for (i32 i = 0; i < 200; i++)
         {
@@ -1355,6 +1355,7 @@ TEST(cognitive_contradicted_knowledge_persists)
 TEST(concept_registry_can_register)
 {
     auto& reg = ConceptTypeRegistry::Instance();
+    reg.ClearForTests();
 
     ConceptKey key("test.my_concept");
     auto id = reg.Register(key, "my_concept",

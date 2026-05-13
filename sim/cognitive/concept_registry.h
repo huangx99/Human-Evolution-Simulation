@@ -65,6 +65,13 @@ public:
 
     size_t Count() const { return entries_.size(); }
 
+    // Reset registry to empty state. For test isolation only.
+    void ClearForTests()
+    {
+        entries_.clear();
+        keyToIndex_.clear();
+    }
+
 private:
     ConceptTypeRegistry() = default;
 

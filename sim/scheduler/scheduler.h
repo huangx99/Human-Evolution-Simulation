@@ -93,10 +93,18 @@ public:
         return count;
     }
 
+    // Store arbitrary user data that must outlive the scheduler's systems.
+    // Used by test helpers to keep policy objects alive.
+    void SetUserData(std::shared_ptr<void> data)
+    {
+        userData_ = std::move(data);
+    }
+
 private:
     std::array<std::vector<std::unique_ptr<ISystem>>,
                static_cast<size_t>(SimPhase::Count)> systems;
     bool tablePrinted = false;
+    std::shared_ptr<void> userData_;
 
     static const char* PhaseName(SimPhase phase)
     {

@@ -309,24 +309,45 @@ inline Scheduler CreateHumanEvolutionSchedulerWithoutPattern(
 // Create a scheduler with the full cognitive pipeline (no Social).
 // Includes attention, memory, discovery, knowledge.
 // Use for tests that need the cognitive loop but not social signals.
-inline Scheduler CreateCognitiveScheduler(const HumanEvolution::EnvironmentContext& envCtx)
+inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
 {
+    auto memoryPolicy = std::make_shared<HumanEvolutionMemoryInferencePolicy>(ctx.concepts);
+    auto* memoryPolicyPtr = memoryPolicy.get();
+
+    const auto& c = ctx.concepts;
+    std::vector<DiscoveryRule> discoveryRules = {
+        {c.smoke, c.fire, KnowledgeRelation::Signals},
+        {c.fire, c.pain, KnowledgeRelation::Causes},
+        {c.fire, c.warmth, KnowledgeRelation::Causes},
+        {c.heat, c.comfort, KnowledgeRelation::Causes},
+        {c.cold, c.pain, KnowledgeRelation::Causes},
+        {c.meat, c.satiety, KnowledgeRelation::Causes},
+        {c.fruit, c.satiety, KnowledgeRelation::Causes},
+        {c.food, c.satiety, KnowledgeRelation::Causes},
+        {c.danger, c.fear, KnowledgeRelation::Signals},
+        {c.beast, c.danger, KnowledgeRelation::Signals},
+        {c.predator, c.danger, KnowledgeRelation::Signals},
+        {c.burning, c.pain, KnowledgeRelation::Causes},
+        {c.drowning, c.death, KnowledgeRelation::Causes},
+    };
+
     Scheduler scheduler;
+    scheduler.SetUserData(std::static_pointer_cast<void>(memoryPolicy));
 
-    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(ctx.environment));
 
-    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
-    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>());
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>(memoryPolicyPtr));
 
-    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>());
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(std::move(discoveryRules)));
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>());
-    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>());
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>(ctx.concepts));
 
-    scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx.environment));
 
     return scheduler;
 }
@@ -336,7 +357,28 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolution::EnvironmentConte
 // Use for tests that need the complete Phase 2.0 pipeline.
 inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
 {
+    auto memoryPolicy = std::make_shared<HumanEvolutionMemoryInferencePolicy>(ctx.concepts);
+    auto* memoryPolicyPtr = memoryPolicy.get();
+
+    const auto& c = ctx.concepts;
+    std::vector<DiscoveryRule> discoveryRules = {
+        {c.smoke, c.fire, KnowledgeRelation::Signals},
+        {c.fire, c.pain, KnowledgeRelation::Causes},
+        {c.fire, c.warmth, KnowledgeRelation::Causes},
+        {c.heat, c.comfort, KnowledgeRelation::Causes},
+        {c.cold, c.pain, KnowledgeRelation::Causes},
+        {c.meat, c.satiety, KnowledgeRelation::Causes},
+        {c.fruit, c.satiety, KnowledgeRelation::Causes},
+        {c.food, c.satiety, KnowledgeRelation::Causes},
+        {c.danger, c.fear, KnowledgeRelation::Signals},
+        {c.beast, c.danger, KnowledgeRelation::Signals},
+        {c.predator, c.danger, KnowledgeRelation::Signals},
+        {c.burning, c.pain, KnowledgeRelation::Causes},
+        {c.drowning, c.death, KnowledgeRelation::Causes},
+    };
+
     Scheduler scheduler;
+    scheduler.SetUserData(std::static_pointer_cast<void>(memoryPolicy));
 
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(ctx.environment));
@@ -344,14 +386,14 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SocialSignalDecaySystem>());
 
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx.environment));
-    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionImitationObservationSystem>(ctx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
-    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>());
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>(memoryPolicyPtr));
 
-    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>());
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(std::move(discoveryRules)));
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>());
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>(ctx.concepts));
 
