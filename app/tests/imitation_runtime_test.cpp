@@ -274,3 +274,53 @@ TEST(observer_gets_at_most_one_observed_flee_per_tick)
 
     return true;
 }
+
+// Test 9: CreateSystems() includes ImitationObservationSystem in correct phase and order
+TEST(full_pipeline_imitation_system_present)
+{
+    HumanEvolutionRulePack rp;
+    auto systems = rp.CreateSystems();
+
+    bool hasImitation = false;
+    bool hasSocialPerception = false;
+    bool hasAttention = false;
+
+    i32 socialPerceptionIdx = -1;
+    i32 imitationIdx = -1;
+    i32 attentionIdx = -1;
+
+    for (i32 i = 0; i < static_cast<i32>(systems.size()); i++)
+    {
+        const char* name = systems[i].system->Descriptor().name;
+        std::string n(name);
+
+        if (n == "HumanEvolutionSocialSignalPerceptionSystem")
+        {
+            hasSocialPerception = true;
+            socialPerceptionIdx = i;
+            ASSERT_TRUE(systems[i].phase == SimPhase::Perception);
+        }
+        else if (n == "HumanEvolutionImitationObservationSystem")
+        {
+            hasImitation = true;
+            imitationIdx = i;
+            ASSERT_TRUE(systems[i].phase == SimPhase::Perception);
+        }
+        else if (n == "CognitiveAttentionSystem")
+        {
+            hasAttention = true;
+            attentionIdx = i;
+            ASSERT_TRUE(systems[i].phase == SimPhase::Perception);
+        }
+    }
+
+    ASSERT_TRUE(hasImitation);
+    ASSERT_TRUE(hasSocialPerception);
+    ASSERT_TRUE(hasAttention);
+
+    // Verify pipeline order: SocialPerception → Imitation → Attention
+    ASSERT_TRUE(socialPerceptionIdx < imitationIdx);
+    ASSERT_TRUE(imitationIdx < attentionIdx);
+
+    return true;
+}
