@@ -190,7 +190,7 @@ TEST(observed_flee_can_enter_attention)
     bool foundFocused = false;
     for (const auto& focused : cog.frameFocused)
     {
-        if (focused.stimulus.observerId == 2 && focused.stimulus.sourceEntityId == 1)
+        if (focused.stimulus.observerId == 2 && focused.stimulus.concept == ConceptTag::ObservedFlee)
         {
             foundFocused = true;
             ASSERT_TRUE(focused.attentionScore > 0.0f);
@@ -224,11 +224,18 @@ TEST(observed_flee_memory_requires_attention)
     auto& cog = world.Cognitive();
     auto& mems = cog.GetAgentMemories(2);
 
-    // If memory formed, sourceStimulusId should be non-zero
+    // Must find an ObservedFlee memory with valid sourceStimulusId
+    bool foundMemory = false;
     for (const auto& mem : mems)
     {
-        ASSERT_TRUE(mem.sourceStimulusId > 0);
+        if (mem.subject == ConceptTag::ObservedFlee)
+        {
+            foundMemory = true;
+            ASSERT_TRUE(mem.sourceStimulusId > 0);
+            ASSERT_EQ(mem.ownerId, 2);
+        }
     }
+    ASSERT_TRUE(foundMemory);
 
     return true;
 }
@@ -258,12 +265,12 @@ TEST(observer_gets_at_most_one_observed_flee_per_tick)
     i32 count = 0;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 3 && stim.sourceEntityId != 0)
+        if (stim.observerId == 3 && stim.concept == ConceptTag::ObservedFlee)
             count++;
     }
 
-    // Should be at most 1 (nearest/strongest wins)
-    ASSERT_TRUE(count <= 1);
+    // Must be exactly 1: nearest/strongest wins, not zero, not both
+    ASSERT_EQ(count, 1);
 
     return true;
 }

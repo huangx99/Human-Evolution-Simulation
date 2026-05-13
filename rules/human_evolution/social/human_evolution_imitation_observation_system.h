@@ -17,6 +17,7 @@
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
 #include "rules/human_evolution/human_evolution_context.h"
+#include "sim/social/observed_action.h"
 #include "sim/entity/agent_action.h"
 #include "sim/cognitive/concept_tag.h"
 #include <cmath>
@@ -41,7 +42,7 @@ public:
                 continue;
 
             f32 bestScore = 0.0f;
-            PerceivedStimulus bestStim{};
+            ObservedAction bestObserved{};
             bool found = false;
 
             for (const auto& actor : agents)
@@ -64,23 +65,31 @@ public:
                 if (visibility <= kMinVisibility)
                     continue;
 
-                PerceivedStimulus stim;
-                if (!TryMapObservedFlee(observer, actor, now, visibility, distance, stim))
-                    continue;
+                f32 intensity = kObservedFleeBaseIntensity * visibility;
+                f32 confidence = kObservedFleeBaseConfidence * visibility;
+                f32 score = intensity * confidence;
 
-                f32 score = stim.intensity * stim.confidence;
                 if (score > bestScore)
                 {
                     bestScore = score;
-                    bestStim = stim;
+                    bestObserved.observerEntityId = observer.id;
+                    bestObserved.actorEntityId = actor.id;
+                    bestObserved.kind = ObservedActionKind::Flee;
+                    bestObserved.observedTick = now;
+                    bestObserved.origin = actor.position;
+                    bestObserved.visibility = visibility;
+                    bestObserved.distance = distance;
+                    bestObserved.confidence = confidence;
                     found = true;
                 }
             }
 
             if (found)
             {
-                bestStim.id = cog.nextStimulusId++;
-                cog.frameStimuli.push_back(bestStim);
+                PerceivedStimulus stim;
+                MapObservedToStimulus(bestObserved, stim);
+                stim.id = cog.nextStimulusId++;
+                cog.frameStimuli.push_back(stim);
             }
         }
     }
@@ -111,23 +120,18 @@ private:
         return agent.currentAction == AgentAction::Flee;
     }
 
-    static bool TryMapObservedFlee(
-        const Agent& observer,
-        const Agent& actor,
-        Tick now,
-        f32 visibility,
-        f32 distance,
+    static void MapObservedToStimulus(
+        const ObservedAction& observed,
         PerceivedStimulus& out)
     {
-        out.observerId = observer.id;
-        out.sourceEntityId = actor.id;
+        out.observerId = observed.observerEntityId;
+        out.sourceEntityId = observed.actorEntityId;
         out.sense = SenseType::Vision;
-        out.concept = ConceptTag::Fear;  // observed_flee maps to social danger evidence
-        out.location = actor.position;
-        out.intensity = kObservedFleeBaseIntensity * visibility;
-        out.confidence = kObservedFleeBaseConfidence * visibility;
-        out.distance = distance;
-        out.tick = now;
-        return true;
+        out.concept = ConceptTag::ObservedFlee;
+        out.location = observed.origin;
+        out.intensity = kObservedFleeBaseIntensity * observed.visibility;
+        out.confidence = kObservedFleeBaseConfidence * observed.visibility;
+        out.distance = observed.distance;
+        out.tick = observed.observedTick;
     }
 };

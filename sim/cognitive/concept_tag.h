@@ -82,6 +82,7 @@ enum class ConceptTag : u32
     Group,
     Signal,
     Voice,
+    ObservedFlee,
 
     // === Abstract (emerge from experience) ===
     Safety,
@@ -188,11 +189,12 @@ namespace ConceptRegistry
         db[static_cast<size_t>(ConceptTag::Path)]     = { SemanticGroup::Environment | SemanticGroup::Abstract, "Path" };
 
         // Social
-        db[static_cast<size_t>(ConceptTag::Companion)] = { SemanticGroup::Social | SemanticGroup::Abstract, "Companion" };
-        db[static_cast<size_t>(ConceptTag::Stranger)]  = { SemanticGroup::Social | SemanticGroup::Danger | SemanticGroup::Abstract, "Stranger" };
-        db[static_cast<size_t>(ConceptTag::Group)]     = { SemanticGroup::Social | SemanticGroup::Abstract, "Group" };
-        db[static_cast<size_t>(ConceptTag::Signal)]    = { SemanticGroup::Social | SemanticGroup::Abstract, "Signal" };
-        db[static_cast<size_t>(ConceptTag::Voice)]     = { SemanticGroup::Social | SemanticGroup::Abstract, "Voice" };
+        db[static_cast<size_t>(ConceptTag::Companion)]   = { SemanticGroup::Social | SemanticGroup::Abstract, "Companion" };
+        db[static_cast<size_t>(ConceptTag::Stranger)]    = { SemanticGroup::Social | SemanticGroup::Danger | SemanticGroup::Abstract, "Stranger" };
+        db[static_cast<size_t>(ConceptTag::Group)]       = { SemanticGroup::Social | SemanticGroup::Abstract, "Group" };
+        db[static_cast<size_t>(ConceptTag::Signal)]      = { SemanticGroup::Social | SemanticGroup::Abstract, "Signal" };
+        db[static_cast<size_t>(ConceptTag::Voice)]       = { SemanticGroup::Social | SemanticGroup::Abstract, "Voice" };
+        db[static_cast<size_t>(ConceptTag::ObservedFlee)] = { SemanticGroup::Social | SemanticGroup::Danger | SemanticGroup::Threat | SemanticGroup::Abstract, "ObservedFlee" };
 
         // Abstract
         db[static_cast<size_t>(ConceptTag::Safety)]    = { SemanticGroup::Abstract | SemanticGroup::Shelter_, "Safety" };
