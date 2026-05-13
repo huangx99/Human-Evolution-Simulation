@@ -3,7 +3,6 @@
 #include "core/types/types.h"
 #include "sim/world/world_state.h"
 #include "rules/human_evolution/human_evolution_context.h"
-#include "sim/cognitive/concept_tag.h"
 #include "sim/cognitive/memory_record.h"
 #include <vector>
 #include <string>

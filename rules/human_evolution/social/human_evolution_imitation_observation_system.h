@@ -22,7 +22,6 @@
 #include "rules/human_evolution/human_evolution_context.h"
 #include "sim/social/observed_action.h"
 #include "sim/entity/agent_action.h"
-#include "sim/cognitive/concept_tag.h"
 #include <cmath>
 #include <algorithm>
 
