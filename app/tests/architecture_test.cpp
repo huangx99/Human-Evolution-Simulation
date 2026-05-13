@@ -319,7 +319,7 @@ TEST(determinism_100k)
         world.SpawnAgent(4, 4);
 
         Scheduler scheduler;
-        scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>());
+        scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(g_envCtx));
 
         for (i32 i = 0; i < 1000; i++)
             scheduler.Tick(world);

@@ -7,47 +7,35 @@
 //   - Smell diffusion to adjacent cells
 //   - Wind-driven smell transport
 //
-// OWNERSHIP: Engine (sim/system/)
-// READS: FieldModule (smell, fire, wind_x, wind_y)
-// WRITES: FieldModule (smell) via FieldWriter
 // PHASE: SimPhase::Propagation
 
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
+#include "rules/human_evolution/human_evolution_context.h"
 #include <cmath>
 
 class SmellSystem : public ISystem
 {
 public:
+    explicit SmellSystem(const HumanEvolution::EnvironmentContext& envCtx)
+        : env_(envCtx) {}
+
     void Update(SystemContext& ctx) override
     {
-        if (!initialized_)
-        {
-            auto& fm = ctx.GetFieldModule();
-            smell_ = fm.FindByKey(FieldKey("human_evolution.smell"));
-            fire_  = fm.FindByKey(FieldKey("human_evolution.fire"));
-            windX_ = fm.FindByKey(FieldKey("human_evolution.wind_x"));
-            windY_ = fm.FindByKey(FieldKey("human_evolution.wind_y"));
-            width_ = ctx.World().Width();
-            height_ = ctx.World().Height();
-            initialized_ = true;
-        }
-
         auto& fields = ctx.Fields();
         auto& fm = ctx.GetFieldModule();
-
-        i32 w = width_;
-        i32 h = height_;
+        i32 w = ctx.World().Width();
+        i32 h = ctx.World().Height();
 
         // Copy current to next
-        fields.CopyCurrentToNext(smell_);
+        fields.CopyCurrentToNext(env_.smell);
 
         // Propagation: decay, diffusion, wind transport
         for (i32 y = 0; y < h; y++)
         {
             for (i32 x = 0; x < w; x++)
             {
-                f32 current = fm.Read(smell_, x, y);
+                f32 current = fm.Read(env_.smell, x, y);
                 f32 value = current * decayRate;
 
                 f32 lossToNeighbors = 0.0f;
@@ -61,25 +49,25 @@ public:
                     i32 nx = x + dx[i];
                     i32 ny = y + dy[i];
 
-                    if (fm.InBounds(smell_, nx, ny))
+                    if (fm.InBounds(env_.smell, nx, ny))
                     {
                         lossToNeighbors += value * diffusionRate;
-                        gainFromNeighbors += fm.Read(smell_, nx, ny) * diffusionRate * 0.25f;
+                        gainFromNeighbors += fm.Read(env_.smell, nx, ny) * diffusionRate * 0.25f;
                     }
                 }
 
                 value = value - lossToNeighbors + gainFromNeighbors;
 
-                f32 wx = fm.Read(windX_, 0, 0);
-                f32 wy = fm.Read(windY_, 0, 0);
+                f32 wx = fm.Read(env_.windX, 0, 0);
+                f32 wy = fm.Read(env_.windY, 0, 0);
                 i32 windSrcX = x - static_cast<i32>(wx);
                 i32 windSrcY = y - static_cast<i32>(wy);
-                if (fm.InBounds(smell_, windSrcX, windSrcY))
+                if (fm.InBounds(env_.smell, windSrcX, windSrcY))
                 {
-                    value += fm.Read(smell_, windSrcX, windSrcY) * windStrength;
+                    value += fm.Read(env_.smell, windSrcX, windSrcY) * windStrength;
                 }
 
-                fields.WriteNext(smell_, x, y, std::max(0.0f, value));
+                fields.WriteNext(env_.smell, x, y, std::max(0.0f, value));
             }
         }
 
@@ -88,9 +76,9 @@ public:
         {
             for (i32 x = 0; x < w; x++)
             {
-                if (fm.Read(fire_, x, y) > 5.0f)
+                if (fm.Read(env_.fire, x, y) > 5.0f)
                 {
-                    fields.WriteNext(smell_, x, y, fm.Read(smell_, x, y) + fm.Read(fire_, x, y) * 0.5f);
+                    fields.WriteNext(env_.smell, x, y, fm.Read(env_.smell, x, y) + fm.Read(env_.fire, x, y) * 0.5f);
                 }
             }
         }
@@ -114,7 +102,5 @@ private:
     static constexpr f32 diffusionRate = 0.05f;
     static constexpr f32 windStrength = 0.02f;
 
-    bool initialized_ = false;
-    FieldIndex smell_, fire_, windX_, windY_;
-    i32 width_ = 0, height_ = 0;
+    HumanEvolution::EnvironmentContext env_;
 };

@@ -52,10 +52,10 @@ public:
     {
         std::vector<SystemRegistration> systems;
 
-        // Environment (lazy FieldKey lookup — no context needed)
-        systems.push_back({SimPhase::Environment, std::make_unique<ClimateSystem>()});
-        systems.push_back({SimPhase::Propagation, std::make_unique<FireSystem>()});
-        systems.push_back({SimPhase::Propagation, std::make_unique<SmellSystem>()});
+        // Environment (constructor-injected EnvironmentContext)
+        systems.push_back({SimPhase::Environment, std::make_unique<ClimateSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Propagation, std::make_unique<FireSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Propagation, std::make_unique<SmellSystem>(ctx_.environment)});
 
         // Perception pipeline
         systems.push_back({SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx_.environment)});
@@ -88,10 +88,10 @@ private:
 // Use in tests instead of manual AddSystem calls.
 inline void RegisterHumanEvolutionSystems(Scheduler& scheduler, const HumanEvolution::EnvironmentContext& envCtx)
 {
-    // Environment systems (lazy FieldKey lookup — no context needed)
-    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>());
-    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>());
-    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>());
+    // Environment systems (constructor-injected EnvironmentContext)
+    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
 
     // Agent/cognitive systems (receive EnvironmentContext via constructor)
     scheduler.AddSystem(SimPhase::Perception, std::make_unique<AgentPerceptionSystem>(envCtx));
@@ -114,10 +114,10 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolution::EnvironmentConte
 {
     Scheduler scheduler;
 
-    // Environment systems (lazy FieldKey lookup — no context needed)
-    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>());
-    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>());
-    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>());
+    // Environment systems (constructor-injected EnvironmentContext)
+    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
 
     // Perception pipeline
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(envCtx));
