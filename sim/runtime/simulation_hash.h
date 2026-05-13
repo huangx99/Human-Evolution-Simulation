@@ -55,6 +55,7 @@ inline void HashAgent(SimHash& h, const Agent& a)
     h.FeedI32(a.position.y);
     h.FeedF32(a.hunger);
     h.FeedF32(a.health);
+    h.FeedU8(a.alive ? 1 : 0);
     h.FeedU8(static_cast<u8>(a.currentAction));
     h.FeedF32(a.nearestSmell);
     h.FeedF32(a.nearestFire);

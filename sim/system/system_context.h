@@ -3,6 +3,7 @@
 #include "sim/world/world_state.h"
 #include "sim/system/field_writer.h"
 #include "sim/scheduler/system_descriptor.h"
+#include "sim/history/history_module.h"
 
 // SystemContext: controlled access wrapper passed to every ISystem::Update().
 //
@@ -33,6 +34,8 @@ public:
           CognitiveModule&   Cognitive()       { return world_.Cognitive(); }
     const PatternModule&     Patterns()  const { return world_.Patterns(); }
           PatternModule&     Patterns()        { return world_.Patterns(); }
+    const HistoryModule&     History()   const { return world_.History(); }
+          HistoryModule&     History()         { return world_.History(); }
 
     // Commands and Events
     CommandBuffer& Commands() { return world_.commands; }

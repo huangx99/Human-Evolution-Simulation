@@ -20,6 +20,9 @@
 #include "sim/pattern/pattern_registry.h"
 #include "sim/pattern/detectors/high_frequency_path_detector.h"
 #include "sim/pattern/detectors/stable_field_zone_detector.h"
+#include "sim/history/history_detection_system.h"
+#include "rules/human_evolution/history/first_stable_fire_detector.h"
+#include "rules/human_evolution/history/mass_death_detector.h"
 
 // HumanEvolutionRulePack: defines the Human Evolution world.
 //
@@ -48,6 +51,14 @@ public:
     void RegisterCommands() override
     {
         RegisterHumanEvolutionCommands();
+    }
+
+    void RegisterHistoryTypes(HistoryRegistry& registry) override
+    {
+        ctx_.history.firstStableFireUsage = registry.Register(
+            HistoryKey("human_evolution.first_stable_fire_usage"), "first_stable_fire_usage");
+        ctx_.history.massDeath = registry.Register(
+            HistoryKey("human_evolution.mass_death"), "mass_death");
     }
 
     IRuleContext& GetContext() override { return ctx_; }
@@ -95,6 +106,29 @@ public:
                 std::vector<FieldWatchSpec>{fireWatch}));
 
             systems.push_back({SimPhase::Analysis, std::move(patternSys)});
+        }
+
+        // History detection (read-only observer, emits history events)
+        {
+            auto historySys = std::make_unique<HistoryDetectionSystem>();
+
+            // First stable fire usage: fires once when stable_fire_zone pattern appears
+            historySys->AddDetector(std::make_unique<FirstStableFireUsageDetector>(
+                HistoryKey("human_evolution.first_stable_fire_usage"),
+                PatternKey("human_evolution.stable_fire_zone"),
+                0.5f,   // minConfidence
+                50      // minObservations
+            ));
+
+            // Mass death: cluster of deaths in short window
+            MassDeathDetector::Config massDeathCfg;
+            massDeathCfg.eventKey = HistoryKey("human_evolution.mass_death");
+            massDeathCfg.windowTicks = 10;
+            massDeathCfg.threshold = 3;
+            massDeathCfg.cooldownTicks = 50;
+            historySys->AddDetector(std::make_unique<MassDeathDetector>(std::move(massDeathCfg)));
+
+            systems.push_back({SimPhase::History, std::move(historySys)});
         }
 
         return systems;

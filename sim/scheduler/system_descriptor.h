@@ -24,6 +24,7 @@ enum class ModuleTag : uint8_t
     Event,          // EventBus
     Spatial,        // SpatialIndex
     Pattern,        // PatternModule (long-term structure detection)
+    History,        // HistoryModule (significant historical events)
     Count
 };
 

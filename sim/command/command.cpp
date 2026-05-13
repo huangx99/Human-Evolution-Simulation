@@ -45,7 +45,18 @@ void DamageAgentCommand::Execute(WorldState& world) const
     {
         if (agent.id == id)
         {
+            f32 prevHealth = agent.health;
             agent.health = std::max(0.0f, agent.health - amount);
+            // Emit death event on health->0 transition
+            // TRANSITIONAL DEBT: EventType::AgentDied should become RulePack-registered
+            // when EventRegistry lands.
+            if (prevHealth > 0.0f && agent.health <= 0.0f && agent.alive)
+            {
+                agent.alive = false;
+                world.events.Emit({EventType::AgentDied,
+                    world.Sim().clock.currentTick, agent.id,
+                    agent.position.x, agent.position.y, amount});
+            }
             break;
         }
     }

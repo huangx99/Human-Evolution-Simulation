@@ -21,6 +21,7 @@ enum class SimPhase : uint8_t
     EventResolve,       // Process and archive events
     FieldSwap,          // Swap field double buffers
     Analysis,           // Pattern detection (observes post-swap stable state)
+    History,            // History event detection (reads patterns, emits events)
     Snapshot,           // Capture world state, compute hash
 
     EndTick,            // Finalize tick, clock step

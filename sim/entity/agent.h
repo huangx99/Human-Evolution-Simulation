@@ -11,6 +11,7 @@ struct Agent
     Vec2i position;
     f32 hunger = 50.0f;      // 0=full, 100=starving
     f32 health = 100.0f;     // 0=dead, 100=full
+    bool alive = true;       // false once health reaches 0
     AgentAction currentAction = AgentAction::Idle;
 
     // Perception results (set by AgentSystem)

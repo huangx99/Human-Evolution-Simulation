@@ -4,6 +4,7 @@
 #include "sim/system/i_system.h"
 #include "sim/field/field_module.h"
 #include "sim/runtime/rule_context.h"
+#include "sim/history/history_registry.h"
 #include <vector>
 #include <memory>
 
@@ -71,6 +72,10 @@ public:
     // Register domain-specific command types
     // Default: empty (use engine defaults)
     virtual void RegisterCommands() {}
+
+    // Register domain-specific history event types with HistoryRegistry.
+    // Default: empty (no custom history types)
+    virtual void RegisterHistoryTypes(HistoryRegistry&) {}
 
     // --- System creation (called once during WorldState construction) ---
 

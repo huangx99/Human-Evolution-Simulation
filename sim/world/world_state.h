@@ -8,6 +8,8 @@
 #include "sim/cognitive/cognitive_module.h"
 #include "sim/pattern/pattern_module.h"
 #include "sim/pattern/pattern_registry.h"
+#include "sim/history/history_module.h"
+#include "sim/history/history_registry.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
@@ -39,6 +41,9 @@ struct WorldState
         // RulePack registers its command factories
         rulePack.RegisterCommands();
 
+        // RulePack registers its history event types
+        rulePack.RegisterHistoryTypes(HistoryRegistry::Instance());
+
         // Store RulePack context for snapshot/replay access
         ruleContext_ = &rulePack.GetContext();
 
@@ -46,6 +51,7 @@ struct WorldState
         modules.Register<EcologyModule>();
         modules.Register<CognitiveModule>();
         modules.Register<PatternModule>();
+        modules.Register<HistoryModule>();
     }
 
     // Convenience constructor: no RulePack (for engine-only tests).
@@ -60,6 +66,7 @@ struct WorldState
         modules.Register<EcologyModule>();
         modules.Register<CognitiveModule>();
         modules.Register<PatternModule>();
+        modules.Register<HistoryModule>();
     }
 
     // Deferred RulePack init: register fields.
@@ -83,6 +90,7 @@ struct WorldState
     EcologyModule& Ecology() { return modules.Get<EcologyModule>(); }
     CognitiveModule& Cognitive() { return modules.Get<CognitiveModule>(); }
     PatternModule& Patterns() { return modules.Get<PatternModule>(); }
+    HistoryModule& History() { return modules.Get<HistoryModule>(); }
 
     const SimulationModule& Sim() const { return modules.Get<SimulationModule>(); }
     const FieldModule& Fields() const { return modules.Get<FieldModule>(); }
@@ -90,6 +98,7 @@ struct WorldState
     const EcologyModule& Ecology() const { return modules.Get<EcologyModule>(); }
     const CognitiveModule& Cognitive() const { return modules.Get<CognitiveModule>(); }
     const PatternModule& Patterns() const { return modules.Get<PatternModule>(); }
+    const HistoryModule& History() const { return modules.Get<HistoryModule>(); }
 
     // RulePack context access (for snapshot/replay)
     IRuleContext* RuleContext() { return ruleContext_; }

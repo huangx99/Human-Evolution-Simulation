@@ -113,6 +113,7 @@ private:
         case SimPhase::EventResolve:  return "EventResolve";
         case SimPhase::FieldSwap:     return "FieldSwap";
         case SimPhase::Analysis:      return "Analysis";
+        case SimPhase::History:       return "History";
         case SimPhase::Snapshot:      return "Snapshot";
         case SimPhase::EndTick:       return "EndTick";
         default:                      return "Unknown";
