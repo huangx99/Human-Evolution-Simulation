@@ -3,7 +3,6 @@
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
 #include "rules/human_evolution/human_evolution_context.h"
-#include "sim/cognitive/concept_tag.h"
 #include <cmath>
 
 // CognitivePerceptionSystem: converts world state into subjective perception.
@@ -13,13 +12,31 @@
 // Knowledge) consume PerceivedStimulus or its derivatives, NEVER raw WorldState.
 //
 // Moved from sim/system/ — depends on HumanEvolution field bindings.
-// Uses EnvironmentContext for field access via FieldModule.
+// Uses EnvironmentContext for field access, ConceptContext for concept ids.
 
 class CognitivePerceptionSystem : public ISystem
 {
 public:
+    explicit CognitivePerceptionSystem(const HumanEvolutionContext& ctx)
+        : envCtx_(ctx.environment), concepts_(ctx.concepts) {}
+
+    // Convenience constructor for test helpers that only have EnvironmentContext.
+    // Looks up concepts from global ConceptTypeRegistry by key.
     explicit CognitivePerceptionSystem(const HumanEvolution::EnvironmentContext& envCtx)
-        : envCtx_(envCtx) {}
+        : envCtx_(envCtx)
+    {
+        const auto& reg = ConceptTypeRegistry::Instance();
+        concepts_.fire      = reg.FindByKey(MakeConceptKey("human_evolution.fire"));
+        concepts_.food      = reg.FindByKey(MakeConceptKey("human_evolution.food"));
+        concepts_.water     = reg.FindByKey(MakeConceptKey("human_evolution.water"));
+        concepts_.wood      = reg.FindByKey(MakeConceptKey("human_evolution.wood"));
+        concepts_.stone     = reg.FindByKey(MakeConceptKey("human_evolution.stone"));
+        concepts_.death     = reg.FindByKey(MakeConceptKey("human_evolution.death"));
+        concepts_.heat      = reg.FindByKey(MakeConceptKey("human_evolution.heat"));
+        concepts_.cold      = reg.FindByKey(MakeConceptKey("human_evolution.cold"));
+        concepts_.danger    = reg.FindByKey(MakeConceptKey("human_evolution.danger"));
+        concepts_.smoke     = reg.FindByKey(MakeConceptKey("human_evolution.smoke"));
+    }
 
     void Update(SystemContext& ctx) override
     {
@@ -40,7 +57,7 @@ public:
                 s.id = cog.nextStimulusId++;
                 s.observerId = agent.id;
                 s.sense = SenseType::Smell;
-                s.concept = ConceptTag::Food;
+                s.concept = concepts_.food;
                 s.location = agent.position;
                 s.intensity = agent.nearestSmell / 50.0f;
                 s.confidence = 0.7f;
@@ -56,7 +73,7 @@ public:
                 s.id = cog.nextStimulusId++;
                 s.observerId = agent.id;
                 s.sense = SenseType::Vision;
-                s.concept = ConceptTag::Fire;
+                s.concept = concepts_.fire;
                 s.location = agent.position;
                 s.intensity = agent.nearestFire / 80.0f;
                 s.confidence = 0.9f;
@@ -72,7 +89,7 @@ public:
                 s.id = cog.nextStimulusId++;
                 s.observerId = agent.id;
                 s.sense = SenseType::Heat;
-                s.concept = ConceptTag::Heat;
+                s.concept = concepts_.heat;
                 s.location = agent.position;
                 s.intensity = (agent.localTemperature - 30.0f) / 30.0f;
                 s.confidence = 0.8f;
@@ -86,7 +103,7 @@ public:
                 s.id = cog.nextStimulusId++;
                 s.observerId = agent.id;
                 s.sense = SenseType::Heat;
-                s.concept = ConceptTag::Cold;
+                s.concept = concepts_.cold;
                 s.location = agent.position;
                 s.intensity = (10.0f - agent.localTemperature) / 20.0f;
                 s.confidence = 0.8f;
@@ -105,7 +122,7 @@ public:
                     s.id = cog.nextStimulusId++;
                     s.observerId = agent.id;
                     s.sense = SenseType::Danger;
-                    s.concept = ConceptTag::Danger;
+                    s.concept = concepts_.danger;
                     s.location = agent.position;
                     s.intensity = dangerVal / 50.0f;
                     s.confidence = 0.6f;
@@ -126,7 +143,7 @@ public:
                     s.id = cog.nextStimulusId++;
                     s.observerId = agent.id;
                     s.sense = SenseType::Smoke;
-                    s.concept = ConceptTag::Smoke;
+                    s.concept = concepts_.smoke;
                     s.location = agent.position;
                     s.intensity = smokeVal / 40.0f;
                     s.confidence = 0.75f;
@@ -147,8 +164,8 @@ public:
                 f32 dist = std::sqrt(dx * dx + dy * dy);
                 if (dist > scanRadius) continue;
 
-                ConceptTag concept = InferConcept(*entity);
-                if (concept == ConceptTag::None) continue;
+                ConceptTypeId concept = InferConcept(*entity);
+                if (!concept) continue;
 
                 PerceivedStimulus s;
                 s.id = cog.nextStimulusId++;
@@ -181,6 +198,7 @@ public:
 
 private:
     HumanEvolution::EnvironmentContext envCtx_;
+    HumanEvolution::ConceptContext concepts_;
 
     static constexpr f32 smellThreshold = 3.0f;
     static constexpr f32 fireThreshold = 5.0f;
@@ -190,20 +208,20 @@ private:
     static constexpr f32 smokeThreshold = 2.0f;
     static constexpr i32 scanRadius = 4;
 
-    static ConceptTag InferConcept(const EcologyEntity& entity)
+    ConceptTypeId InferConcept(const EcologyEntity& entity) const
     {
         if (entity.HasState(MaterialState::Burning))
-            return ConceptTag::Fire;
+            return concepts_.fire;
         if (entity.HasCapability(Capability::Edible))
-            return ConceptTag::Food;
+            return concepts_.food;
         if (entity.material == MaterialId::Water)
-            return ConceptTag::Water;
+            return concepts_.water;
         if (entity.material == MaterialId::Wood || entity.material == MaterialId::Tree)
-            return ConceptTag::Wood;
+            return concepts_.wood;
         if (entity.material == MaterialId::Stone)
-            return ConceptTag::Stone;
+            return concepts_.stone;
         if (entity.HasState(MaterialState::Dead) && entity.material == MaterialId::Flesh)
-            return ConceptTag::Death;
-        return ConceptTag::None;
+            return concepts_.death;
+        return ConceptTypeId{};  // invalid = skip
     }
 };

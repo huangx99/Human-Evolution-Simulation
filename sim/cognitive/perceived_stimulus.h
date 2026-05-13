@@ -2,7 +2,7 @@
 
 #include "core/types/types.h"
 #include "core/math/vec2i.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_id.h"
 
 enum class SenseType : u8
 {
@@ -39,7 +39,7 @@ struct PerceivedStimulus
     EntityId sourceEntityId = 0;    // what caused it (0 = environment)
 
     SenseType sense = SenseType::Vision;
-    ConceptTag concept = ConceptTag::None;  // what was perceived
+    ConceptTypeId concept;  // what was perceived
 
     Vec2i location;
 

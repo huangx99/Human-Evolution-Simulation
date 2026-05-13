@@ -27,6 +27,7 @@
 
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
+#include "sim/cognitive/concept_registry.h"
 #include <algorithm>
 #include <cmath>
 
@@ -112,27 +113,27 @@ private:
     }
 
     // Urgency: how immediately important is this?
+    // Uses semantic flags instead of domain-specific concept names.
     f32 ComputeUrgency(const PerceivedStimulus& s, const Agent& agent)
     {
-        switch (s.concept)
-        {
-        case ConceptTag::Fire:
-        case ConceptTag::Danger:
-        case ConceptTag::Burning:
+        const auto& reg = ConceptTypeRegistry::Instance();
+
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Danger))
             return 2.0f;
 
-        case ConceptTag::Food:
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Resource) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Organic))
             return 1.0f + agent.hunger / 100.0f;
 
-        case ConceptTag::Heat:
-            return agent.localTemperature > 45.0f ? 1.8f : 1.0f;
-
-        case ConceptTag::Cold:
-            return agent.localTemperature < 5.0f ? 1.5f : 1.0f;
-
-        default:
-            return 1.0f;
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Thermal))
+        {
+            if (reg.HasFlag(s.concept, ConceptSemanticFlag::Negative))
+                return agent.localTemperature > 45.0f ? 1.8f : 1.0f;
+            if (reg.HasFlag(s.concept, ConceptSemanticFlag::Positive))
+                return agent.localTemperature < 5.0f ? 1.5f : 1.0f;
         }
+
+        return 1.0f;
     }
 
     // Novelty: has the agent seen this before?
@@ -158,22 +159,14 @@ private:
     f32 ComputeFearBias(const PerceivedStimulus& s, const Agent& agent,
                          const WorldState& world)
     {
+        const auto& reg = ConceptTypeRegistry::Instance();
         f32 bias = 0.0f;
 
         // Health-based fear: low health → more afraid of danger
         if (agent.health < 50.0f)
         {
-            switch (s.concept)
-            {
-            case ConceptTag::Fire:
-            case ConceptTag::Danger:
-            case ConceptTag::Beast:
-            case ConceptTag::Predator:
-            case ConceptTag::Burning:
+            if (reg.HasFlag(s.concept, ConceptSemanticFlag::Danger))
                 bias += 0.5f;
-            default:
-                break;
-            }
         }
 
         // Memory-based fear: recent pain/trauma memories amplify fear
@@ -182,7 +175,8 @@ private:
         Tick now = world.Sim().clock.currentTick;
         for (const auto& mem : memories)
         {
-            if (mem.subject == ConceptTag::Pain || mem.subject == ConceptTag::Burning)
+            if (reg.HasFlag(mem.subject, ConceptSemanticFlag::Internal) &&
+                reg.HasFlag(mem.subject, ConceptSemanticFlag::Negative))
             {
                 // Recent memories have more influence
                 f32 recency = 1.0f / (1.0f + static_cast<f32>(now - mem.lastReinforcedTick) * 0.01f);
@@ -192,15 +186,10 @@ private:
         if (recentPain > 0.1f)
         {
             // Pain memories amplify fear of danger stimuli
-            switch (s.concept)
+            if (reg.HasFlag(s.concept, ConceptSemanticFlag::Danger) ||
+                reg.HasFlag(s.concept, ConceptSemanticFlag::Thermal))
             {
-            case ConceptTag::Fire:
-            case ConceptTag::Heat:
-            case ConceptTag::Burning:
-            case ConceptTag::Danger:
                 bias += recentPain * 0.5f;
-            default:
-                break;
             }
         }
 
@@ -212,14 +201,11 @@ private:
     {
         if (agent.hunger > 50.0f)
         {
-            switch (s.concept)
+            const auto& reg = ConceptTypeRegistry::Instance();
+            if (reg.HasFlag(s.concept, ConceptSemanticFlag::Resource) &&
+                reg.HasFlag(s.concept, ConceptSemanticFlag::Organic))
             {
-            case ConceptTag::Food:
-            case ConceptTag::Meat:
-            case ConceptTag::Fruit:
                 return agent.hunger / 200.0f;  // up to 50% bonus
-            default:
-                break;
             }
         }
         return 0.0f;
@@ -231,6 +217,7 @@ private:
                               const WorldState& world)
     {
         const auto& cog = world.Cognitive();
+        const auto& reg = ConceptTypeRegistry::Instance();
         f32 bias = 0.0f;
 
         // Check if agent knows this concept is dangerous
@@ -238,39 +225,56 @@ private:
         if (knownDanger > 0.0f)
         {
             // Knowledge of danger amplifies attention to danger-related stimuli
-            switch (s.concept)
+            if (reg.HasFlag(s.concept, ConceptSemanticFlag::Danger) ||
+                reg.HasFlag(s.concept, ConceptSemanticFlag::Thermal))
             {
-            case ConceptTag::Fire:
-            case ConceptTag::Heat:
-            case ConceptTag::Smoke:
-            case ConceptTag::Burning:
-            case ConceptTag::Danger:
-            case ConceptTag::Beast:
-            case ConceptTag::Predator:
-                bias += knownDanger * 0.3f;  // up to 30% bonus per knowledge unit
-            default:
-                break;
+                bias += knownDanger * 0.3f;
             }
         }
 
-        // Check if agent knows Smoke → Signals → Fire (smoke means fire nearby)
-        if (s.concept == ConceptTag::Smoke)
+        // Check knowledge links for specific concept pairs
+        // These use the KnowledgeGraph which now stores ConceptTypeId
+        // We need to find concept ids by checking what the agent knows
+
+        // For smoke→fire knowledge boost: check if agent has any Signals edge
+        // from a smoke-like concept to a fire-like concept
+        // Since we can't hardcode concept names anymore, we check by semantic flags:
+        // if the stimulus is environmental+danger and agent has Signals knowledge
+        // to a danger concept, boost attention
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Environmental) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Danger))
         {
-            if (cog.HasKnowledgeLink(agent.id, ConceptTag::Smoke,
-                                     ConceptTag::Fire, KnowledgeRelation::Signals))
+            // Check all outgoing knowledge edges from this concept
+            auto edges = cog.knowledgeGraph.FindEdgesFrom(agent.id, 0, s.concept);
+            for (const auto* e : edges)
             {
-                bias += 0.4f;  // 40% bonus: smoke is more interesting if you know it means fire
+                if (e->relation == KnowledgeRelation::Signals)
+                {
+                    const auto* toNode = cog.knowledgeGraph.FindNodeById(e->toNodeId);
+                    if (toNode && reg.HasFlag(toNode->concept, ConceptSemanticFlag::Danger))
+                    {
+                        bias += 0.4f;  // 40% bonus: "this signals danger"
+                        break;
+                    }
+                }
             }
         }
 
-        // Check if agent knows Food → Causes → Satiety (food is valuable)
-        if (s.concept == ConceptTag::Food || s.concept == ConceptTag::Meat ||
-            s.concept == ConceptTag::Fruit)
+        // For food→satiety knowledge boost
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Resource))
         {
-            if (cog.HasKnowledgeLink(agent.id, ConceptTag::Food,
-                                     ConceptTag::Satiety, KnowledgeRelation::Causes))
+            auto edges = cog.knowledgeGraph.FindEdgesFrom(agent.id, 0, s.concept);
+            for (const auto* e : edges)
             {
-                bias += 0.3f;  // 30% bonus: food is more interesting if you know it satisfies hunger
+                if (e->relation == KnowledgeRelation::Causes)
+                {
+                    const auto* toNode = cog.knowledgeGraph.FindNodeById(e->toNodeId);
+                    if (toNode && reg.HasFlag(toNode->concept, ConceptSemanticFlag::Positive))
+                    {
+                        bias += 0.3f;  // 30% bonus: "this causes something good"
+                        break;
+                    }
+                }
             }
         }
 

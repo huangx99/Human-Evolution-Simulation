@@ -84,9 +84,9 @@ inline void HashMemoryRecord(SimHash& h, const MemoryRecord& m)
     h.FeedU64(m.id);
     h.FeedU64(m.ownerId);
     h.FeedU8(static_cast<u8>(m.kind));
-    h.FeedU32(static_cast<u32>(m.subject));
-    for (auto tag : m.contextTags) h.FeedU32(static_cast<u32>(tag));
-    for (auto tag : m.resultTags)  h.FeedU32(static_cast<u32>(tag));
+    h.FeedU16(m.subject.index);
+    for (auto tag : m.contextTags) h.FeedU16(tag.index);
+    for (auto tag : m.resultTags)  h.FeedU16(tag.index);
     h.FeedI32(m.location.x);
     h.FeedI32(m.location.y);
     h.FeedF32(m.strength);
@@ -102,8 +102,8 @@ inline void HashHypothesis(SimHash& h, const Hypothesis& hyp)
     h.FeedU64(hyp.id);
     h.FeedU64(hyp.ownerId);
     h.FeedU64(hyp.groupId);
-    h.FeedU32(static_cast<u32>(hyp.causeConcept));
-    h.FeedU32(static_cast<u32>(hyp.effectConcept));
+    h.FeedU16(hyp.causeConcept.index);
+    h.FeedU16(hyp.effectConcept.index);
     h.FeedU8(static_cast<u8>(hyp.proposedRelation));
     h.FeedF32(hyp.confidence);
     h.FeedU32(hyp.supportingCount);
@@ -118,7 +118,7 @@ inline void HashKnowledgeNode(SimHash& h, const KnowledgeNode& n)
     h.FeedU64(n.id);
     h.FeedU64(n.ownerAgentId);
     h.FeedU64(n.groupId);
-    h.FeedU32(static_cast<u32>(n.concept));
+    h.FeedU16(n.concept.index);
     h.FeedF32(n.strength);
     h.FeedU64(n.firstKnownTick);
     h.FeedU64(n.lastUpdatedTick);

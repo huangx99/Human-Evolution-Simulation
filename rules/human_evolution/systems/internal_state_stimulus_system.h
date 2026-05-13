@@ -17,12 +17,15 @@
 
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
-#include "sim/cognitive/concept_tag.h"
+#include "rules/human_evolution/human_evolution_context.h"
 #include <algorithm>
 
 class InternalStateStimulusSystem : public ISystem
 {
 public:
+    explicit InternalStateStimulusSystem(const HumanEvolution::ConceptContext& concepts)
+        : concepts_(concepts) {}
+
     void Update(SystemContext& sys) override
     {
         auto& agents = sys.Agents().agents;
@@ -52,21 +55,21 @@ public:
             // Health decrease → Pain
             if (healthDelta < -kMinDelta)
             {
-                EmitInternalStimulus(cog, agent, ConceptTag::Pain,
+                EmitInternalStimulus(cog, agent, concepts_.pain,
                     std::min(-healthDelta / 50.0f, 1.0f), now);
             }
 
             // Hunger decrease → Satiety
             if (hungerDelta < -kMinDelta)
             {
-                EmitInternalStimulus(cog, agent, ConceptTag::Satiety,
+                EmitInternalStimulus(cog, agent, concepts_.satiety,
                     std::min(-hungerDelta / 30.0f, 1.0f), now);
             }
 
             // Hunger increase above threshold → Hunger
             if (hungerDelta > kMinDelta && agent.hunger > kHungerThreshold)
             {
-                EmitInternalStimulus(cog, agent, ConceptTag::Hunger,
+                EmitInternalStimulus(cog, agent, concepts_.hunger,
                     std::min((agent.hunger - kHungerThreshold) / 50.0f, 1.0f), now);
             }
 
@@ -93,9 +96,11 @@ private:
     static constexpr f32 kMinDelta = 0.01f;
     static constexpr f32 kHungerThreshold = 40.0f;
 
+    const HumanEvolution::ConceptContext& concepts_;
+
     static void EmitInternalStimulus(
         CognitiveModule& cog, const Agent& agent,
-        ConceptTag concept, f32 intensity, Tick now)
+        ConceptTypeId concept, f32 intensity, Tick now)
     {
         PerceivedStimulus stim;
         stim.id = cog.nextStimulusId++;

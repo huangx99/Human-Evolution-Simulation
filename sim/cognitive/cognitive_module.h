@@ -143,8 +143,9 @@ struct CognitiveModule : public IModule
     // Example: if agent knows Fire→Causes→Pain, returns high danger.
     //          if agent knows Food→Causes→Satiety, returns low danger.
 
-    f32 GetKnownDanger(EntityId agentId, ConceptTag concept) const
+    f32 GetKnownDanger(EntityId agentId, ConceptTypeId concept) const
     {
+        const auto& reg = ConceptTypeRegistry::Instance();
         f32 danger = 0.0f;
         for (const auto& e : knowledgeGraph.edges)
         {
@@ -158,9 +159,8 @@ struct CognitiveModule : public IModule
                 const auto* toNode = knowledgeGraph.FindNodeById(e.toNodeId);
                 if (toNode)
                 {
-                    auto groups = ConceptRegistry::GetGroups(toNode->concept);
-                    if (HasGroup(groups, SemanticGroup::Danger) ||
-                        HasGroup(groups, SemanticGroup::Threat))
+                    if (reg.HasFlag(toNode->concept, ConceptSemanticFlag::Danger) ||
+                        reg.HasFlag(toNode->concept, ConceptSemanticFlag::Threat))
                     {
                         danger += e.confidence * e.strength;
                     }
@@ -171,8 +171,8 @@ struct CognitiveModule : public IModule
     }
 
     // Check if an agent has knowledge that a concept signals/causes another
-    bool HasKnowledgeLink(EntityId agentId, ConceptTag from,
-                          ConceptTag to, KnowledgeRelation relation) const
+    bool HasKnowledgeLink(EntityId agentId, ConceptTypeId from,
+                          ConceptTypeId to, KnowledgeRelation relation) const
     {
         for (const auto& e : knowledgeGraph.edges)
         {
@@ -204,6 +204,7 @@ struct CognitiveModule : public IModule
     std::vector<DecisionModifier> GenerateDecisionModifiers(EntityId agentId) const
     {
         std::vector<DecisionModifier> mods;
+        const auto& reg = ConceptTypeRegistry::Instance();
 
         for (const auto& e : knowledgeGraph.edges)
         {
@@ -216,13 +217,11 @@ struct CognitiveModule : public IModule
             // Skip weak edges
             if (e.confidence < 0.1f) continue;
 
-            auto toGroups = ConceptRegistry::GetGroups(toNode->concept);
-
             // Knowledge that A causes/signals something dangerous → flee boost for A
             if ((e.relation == KnowledgeRelation::Causes ||
                  e.relation == KnowledgeRelation::Signals) &&
-                (HasGroup(toGroups, SemanticGroup::Danger) ||
-                 HasGroup(toGroups, SemanticGroup::Threat)))
+                (reg.HasFlag(toNode->concept, ConceptSemanticFlag::Danger) ||
+                 reg.HasFlag(toNode->concept, ConceptSemanticFlag::Threat)))
             {
                 DecisionModifier mod;
                 mod.type = ModifierType::FleeBoost;
@@ -234,10 +233,7 @@ struct CognitiveModule : public IModule
 
             // Knowledge that A causes something valued → approach boost for A
             if (e.relation == KnowledgeRelation::Causes &&
-                (toNode->concept == ConceptTag::Satiety ||
-                 toNode->concept == ConceptTag::Comfort ||
-                 toNode->concept == ConceptTag::Warmth ||
-                 toNode->concept == ConceptTag::Safety))
+                (reg.HasFlag(toNode->concept, ConceptSemanticFlag::Positive)))
             {
                 DecisionModifier mod;
                 mod.type = ModifierType::ApproachBoost;

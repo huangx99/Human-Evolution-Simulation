@@ -18,7 +18,7 @@ TEST(health_decrease_produces_pain_stimulus)
 
     // First tick: establish baseline
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.Tick(world);
 
     // Manually decrease health (simulating damage)
@@ -33,7 +33,7 @@ TEST(health_decrease_produces_pain_stimulus)
     bool found = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 1 && stim.concept == ConceptTag::Pain)
+        if (stim.observerId == 1 && stim.concept == rp.GetHumanEvolutionContext().concepts.pain)
         {
             found = true;
             ASSERT_TRUE(stim.intensity > 0.0f);
@@ -56,7 +56,7 @@ TEST(hunger_decrease_produces_satiety_stimulus)
 
     // First tick: establish baseline
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.Tick(world);
 
     // Manually decrease hunger (simulating eating)
@@ -71,7 +71,7 @@ TEST(hunger_decrease_produces_satiety_stimulus)
     bool found = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 1 && stim.concept == ConceptTag::Satiety)
+        if (stim.observerId == 1 && stim.concept == rp.GetHumanEvolutionContext().concepts.satiety)
         {
             found = true;
             ASSERT_TRUE(stim.intensity > 0.0f);
@@ -94,7 +94,7 @@ TEST(hunger_increase_above_threshold_produces_hunger_stimulus)
 
     // First tick: establish baseline (hunger starts at 0)
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.Tick(world);
 
     // Increase hunger above threshold (40)
@@ -109,7 +109,7 @@ TEST(hunger_increase_above_threshold_produces_hunger_stimulus)
     bool found = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 1 && stim.concept == ConceptTag::Hunger)
+        if (stim.observerId == 1 && stim.concept == rp.GetHumanEvolutionContext().concepts.hunger)
         {
             found = true;
             ASSERT_TRUE(stim.intensity > 0.0f);
@@ -132,7 +132,7 @@ TEST(internal_state_stimulus_has_internal_sense)
 
     // First tick: establish baseline
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.Tick(world);
 
     // Change both health and hunger
@@ -165,7 +165,7 @@ TEST(internal_state_stimulus_does_not_create_memory_directly)
 
     // First tick: establish baseline
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.Tick(world);
 
     // Decrease health
@@ -182,7 +182,7 @@ TEST(internal_state_stimulus_does_not_create_memory_directly)
     bool foundStimulus = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 1 && stim.concept == ConceptTag::Pain)
+        if (stim.observerId == 1 && stim.concept == rp.GetHumanEvolutionContext().concepts.pain)
             foundStimulus = true;
     }
     ASSERT_TRUE(foundStimulus);
@@ -205,7 +205,7 @@ TEST(internal_state_stimulus_can_enter_memory_via_attention)
 
     // First tick: establish baseline
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.AddSystem(SimPhase::Perception, std::make_unique<CognitiveAttentionSystem>());
     scheduler.AddSystem(SimPhase::Perception, std::make_unique<CognitiveMemorySystem>());
     scheduler.Tick(world);
@@ -225,7 +225,7 @@ TEST(internal_state_stimulus_can_enter_memory_via_attention)
     bool foundMemory = false;
     for (const auto& mem : mems)
     {
-        if (mem.subject == ConceptTag::Pain)
+        if (mem.subject == rp.GetHumanEvolutionContext().concepts.pain)
         {
             foundMemory = true;
             ASSERT_TRUE(mem.sourceStimulusId > 0);
@@ -242,12 +242,13 @@ TEST(internal_state_baseline_in_full_hash)
 {
     HumanEvolutionRulePack rp;
     WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
 
     world.SpawnAgent(5, 5);
 
     // Establish baseline
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.Tick(world);
 
     u64 coreBefore = ComputeWorldHash(world, HashTier::Core);
@@ -278,12 +279,13 @@ TEST(baseline_only_changes_full_hash_not_core_hash)
 {
     HumanEvolutionRulePack rp;
     WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
 
     world.SpawnAgent(5, 5);
 
     // Establish baseline
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.Tick(world);
 
     u64 coreBefore = ComputeWorldHash(world, HashTier::Core);
@@ -310,10 +312,11 @@ TEST(internal_state_baseline_replay_deterministic)
     auto computeFullHash = [](u64 seed, f32 healthDelta) -> u64 {
         HumanEvolutionRulePack rp;
         WorldState world(16, 16, seed, rp);
+        const auto& ctx = rp.GetHumanEvolutionContext();
         world.SpawnAgent(5, 5);
 
         Scheduler scheduler;
-        scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+        scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
         scheduler.Tick(world);
 
         world.Agents().agents[0].health -= healthDelta;
@@ -388,7 +391,7 @@ TEST(small_delta_does_not_produce_stimulus)
 
     // First tick: establish baseline
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.Tick(world);
 
     // Tiny change (below kMinDelta = 0.01)
@@ -405,9 +408,9 @@ TEST(small_delta_does_not_produce_stimulus)
     for (const auto& stim : cog.frameStimuli)
     {
         if (stim.observerId == 1 &&
-            (stim.concept == ConceptTag::Pain ||
-             stim.concept == ConceptTag::Satiety ||
-             stim.concept == ConceptTag::Hunger))
+            (stim.concept == rp.GetHumanEvolutionContext().concepts.pain ||
+             stim.concept == rp.GetHumanEvolutionContext().concepts.satiety ||
+             stim.concept == rp.GetHumanEvolutionContext().concepts.hunger))
         {
             count++;
         }

@@ -30,7 +30,7 @@
 
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_id.h"
 #include "sim/cognitive/knowledge_relation.h"
 #include <vector>
 #include <cmath>
@@ -44,72 +44,21 @@
 // To add a new cognitive pattern: add a DiscoveryRule. No system changes needed.
 struct DiscoveryRule
 {
-    ConceptTag causeConcept;
-    ConceptTag effectConcept;
+    ConceptTypeId causeConcept;
+    ConceptTypeId effectConcept;
     KnowledgeRelation relation;
 };
 
 class CognitiveDiscoverySystem : public ISystem
 {
 public:
-    CognitiveDiscoverySystem()
+    CognitiveDiscoverySystem() = default;
+
+    // Allow RulePack to inject domain-specific discovery rules.
+    // Called after concepts are registered (runtime ConceptTypeIds available).
+    void SetRules(std::vector<DiscoveryRule> newRules)
     {
-        // === Core discovery rules ===
-        // To add a new pattern, add a rule here. Don't modify InferRelation().
-
-        // Smoke signals fire nearby
-        rules.push_back({ConceptTag::Smoke, ConceptTag::Fire,
-                         KnowledgeRelation::Signals});
-
-        // Beast signals danger
-        rules.push_back({ConceptTag::Beast, ConceptTag::Danger,
-                         KnowledgeRelation::Signals});
-
-        // Fire causes pain (direct damage)
-        rules.push_back({ConceptTag::Fire, ConceptTag::Pain,
-                         KnowledgeRelation::Causes});
-
-        // Food causes satiety
-        rules.push_back({ConceptTag::Food, ConceptTag::Satiety,
-                         KnowledgeRelation::Causes});
-
-        // Cold causes pain (freezing)
-        rules.push_back({ConceptTag::Cold, ConceptTag::Pain,
-                         KnowledgeRelation::Causes});
-
-        // Fire transforms grass to ash
-        rules.push_back({ConceptTag::Fire, ConceptTag::Ash,
-                         KnowledgeRelation::Transforms});
-
-        // Predator signals danger
-        rules.push_back({ConceptTag::Predator, ConceptTag::Danger,
-                         KnowledgeRelation::Signals});
-
-        // Fire emits smoke
-        rules.push_back({ConceptTag::Fire, ConceptTag::Smoke,
-                         KnowledgeRelation::Emits});
-
-        // Heat signals danger (overheating)
-        rules.push_back({ConceptTag::Heat, ConceptTag::Danger,
-                         KnowledgeRelation::Signals});
-
-        // Fire signals danger (burning, destruction)
-        rules.push_back({ConceptTag::Fire, ConceptTag::Danger,
-                         KnowledgeRelation::Signals});
-
-        // Lightning causes fire
-        rules.push_back({ConceptTag::Lightning, ConceptTag::Fire,
-                         KnowledgeRelation::Causes});
-
-        // Rain prevents fire
-        rules.push_back({ConceptTag::Rain, ConceptTag::Fire,
-                         KnowledgeRelation::Prevents});
-
-        // Wood transforms to coal when burned
-        rules.push_back({ConceptTag::Wood, ConceptTag::Coal,
-                         KnowledgeRelation::Transforms});
-
-        // Add more rules here as needed...
+        rules = std::move(newRules);
     }
 
     void Update(SystemContext& ctx) override
@@ -335,7 +284,7 @@ private:
     }
 
     Hypothesis* FindHypothesis(std::vector<Hypothesis>& hypotheses,
-                                ConceptTag cause, ConceptTag effect,
+                                ConceptTypeId cause, ConceptTypeId effect,
                                 KnowledgeRelation relation)
     {
         for (auto& h : hypotheses)

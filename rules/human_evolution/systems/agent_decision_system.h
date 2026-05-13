@@ -14,13 +14,19 @@
 
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_registry.h"
+#include "rules/human_evolution/human_evolution_context.h"
 #include "sim/cognitive/knowledge_relation.h"
 #include "sim/cognitive/decision_modifier.h"
 
 class AgentDecisionSystem : public ISystem
 {
 public:
+    AgentDecisionSystem() = default;
+
+    explicit AgentDecisionSystem(const HumanEvolution::ConceptContext& concepts)
+        : concepts_(concepts) {}
+
     void Update(SystemContext& ctx) override
     {
         auto& world = ctx.World();
@@ -93,29 +99,26 @@ public:
     }
 
 private:
+    HumanEvolution::ConceptContext concepts_;
+
     // Check if agent currently perceives a concept (via cognitive summary)
-    bool IsConceptPerceived(const Agent& agent, ConceptTag concept,
+    bool IsConceptPerceived(const Agent& agent, ConceptTypeId concept,
                              const CognitiveModule& cog) const
     {
-        switch (concept)
-        {
-        case ConceptTag::Smoke:
+        if (concept == concepts_.smoke)
         {
             auto it = cog.agentPerceivedSmoke.find(agent.id);
             return it != cog.agentPerceivedSmoke.end() && it->second > 5.0f;
         }
-        case ConceptTag::Fire:
+        if (concept == concepts_.fire)
             return agent.nearestFire > 5.0f;
-        case ConceptTag::Food:
-        case ConceptTag::Meat:
-        case ConceptTag::Fruit:
+        if (concept == concepts_.food || concept == concepts_.meat ||
+            concept == concepts_.fruit)
             return agent.nearestSmell > 5.0f;
-        case ConceptTag::Heat:
+        if (concept == concepts_.heat)
             return agent.localTemperature > 35.0f;
-        case ConceptTag::Cold:
+        if (concept == concepts_.cold)
             return agent.localTemperature < 5.0f;
-        default:
-            return false;
-        }
+        return false;
     }
 };

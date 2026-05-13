@@ -2,7 +2,7 @@
 
 #include "core/types/types.h"
 #include "core/math/vec2i.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_id.h"
 #include <vector>
 
 enum class MemoryKind : u8
@@ -43,9 +43,9 @@ struct MemoryRecord
     MemoryKind kind = MemoryKind::ShortTerm;
 
     // What was experienced
-    ConceptTag subject = ConceptTag::None;      // primary concept
-    std::vector<ConceptTag> contextTags;        // surrounding context
-    std::vector<ConceptTag> resultTags;         // what happened as result
+    ConceptTypeId subject;                      // primary concept
+    std::vector<ConceptTypeId> contextTags;     // surrounding context
+    std::vector<ConceptTypeId> resultTags;      // what happened as result
 
     Vec2i location;
 

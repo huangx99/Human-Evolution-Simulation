@@ -19,7 +19,7 @@
 
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_registry.h"
 
 class CognitiveMemorySystem : public ISystem
 {
@@ -94,61 +94,88 @@ private:
     static constexpr f32 promotionThreshold = 0.6f;    // strength to promote to episodic
 
     // Emotional weight: strong emotions make memories stickier.
+    // Uses semantic flags instead of domain-specific concept names.
     f32 ComputeEmotionalWeight(const PerceivedStimulus& s, const WorldState& world)
     {
-        switch (s.concept)
+        const auto& reg = ConceptTypeRegistry::Instance();
+
+        // Danger/Threat → negative emotion
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Danger) ||
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Threat))
         {
-        case ConceptTag::Fire:
-        case ConceptTag::Burning:
-        case ConceptTag::Danger:
-        case ConceptTag::Beast:
-        case ConceptTag::Predator:
-            return -0.5f * s.intensity;  // negative emotion, proportional to intensity
-
-        case ConceptTag::Food:
-        case ConceptTag::Satiety:
-        case ConceptTag::Warmth:
-            return 0.3f * s.intensity;   // positive emotion
-
-        case ConceptTag::Pain:
-        case ConceptTag::Death:
-            return -0.8f;  // strongly negative
-
-        case ConceptTag::Water:
-            return 0.2f;   // mildly positive
-
-        default:
-            return 0.0f;
+            return -0.5f * s.intensity;
         }
+
+        // Internal + Negative (pain) → strongly negative
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Internal) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Negative))
+        {
+            return -0.8f;
+        }
+
+        // Positive resource (food, warmth) → positive emotion
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Positive) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Resource))
+        {
+            return 0.3f * s.intensity;
+        }
+
+        // Positive internal (satiety) → positive emotion
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Internal) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Positive))
+        {
+            return 0.3f * s.intensity;
+        }
+
+        // Environmental + Organic (water) → mildly positive
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Environmental) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Organic))
+        {
+            return 0.2f;
+        }
+
+        return 0.0f;
     }
 
     // Infer what happened as a result of this perception.
-    // Example: agent perceived fire → agent has Pain → result includes Pain.
+    // Uses semantic flags instead of domain-specific concept names.
     void InferResultTags(MemoryRecord& mem, const PerceivedStimulus& s,
                           WorldState& world)
     {
+        const auto& reg = ConceptTypeRegistry::Instance();
+
         // Find the agent
         auto* agent = world.Agents().Find(s.observerId);
         if (!agent) return;
 
-        // If agent is hungry and perceived food, result is positive
+        // If agent is hungry and perceived edible resource, result is satiety
         if (agent->hunger > 50.0f &&
-            (s.concept == ConceptTag::Food || s.concept == ConceptTag::Meat))
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Resource) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Organic))
         {
-            mem.resultTags.push_back(ConceptTag::Satiety);
+            // Look up satiety concept from the registry
+            auto satietyId = reg.FindByKey(MakeConceptKey("human_evolution.satiety"));
+            if (satietyId) mem.resultTags.push_back(satietyId);
         }
 
-        // If agent was near fire and took damage, result includes pain
-        if (s.concept == ConceptTag::Fire && agent->localTemperature > 50.0f)
+        // If agent was near fire-like danger and took damage, result includes pain
+        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Danger) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Thermal) &&
+            agent->localTemperature > 50.0f)
         {
-            mem.resultTags.push_back(ConceptTag::Pain);
-            mem.resultTags.push_back(ConceptTag::Burning);
+            auto painId = reg.FindByKey(MakeConceptKey("human_evolution.pain"));
+            auto burningId = reg.FindByKey(MakeConceptKey("human_evolution.burning"));
+            if (painId) mem.resultTags.push_back(painId);
+            if (burningId) mem.resultTags.push_back(burningId);
         }
 
         // If agent is cold and found warmth, result is comfort
-        if (agent->localTemperature < 10.0f && s.concept == ConceptTag::Warmth)
+        if (agent->localTemperature < 10.0f &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Positive) &&
+            reg.HasFlag(s.concept, ConceptSemanticFlag::Thermal))
         {
-            mem.resultTags.push_back(ConceptTag::Comfort);
+            auto comfortId = reg.FindByKey(MakeConceptKey("human_evolution.comfort"));
+            if (comfortId) mem.resultTags.push_back(comfortId);
         }
     }
 };

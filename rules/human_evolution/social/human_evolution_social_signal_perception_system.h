@@ -15,7 +15,7 @@
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
 #include "rules/human_evolution/human_evolution_context.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_id.h"
 #include <cmath>
 
 class HumanEvolutionSocialSignalPerceptionSystem : public ISystem
@@ -99,8 +99,8 @@ private:
         if (intensity < kMinIntensity)
             return false;
 
-        ConceptTag concept = MapSignalToConcept(signal.typeId);
-        if (concept == ConceptTag::None)
+        ConceptTypeId concept = MapSignalToConcept(signal.typeId);
+        if (!concept)
             return false;
 
         out.observerId = observer.id;
@@ -116,13 +116,13 @@ private:
         return true;
     }
 
-    ConceptTag MapSignalToConcept(SocialSignalTypeId typeId) const
+    ConceptTypeId MapSignalToConcept(SocialSignalTypeId typeId) const
     {
         if (typeId == ctx_.social.fear)
-            return ConceptTag::Fear;
+            return ctx_.concepts.fear;
         if (typeId == ctx_.social.deathWarning)
-            return ConceptTag::Death;
-        return ConceptTag::None;
+            return ctx_.concepts.death;
+        return ConceptTypeId{};
     }
 
     SenseType MapSignalToSense(SocialSignalTypeId typeId) const

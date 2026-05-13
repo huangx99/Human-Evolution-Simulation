@@ -98,7 +98,7 @@ void PrintWorldState(const WorldState& world, const HumanEvolution::EnvironmentC
                 if (m.strength > strongest->strength) strongest = &m;
             }
             std::cout << " strongest="
-                      << ConceptRegistry::GetName(strongest->subject)
+                      << ConceptTypeRegistry::Instance().GetName(strongest->subject)
                       << "(s=" << std::fixed << std::setprecision(2)
                       << strongest->strength << ")";
             std::cout << std::endl;

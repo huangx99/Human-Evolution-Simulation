@@ -14,7 +14,7 @@
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
 #include "rules/human_evolution/human_evolution_context.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_registry.h"
 #include <unordered_set>
 
 class HumanEvolutionSocialSignalEmissionSystem : public ISystem
@@ -95,15 +95,9 @@ private:
 
     const HumanEvolutionContext& ctx_;
 
-    static bool IsDangerConcept(ConceptTag tag)
+    static bool IsDangerConcept(ConceptTypeId concept)
     {
-        return tag == ConceptTag::Danger
-            || tag == ConceptTag::Beast
-            || tag == ConceptTag::Predator
-            || tag == ConceptTag::Fire
-            || tag == ConceptTag::Burning
-            || tag == ConceptTag::Pain
-            || tag == ConceptTag::Death
-            || tag == ConceptTag::Drowning;
+        const auto& reg = ConceptTypeRegistry::Instance();
+        return reg.HasFlag(concept, ConceptSemanticFlag::Danger);
     }
 };

@@ -157,7 +157,7 @@ TEST(nearby_agent_perceives_fear_signal)
     bool found = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 2 && stim.concept == ConceptTag::Fear)
+        if (stim.observerId == 2 && stim.concept == rp.GetHumanEvolutionContext().concepts.fear)
         {
             found = true;
             ASSERT_TRUE(stim.sourceEntityId == 1);
@@ -206,7 +206,7 @@ TEST(far_agent_does_not_perceive_fear_signal)
     bool found = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 2 && stim.concept == ConceptTag::Fear)
+        if (stim.observerId == 2 && stim.concept == rp.GetHumanEvolutionContext().concepts.fear)
             found = true;
     }
     ASSERT_TRUE(!found);
@@ -293,7 +293,7 @@ TEST(death_warning_signal_becomes_perceived_stimulus)
     bool found = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 2 && stim.concept == ConceptTag::Death)
+        if (stim.observerId == 2 && stim.concept == rp.GetHumanEvolutionContext().concepts.death)
         {
             found = true;
             ASSERT_TRUE(stim.sourceEntityId == 99);
@@ -340,7 +340,7 @@ TEST(social_signal_perception_does_not_create_memory)
     bool foundStimulus = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 2 && stim.concept == ConceptTag::Fear)
+        if (stim.observerId == 2 && stim.concept == rp.GetHumanEvolutionContext().concepts.fear)
         {
             foundStimulus = true;
             ASSERT_TRUE(stim.id > 0);  // Fix 2: unique id assigned
@@ -373,7 +373,7 @@ TEST(emission_focused_danger_emits_fear)
     // Build focused danger stimulus to inject during Decision phase
     FocusedStimulus focused;
     focused.stimulus.sense = SenseType::Danger;
-    focused.stimulus.concept = ConceptTag::Danger;
+    focused.stimulus.concept = rp.GetHumanEvolutionContext().concepts.danger;
     focused.stimulus.location = {5, 5};
     focused.stimulus.intensity = 0.8f;
     focused.stimulus.confidence = 0.6f;
@@ -410,7 +410,7 @@ TEST(emission_no_danger_no_signal)
     // Non-danger focused stimulus (food) should not trigger emission
     FocusedStimulus focused;
     focused.stimulus.sense = SenseType::Smell;
-    focused.stimulus.concept = ConceptTag::Food;
+    focused.stimulus.concept = rp.GetHumanEvolutionContext().concepts.food;
     focused.stimulus.location = {5, 5};
     focused.stimulus.intensity = 0.5f;
     focused.stimulus.confidence = 0.7f;
@@ -442,7 +442,7 @@ TEST(emission_fear_signal_perceivable_by_nearby)
     // Build focused danger stimulus for Agent A
     FocusedStimulus focused;
     focused.stimulus.sense = SenseType::Danger;
-    focused.stimulus.concept = ConceptTag::Danger;
+    focused.stimulus.concept = rp.GetHumanEvolutionContext().concepts.danger;
     focused.stimulus.location = {5, 5};
     focused.stimulus.intensity = 0.9f;
     focused.stimulus.confidence = 0.7f;
@@ -473,7 +473,7 @@ TEST(emission_fear_signal_perceivable_by_nearby)
     bool found = false;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 2 && stim.concept == ConceptTag::Fear)
+        if (stim.observerId == 2 && stim.concept == rp.GetHumanEvolutionContext().concepts.fear)
         {
             found = true;
             ASSERT_TRUE(stim.sourceEntityId == 1);
@@ -574,7 +574,7 @@ TEST(social_signal_stimulus_gets_unique_id)
     std::vector<u64> socialStimIds;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 3 && stim.concept == ConceptTag::Fear)
+        if (stim.observerId == 3 && stim.concept == rp.GetHumanEvolutionContext().concepts.fear)
             socialStimIds.push_back(stim.id);
     }
 
@@ -626,7 +626,7 @@ TEST(social_memory_records_source_stimulus_id)
     // If a memory formed from the social stimulus, its sourceStimulusId should be non-zero
     for (const auto& mem : mems)
     {
-        if (mem.subject == ConceptTag::Fear || mem.subject == ConceptTag::Danger)
+        if (mem.subject == rp.GetHumanEvolutionContext().concepts.fear || mem.subject == rp.GetHumanEvolutionContext().concepts.danger)
         {
             ASSERT_TRUE(mem.sourceStimulusId > 0);
         }
@@ -648,7 +648,7 @@ TEST(same_agent_emits_one_fear_signal_per_tick)
     // Inject multiple danger focused stimuli for the same agent
     FocusedStimulus danger1;
     danger1.stimulus.sense = SenseType::Danger;
-    danger1.stimulus.concept = ConceptTag::Danger;
+    danger1.stimulus.concept = rp.GetHumanEvolutionContext().concepts.danger;
     danger1.stimulus.location = {5, 5};
     danger1.stimulus.intensity = 0.8f;
     danger1.stimulus.confidence = 0.6f;
@@ -657,7 +657,7 @@ TEST(same_agent_emits_one_fear_signal_per_tick)
 
     FocusedStimulus fire;
     fire.stimulus.sense = SenseType::Heat;
-    fire.stimulus.concept = ConceptTag::Fire;
+    fire.stimulus.concept = rp.GetHumanEvolutionContext().concepts.fire;
     fire.stimulus.location = {5, 5};
     fire.stimulus.intensity = 0.9f;
     fire.stimulus.confidence = 0.7f;
@@ -666,7 +666,7 @@ TEST(same_agent_emits_one_fear_signal_per_tick)
 
     FocusedStimulus pain;
     pain.stimulus.sense = SenseType::Touch;
-    pain.stimulus.concept = ConceptTag::Pain;
+    pain.stimulus.concept = rp.GetHumanEvolutionContext().concepts.pain;
     pain.stimulus.location = {5, 5};
     pain.stimulus.intensity = 0.7f;
     pain.stimulus.confidence = 0.5f;

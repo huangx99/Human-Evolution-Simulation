@@ -90,7 +90,7 @@ public:
             if (found)
             {
                 PerceivedStimulus stim;
-                MapObservedToStimulus(bestObserved, stim);
+                MapObservedToStimulus(bestObserved, ctx_.concepts.observedFlee, stim);
                 stim.id = cog.nextStimulusId++;
                 cog.frameStimuli.push_back(stim);
             }
@@ -125,12 +125,13 @@ private:
 
     static void MapObservedToStimulus(
         const ObservedAction& observed,
+        ConceptTypeId concept,
         PerceivedStimulus& out)
     {
         out.observerId = observed.observerEntityId;
         out.sourceEntityId = observed.actorEntityId;
         out.sense = SenseType::Vision;
-        out.concept = ConceptTag::ObservedFlee;
+        out.concept = concept;
         out.location = observed.origin;
         out.intensity = kObservedFleeBaseIntensity * observed.visibility;
         out.confidence = kObservedFleeBaseConfidence * observed.visibility;

@@ -20,7 +20,8 @@
 //   Perception → Attention → Memory → Hypothesis → Knowledge → Behavior
 
 #include "core/types/types.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_id.h"
+#include "sim/cognitive/concept_registry.h"
 #include "sim/cognitive/knowledge_relation.h"
 #include <vector>
 #include <algorithm>
@@ -34,7 +35,7 @@ struct KnowledgeNode
     EntityId ownerAgentId = 0;  // 0 = group-owned
     u64 groupId = 0;            // 0 = individual
 
-    ConceptTag concept = ConceptTag::None;
+    ConceptTypeId concept;
 
     f32 strength = 0.0f;       // how strongly this concept is "known"
     Tick firstKnownTick = 0;
@@ -68,7 +69,7 @@ struct KnowledgeGraph
 
     // --- Node operations ---
 
-    KnowledgeNode* FindNode(EntityId owner, u64 groupId, ConceptTag concept)
+    KnowledgeNode* FindNode(EntityId owner, u64 groupId, ConceptTypeId concept)
     {
         for (auto& n : nodes)
         {
@@ -80,8 +81,20 @@ struct KnowledgeGraph
         return nullptr;
     }
 
+    const KnowledgeNode* FindNode(EntityId owner, u64 groupId, ConceptTypeId concept) const
+    {
+        for (const auto& n : nodes)
+        {
+            if (n.ownerAgentId == owner &&
+                n.groupId == groupId &&
+                n.concept == concept)
+                return &n;
+        }
+        return nullptr;
+    }
+
     KnowledgeNode& GetOrCreateNode(EntityId owner, u64 groupId,
-                                    ConceptTag concept, Tick tick)
+                                    ConceptTypeId concept, Tick tick)
     {
         auto* existing = FindNode(owner, groupId, concept);
         if (existing) return *existing;
@@ -139,7 +152,7 @@ struct KnowledgeGraph
     // --- Query: outgoing edges from a concept ---
 
     std::vector<KnowledgeEdge*> FindEdgesFrom(EntityId owner, u64 groupId,
-                                               ConceptTag concept)
+                                               ConceptTypeId concept)
     {
         auto* node = FindNode(owner, groupId, concept);
         if (!node) return {};
@@ -153,10 +166,25 @@ struct KnowledgeGraph
         return result;
     }
 
+    std::vector<const KnowledgeEdge*> FindEdgesFrom(EntityId owner, u64 groupId,
+                                                     ConceptTypeId concept) const
+    {
+        const auto* node = FindNode(owner, groupId, concept);
+        if (!node) return {};
+
+        std::vector<const KnowledgeEdge*> result;
+        for (const auto& e : edges)
+        {
+            if (e.fromNodeId == node->id)
+                result.push_back(&e);
+        }
+        return result;
+    }
+
     // --- Query: incoming edges to a concept ---
 
     std::vector<KnowledgeEdge*> FindEdgesTo(EntityId owner, u64 groupId,
-                                             ConceptTag concept)
+                                             ConceptTypeId concept)
     {
         auto* node = FindNode(owner, groupId, concept);
         if (!node) return {};
@@ -173,7 +201,7 @@ struct KnowledgeGraph
     // --- Query: all edges involving a concept (in or out) ---
 
     std::vector<KnowledgeEdge*> FindAllEdges(EntityId owner, u64 groupId,
-                                              ConceptTag concept)
+                                              ConceptTypeId concept)
     {
         auto* node = FindNode(owner, groupId, concept);
         if (!node) return {};
@@ -208,13 +236,13 @@ struct KnowledgeGraph
 
     // --- Query: find connected concepts (neighbors) ---
 
-    std::vector<ConceptTag> FindNeighbors(EntityId owner, u64 groupId,
-                                           ConceptTag concept)
+    std::vector<ConceptTypeId> FindNeighbors(EntityId owner, u64 groupId,
+                                           ConceptTypeId concept)
     {
         auto* node = FindNode(owner, groupId, concept);
         if (!node) return {};
 
-        std::vector<ConceptTag> result;
+        std::vector<ConceptTypeId> result;
         for (auto& e : edges)
         {
             if (e.fromNodeId == node->id)
@@ -282,8 +310,9 @@ struct KnowledgeGraph
             const auto* toNode = FindNodeById(e.toNodeId);
             if (!toNode) continue;
 
-            os << ConceptRegistry::GetName(fromNode->concept) << " -> "
-               << ConceptRegistry::GetName(toNode->concept)
+            const auto& reg = ConceptTypeRegistry::Instance();
+            os << reg.GetName(fromNode->concept) << " -> "
+               << reg.GetName(toNode->concept)
                << " [" << RelationName(e.relation) << "]"
                << " confidence=" << std::fixed << std::setprecision(2) << e.confidence
                << " evidence=" << e.evidenceCount << "\n";

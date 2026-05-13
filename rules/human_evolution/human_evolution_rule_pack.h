@@ -118,7 +118,7 @@ public:
         ctx_.concepts.wetness = registry.Register(MakeConceptKey("human_evolution.wetness"), "wetness", static_cast<u32>(F::Environmental));
         ctx_.concepts.dryness = registry.Register(MakeConceptKey("human_evolution.dryness"), "dryness", static_cast<u32>(F::Environmental));
         ctx_.concepts.hunger  = registry.Register(MakeConceptKey("human_evolution.hunger"),  "hunger",  f(F::Internal, F::Negative, F::Danger));
-        ctx_.concepts.pain    = registry.Register(MakeConceptKey("human_evolution.pain"),    "pain",    f2(F::Internal, F::Negative));
+        ctx_.concepts.pain    = registry.Register(MakeConceptKey("human_evolution.pain"),    "pain",    f(F::Internal, F::Negative, F::Danger));
         ctx_.concepts.satiety = registry.Register(MakeConceptKey("human_evolution.satiety"), "satiety", f2(F::Internal, F::Positive));
         ctx_.concepts.health  = registry.Register(MakeConceptKey("human_evolution.health"),  "health",  f2(F::Internal, F::Positive));
         ctx_.concepts.death   = registry.Register(MakeConceptKey("human_evolution.death"),   "death",   f(F::Danger, F::Negative, F::Abstract));
@@ -167,17 +167,17 @@ public:
 
         // Perception pipeline
         systems.push_back({SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx_.environment)});
-        systems.push_back({SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx_)});
         systems.push_back({SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx_)});
         systems.push_back({SimPhase::Perception,  std::make_unique<HumanEvolutionImitationObservationSystem>(ctx_)});
-        systems.push_back({SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>()});
+        systems.push_back({SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>(ctx_.concepts)});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>()});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>()});
 
         // Decision pipeline
         systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>()});
         systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>()});
-        systems.push_back({SimPhase::Decision,    std::make_unique<AgentDecisionSystem>()});
+        systems.push_back({SimPhase::Decision,    std::make_unique<AgentDecisionSystem>(ctx_.concepts)});
 
         // Action pipeline
         systems.push_back({SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx_.environment)});
@@ -311,13 +311,13 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionImitationObservationSystem>(ctx));
-    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>());
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>());
 
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>());
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>());
-    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>());
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>(ctx.concepts));
 
     scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Action,      std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx));

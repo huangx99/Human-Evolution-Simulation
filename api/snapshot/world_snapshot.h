@@ -356,7 +356,7 @@ struct WorldSnapshot
                     {
                         ads.perceivedStimuli.push_back({
                             static_cast<u16>(s.sense),
-                            static_cast<u32>(s.concept),
+                            s.concept.index,
                             s.intensity,
                             s.confidence
                         });
@@ -370,7 +370,7 @@ struct WorldSnapshot
                     {
                         ads.focusedStimuli.push_back({
                             static_cast<u16>(f.stimulus.sense),
-                            static_cast<u32>(f.stimulus.concept),
+                            f.stimulus.concept.index,
                             f.stimulus.intensity,
                             f.attentionScore
                         });
@@ -384,8 +384,8 @@ struct WorldSnapshot
                     for (const auto& h : hypIt->second)
                     {
                         ads.hypotheses.push_back({
-                            static_cast<u32>(h.causeConcept),
-                            static_cast<u32>(h.effectConcept),
+                            h.causeConcept.index,
+                            h.effectConcept.index,
                             static_cast<u8>(h.proposedRelation),
                             h.confidence,
                             h.supportingCount,
@@ -404,8 +404,8 @@ struct WorldSnapshot
                     if (!toNode) continue;
 
                     ads.knowledgeEdges.push_back({
-                        static_cast<u32>(fromNode->concept),
-                        static_cast<u32>(toNode->concept),
+                        fromNode->concept.index,
+                        toNode->concept.index,
                         static_cast<u8>(e.relation),
                         e.confidence,
                         e.evidenceCount
@@ -418,7 +418,7 @@ struct WorldSnapshot
                 {
                     ads.decisionModifiers.push_back({
                         static_cast<u8>(m.type),
-                        static_cast<u32>(m.triggerConcept),
+                        m.triggerConcept.index,
                         m.magnitude
                     });
                 }

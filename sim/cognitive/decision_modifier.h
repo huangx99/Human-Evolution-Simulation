@@ -15,7 +15,7 @@
 // which boosts flee score when fire is perceived.
 
 #include "core/types/types.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_id.h"
 #include "sim/cognitive/knowledge_relation.h"
 
 enum class ModifierType : u8
@@ -28,7 +28,7 @@ enum class ModifierType : u8
 struct DecisionModifier
 {
     ModifierType type = ModifierType::FleeBoost;
-    ConceptTag triggerConcept = ConceptTag::None;  // what to watch for
+    ConceptTypeId triggerConcept = ConceptTypeId{};  // what to watch for
     f32 magnitude = 0.0f;                          // how strong the bias is
     f32 confidence = 0.0f;                         // based on knowledge edge confidence
 };

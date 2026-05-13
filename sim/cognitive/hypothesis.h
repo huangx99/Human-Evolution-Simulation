@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/types/types.h"
-#include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_id.h"
 #include "sim/cognitive/knowledge_relation.h"
 #include <vector>
 
@@ -59,8 +59,8 @@ struct Hypothesis
     EntityId ownerId = 0;
     u64 groupId = 0;
 
-    ConceptTag causeConcept = ConceptTag::None;
-    ConceptTag effectConcept = ConceptTag::None;
+    ConceptTypeId causeConcept = ConceptTypeId{};
+    ConceptTypeId effectConcept = ConceptTypeId{};
     KnowledgeRelation proposedRelation = KnowledgeRelation::AssociatedWith;
 
     f32 confidence = 0.0f;      // 0..1
@@ -98,8 +98,8 @@ struct DiscoveryRecord
     EntityId ownerId = 0;
     u64 hypothesisId = 0;
 
-    ConceptTag causeConcept = ConceptTag::None;
-    ConceptTag effectConcept = ConceptTag::None;
+    ConceptTypeId causeConcept = ConceptTypeId{};
+    ConceptTypeId effectConcept = ConceptTypeId{};
     KnowledgeRelation relation = KnowledgeRelation::AssociatedWith;
 
     f32 confidence = 0.0f;

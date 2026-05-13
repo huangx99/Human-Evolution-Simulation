@@ -3,7 +3,6 @@
 #include "sim/world/world_state.h"
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
-#include "sim/cognitive/concept_tag.h"
 #include "sim/cognitive/concept_registry.h"
 
 static HumanEvolutionRulePack g_rulePack;
@@ -37,7 +36,7 @@ TEST(cognitive_perception_filtering)
     bool agentBHasFire = false;
     for (const auto& s : cog.frameStimuli)
     {
-        if (s.observerId == 2 && s.concept == ConceptTag::Fire)
+        if (s.observerId == 2 && s.concept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             agentBHasFire = true;
             break;
@@ -49,7 +48,7 @@ TEST(cognitive_perception_filtering)
     bool agentAHasFire = false;
     for (const auto& s : cog.frameStimuli)
     {
-        if (s.observerId == 1 && s.concept == ConceptTag::Fire)
+        if (s.observerId == 1 && s.concept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             agentAHasFire = true;
             break;
@@ -108,7 +107,7 @@ TEST(cognitive_attention_filtering)
     for (const auto& f : cog.frameFocused)
     {
         if (f.stimulus.observerId == agentId &&
-            f.stimulus.concept == ConceptTag::Food)
+            f.stimulus.concept == g_rulePack.GetHumanEvolutionContext().concepts.food)
         {
             foodFocused = true;
             break;
@@ -155,7 +154,7 @@ TEST(cognitive_memory_decay)
     f32 peakFireStrength = 0.0f;
     for (const auto& m : mems)
     {
-        if (m.subject == ConceptTag::Fire && m.strength > peakFireStrength)
+        if (m.subject == g_rulePack.GetHumanEvolutionContext().concepts.fire && m.strength > peakFireStrength)
             peakFireStrength = m.strength;
     }
     ASSERT_TRUE(peakFireStrength > 0.0f);
@@ -183,7 +182,7 @@ TEST(cognitive_memory_decay)
 
     for (const auto& m : memsAfter)
     {
-        if (m.subject == ConceptTag::Fire)
+        if (m.subject == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             ASSERT_TRUE(m.strength < peakFireStrength);
         }
@@ -226,8 +225,8 @@ TEST(cognitive_hypothesis_formation)
     bool hasFireHypothesis = false;
     for (const auto& h : hypotheses)
     {
-        if (h.causeConcept == ConceptTag::Fire || h.effectConcept == ConceptTag::Fire ||
-            h.causeConcept == ConceptTag::Heat || h.effectConcept == ConceptTag::Heat)
+        if (h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire ||
+            h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.heat || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.heat)
         {
             hasFireHypothesis = true;
             break;
@@ -275,7 +274,7 @@ TEST(cognitive_knowledge_polysemy)
         u32 fireMemCount = 0;
         for (const auto& m : mems)
         {
-            if (m.subject == ConceptTag::Fire)
+            if (m.subject == g_rulePack.GetHumanEvolutionContext().concepts.fire)
             {
                 avgFireEmotion += m.emotionalWeight;
                 fireMemCount++;
@@ -316,7 +315,7 @@ TEST(cognitive_knowledge_polysemy)
         u32 fireMemCount = 0;
         for (const auto& m : mems)
         {
-            if (m.subject == ConceptTag::Fire)
+            if (m.subject == g_rulePack.GetHumanEvolutionContext().concepts.fire)
             {
                 avgFireEmotion += m.emotionalWeight;
                 fireMemCount++;
@@ -379,7 +378,7 @@ TEST(cognitive_wrong_knowledge)
     bool aHasFire = false;
     for (const auto& h : hypsA)
     {
-        if (h.causeConcept == ConceptTag::Fire || h.effectConcept == ConceptTag::Fire)
+        if (h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             aHasFire = true;
             break;
@@ -390,7 +389,7 @@ TEST(cognitive_wrong_knowledge)
     bool bHasFire = false;
     for (const auto& h : hypsB)
     {
-        if (h.causeConcept == ConceptTag::Fire || h.effectConcept == ConceptTag::Fire)
+        if (h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             bHasFire = true;
             break;
@@ -487,14 +486,14 @@ TEST(cognitive_individual_difference)
     bool aHasFire = false;
     for (const auto& m : memsA)
     {
-        if (m.subject == ConceptTag::Fire) { aHasFire = true; break; }
+        if (m.subject == g_rulePack.GetHumanEvolutionContext().concepts.fire) { aHasFire = true; break; }
     }
     ASSERT_TRUE(aHasFire);
 
     bool bHasFire = false;
     for (const auto& m : memsB)
     {
-        if (m.subject == ConceptTag::Fire) { bHasFire = true; break; }
+        if (m.subject == g_rulePack.GetHumanEvolutionContext().concepts.fire) { bHasFire = true; break; }
     }
     ASSERT_TRUE(!bHasFire);
 
@@ -594,14 +593,14 @@ TEST(cognitive_different_knowledge_graphs)
     bool aHasFire = false;
     for (const auto& m : memsA)
     {
-        if (m.subject == ConceptTag::Fire) { aHasFire = true; break; }
+        if (m.subject == g_rulePack.GetHumanEvolutionContext().concepts.fire) { aHasFire = true; break; }
     }
     ASSERT_TRUE(aHasFire);
 
     bool bHasFire = false;
     for (const auto& m : memsB)
     {
-        if (m.subject == ConceptTag::Fire) { bHasFire = true; break; }
+        if (m.subject == g_rulePack.GetHumanEvolutionContext().concepts.fire) { bHasFire = true; break; }
     }
     ASSERT_TRUE(!bHasFire);
 
@@ -611,7 +610,7 @@ TEST(cognitive_different_knowledge_graphs)
     bool aFireHyp = false;
     for (const auto& h : hypsA)
     {
-        if (h.causeConcept == ConceptTag::Fire || h.effectConcept == ConceptTag::Fire)
+        if (h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         { aFireHyp = true; break; }
     }
     ASSERT_TRUE(aFireHyp);
@@ -622,7 +621,7 @@ TEST(cognitive_different_knowledge_graphs)
     bool aFireNode = false;
     for (const auto* n : nodesA)
     {
-        if (n->concept == ConceptTag::Fire) { aFireNode = true; break; }
+        if (n->concept == g_rulePack.GetHumanEvolutionContext().concepts.fire) { aFireNode = true; break; }
     }
     ASSERT_TRUE(aFireNode);
 
@@ -665,7 +664,7 @@ TEST(cognitive_fire_danger_confidence)
     Hypothesis* fireHyp = nullptr;
     for (auto& h : hyps)
     {
-        if (h.causeConcept == ConceptTag::Fire || h.effectConcept == ConceptTag::Fire)
+        if (h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             fireHyp = &h;
             break;
@@ -704,7 +703,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
 
         for (const auto& f : world.Cognitive().frameFocused)
         {
-            if (f.stimulus.observerId == 1 && f.stimulus.concept == ConceptTag::Smoke)
+            if (f.stimulus.observerId == 1 && f.stimulus.concept == g_rulePack.GetHumanEvolutionContext().concepts.smoke)
             {
                 baselineScore = f.attentionScore;
                 break;
@@ -720,8 +719,8 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
 
         {
             auto& kg = world.Cognitive().knowledgeGraph;
-            u64 smokeId = kg.GetOrCreateNode(1, 0, ConceptTag::Smoke, 0).id;
-            u64 fireId = kg.GetOrCreateNode(1, 0, ConceptTag::Fire, 0).id;
+            u64 smokeId = kg.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.smoke, 0).id;
+            u64 fireId = kg.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.fire, 0).id;
             auto& edge = kg.GetOrCreateEdge(smokeId, fireId,
                                              KnowledgeRelation::Signals, 0);
             edge.confidence = 0.8f;
@@ -743,7 +742,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
 
         for (const auto& f : world.Cognitive().frameFocused)
         {
-            if (f.stimulus.observerId == 1 && f.stimulus.concept == ConceptTag::Smoke)
+            if (f.stimulus.observerId == 1 && f.stimulus.concept == g_rulePack.GetHumanEvolutionContext().concepts.smoke)
             {
                 knowledgeScore = f.attentionScore;
                 break;
@@ -861,9 +860,9 @@ TEST(cognitive_rule_driven_discovery)
     bool hasRelevantHyp = false;
     for (const auto& h : hyps)
     {
-        if (h.causeConcept == ConceptTag::Heat || h.effectConcept == ConceptTag::Heat ||
-            h.causeConcept == ConceptTag::Danger || h.effectConcept == ConceptTag::Danger ||
-            h.causeConcept == ConceptTag::Fire || h.effectConcept == ConceptTag::Fire)
+        if (h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.heat || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.heat ||
+            h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.danger || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.danger ||
+            h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             hasRelevantHyp = true;
             break;
@@ -967,7 +966,7 @@ TEST(cognitive_memory_from_focused_only)
     for (const auto& mem : tickMemories)
     {
         ASSERT_TRUE(mem.id > 0);
-        ASSERT_TRUE(mem.subject != ConceptTag::None);
+        ASSERT_TRUE(mem.subject != ConceptTypeId{});
 
         bool foundInFocused = false;
         for (u64 fid : focusedIds)
@@ -1066,8 +1065,8 @@ TEST(cognitive_knowledge_drives_behavior_divergence)
 
     {
         auto& kgA = worldA.Cognitive().knowledgeGraph;
-        u64 fireId = kgA.GetOrCreateNode(1, 0, ConceptTag::Fire, 0).id;
-        u64 painId = kgA.GetOrCreateNode(1, 0, ConceptTag::Pain, 0).id;
+        u64 fireId = kgA.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.fire, 0).id;
+        u64 painId = kgA.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.pain, 0).id;
         auto& edgeA = kgA.GetOrCreateEdge(fireId, painId,
                                            KnowledgeRelation::Causes, 0);
         edgeA.confidence = 0.8f;
@@ -1085,7 +1084,7 @@ TEST(cognitive_knowledge_drives_behavior_divergence)
     for (const auto& m : modsA)
     {
         if (m.type == ModifierType::FleeBoost &&
-            m.triggerConcept == ConceptTag::Fire)
+            m.triggerConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             aHasFleeBoost = true;
             aFleeMagnitude = m.magnitude;
@@ -1101,8 +1100,8 @@ TEST(cognitive_knowledge_drives_behavior_divergence)
 
     {
         auto& kgB = worldB.Cognitive().knowledgeGraph;
-        u64 foodId = kgB.GetOrCreateNode(1, 0, ConceptTag::Food, 0).id;
-        u64 satietyId = kgB.GetOrCreateNode(1, 0, ConceptTag::Satiety, 0).id;
+        u64 foodId = kgB.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.food, 0).id;
+        u64 satietyId = kgB.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.satiety, 0).id;
         auto& edgeB = kgB.GetOrCreateEdge(foodId, satietyId,
                                            KnowledgeRelation::Causes, 0);
         edgeB.confidence = 0.7f;
@@ -1120,7 +1119,7 @@ TEST(cognitive_knowledge_drives_behavior_divergence)
     for (const auto& m : modsB)
     {
         if (m.type == ModifierType::ApproachBoost &&
-            m.triggerConcept == ConceptTag::Food)
+            m.triggerConcept == g_rulePack.GetHumanEvolutionContext().concepts.food)
         {
             bHasApproachBoost = true;
             bApproachMagnitude = m.magnitude;
@@ -1135,7 +1134,7 @@ TEST(cognitive_knowledge_drives_behavior_divergence)
     for (const auto& m : modsA)
     {
         if (m.type == ModifierType::ApproachBoost &&
-            m.triggerConcept == ConceptTag::Food)
+            m.triggerConcept == g_rulePack.GetHumanEvolutionContext().concepts.food)
         {
             aHasApproachForFood = true;
             break;
@@ -1148,7 +1147,7 @@ TEST(cognitive_knowledge_drives_behavior_divergence)
     for (const auto& m : modsB)
     {
         if (m.type == ModifierType::FleeBoost &&
-            m.triggerConcept == ConceptTag::Fire)
+            m.triggerConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             bHasFleeForFire = true;
             break;
@@ -1177,8 +1176,8 @@ TEST(cognitive_behavior_changes_with_learning)
 
     {
         auto& kg = worldAfter.Cognitive().knowledgeGraph;
-        u64 fireId = kg.GetOrCreateNode(1, 0, ConceptTag::Fire, 0).id;
-        u64 dangerId = kg.GetOrCreateNode(1, 0, ConceptTag::Danger, 0).id;
+        u64 fireId = kg.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.fire, 0).id;
+        u64 dangerId = kg.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.danger, 0).id;
         auto& edge = kg.GetOrCreateEdge(fireId, dangerId,
                                          KnowledgeRelation::Signals, 0);
         edge.confidence = 0.9f;
@@ -1196,7 +1195,7 @@ TEST(cognitive_behavior_changes_with_learning)
     for (const auto& m : modsAfter)
     {
         if (m.type == ModifierType::FleeBoost &&
-            m.triggerConcept == ConceptTag::Fire)
+            m.triggerConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             hasFleeBoost = true;
             ASSERT_TRUE(m.magnitude > 0.0f);
@@ -1210,7 +1209,7 @@ TEST(cognitive_behavior_changes_with_learning)
     for (const auto& m : modsAfter)
     {
         if (m.type == ModifierType::AlertBoost &&
-            m.triggerConcept == ConceptTag::Fire)
+            m.triggerConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             hasAlertBoost = true;
             break;
@@ -1271,7 +1270,7 @@ TEST(cognitive_natural_learning_changes_behavior)
         bool hasFireHyp = false;
         for (const auto& h : hyps)
         {
-            if (h.causeConcept == ConceptTag::Fire || h.effectConcept == ConceptTag::Fire)
+            if (h.causeConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire || h.effectConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
             {
                 hasFireHyp = true;
                 break;
@@ -1307,8 +1306,8 @@ TEST(cognitive_contradicted_knowledge_persists)
     Hypothesis hyp;
     hyp.id = 1;
     hyp.ownerId = 1;
-    hyp.causeConcept = ConceptTag::Fire;
-    hyp.effectConcept = ConceptTag::Danger;
+    hyp.causeConcept = g_rulePack.GetHumanEvolutionContext().concepts.fire;
+    hyp.effectConcept = g_rulePack.GetHumanEvolutionContext().concepts.danger;
     hyp.proposedRelation = KnowledgeRelation::Signals;
     hyp.confidence = 0.15f;
     hyp.supportingCount = 2;
@@ -1318,8 +1317,8 @@ TEST(cognitive_contradicted_knowledge_persists)
 
     {
         auto& kg = cog.knowledgeGraph;
-        u64 fireId = kg.GetOrCreateNode(1, 0, ConceptTag::Fire, 0).id;
-        u64 dangerId = kg.GetOrCreateNode(1, 0, ConceptTag::Danger, 0).id;
+        u64 fireId = kg.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.fire, 0).id;
+        u64 dangerId = kg.GetOrCreateNode(1, 0, g_rulePack.GetHumanEvolutionContext().concepts.danger, 0).id;
         auto& edge = kg.GetOrCreateEdge(fireId, dangerId,
                                          KnowledgeRelation::Signals, 0);
         edge.confidence = 0.15f;
@@ -1336,7 +1335,7 @@ TEST(cognitive_contradicted_knowledge_persists)
     for (const auto& m : mods)
     {
         if (m.type == ModifierType::FleeBoost &&
-            m.triggerConcept == ConceptTag::Fire)
+            m.triggerConcept == g_rulePack.GetHumanEvolutionContext().concepts.fire)
         {
             hasFleeBoost = true;
             ASSERT_TRUE(m.magnitude > 0.0f);

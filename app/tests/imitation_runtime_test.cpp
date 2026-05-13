@@ -190,7 +190,7 @@ TEST(observed_flee_can_enter_attention)
     bool foundFocused = false;
     for (const auto& focused : cog.frameFocused)
     {
-        if (focused.stimulus.observerId == 2 && focused.stimulus.concept == ConceptTag::ObservedFlee)
+        if (focused.stimulus.observerId == 2 && focused.stimulus.concept == rp.GetHumanEvolutionContext().concepts.observedFlee)
         {
             foundFocused = true;
             ASSERT_TRUE(focused.attentionScore > 0.0f);
@@ -228,7 +228,7 @@ TEST(observed_flee_memory_requires_attention)
     bool foundMemory = false;
     for (const auto& mem : mems)
     {
-        if (mem.subject == ConceptTag::ObservedFlee)
+        if (mem.subject == rp.GetHumanEvolutionContext().concepts.observedFlee)
         {
             foundMemory = true;
             ASSERT_TRUE(mem.sourceStimulusId > 0);
@@ -265,7 +265,7 @@ TEST(observer_gets_at_most_one_observed_flee_per_tick)
     i32 count = 0;
     for (const auto& stim : cog.frameStimuli)
     {
-        if (stim.observerId == 3 && stim.concept == ConceptTag::ObservedFlee)
+        if (stim.observerId == 3 && stim.concept == rp.GetHumanEvolutionContext().concepts.observedFlee)
             count++;
     }
 
