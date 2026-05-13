@@ -136,7 +136,6 @@ public:
             if (fm.InBounds(envCtx_.smoke, ax, y))
             {
                 f32 smokeVal = fm.Read(envCtx_.smoke, ax, y);
-                cog.agentPerceivedSmoke[agent.id] = smokeVal;
                 if (smokeVal > smokeThreshold)
                 {
                     PerceivedStimulus s;

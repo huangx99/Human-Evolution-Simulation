@@ -49,8 +49,6 @@ struct CognitiveModule : public IModule
     // world fields. This maintains the boundary: only CognitivePerceptionSystem
     // reads WorldState; all downstream systems use cognitive data.
 
-    std::unordered_map<EntityId, f32> agentPerceivedSmoke;
-
     // === Persistent per-agent data ===
 
     std::unordered_map<EntityId, std::vector<MemoryRecord>> agentMemories;
@@ -74,7 +72,6 @@ struct CognitiveModule : public IModule
         frameStimuli.clear();
         frameFocused.clear();
         frameMemories.clear();
-        agentPerceivedSmoke.clear();
         frameDiscoveries.clear();
     }
 

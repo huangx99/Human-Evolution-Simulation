@@ -101,24 +101,16 @@ public:
 private:
     HumanEvolution::ConceptContext concepts_;
 
-    // Check if agent currently perceives a concept (via cognitive summary)
+    // Check if agent currently perceives a concept via frame stimuli.
+    // Uses the cognitive pipeline output, not raw agent fields.
     bool IsConceptPerceived(const Agent& agent, ConceptTypeId concept,
                              const CognitiveModule& cog) const
     {
-        if (concept == concepts_.smoke)
+        for (const auto& stim : cog.frameStimuli)
         {
-            auto it = cog.agentPerceivedSmoke.find(agent.id);
-            return it != cog.agentPerceivedSmoke.end() && it->second > 5.0f;
+            if (stim.observerId == agent.id && stim.concept == concept)
+                return true;
         }
-        if (concept == concepts_.fire)
-            return agent.nearestFire > 5.0f;
-        if (concept == concepts_.food || concept == concepts_.meat ||
-            concept == concepts_.fruit)
-            return agent.nearestSmell > 5.0f;
-        if (concept == concepts_.heat)
-            return agent.localTemperature > 35.0f;
-        if (concept == concepts_.cold)
-            return agent.localTemperature < 5.0f;
         return false;
     }
 };
