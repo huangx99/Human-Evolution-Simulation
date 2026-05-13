@@ -33,6 +33,9 @@ struct WorldState
         auto& fm = modules.Get<FieldModule>();
         rulePack.RegisterFields(fm);
 
+        // RulePack registers its command factories
+        rulePack.RegisterCommands();
+
         // Store RulePack context for snapshot/replay access
         ruleContext_ = &rulePack.GetContext();
 
@@ -59,6 +62,7 @@ struct WorldState
     {
         auto& fm = modules.Get<FieldModule>();
         rulePack.RegisterFields(fm);
+        rulePack.RegisterCommands();
         ruleContext_ = &rulePack.GetContext();
     }
 

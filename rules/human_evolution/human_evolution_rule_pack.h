@@ -3,6 +3,7 @@
 #include "sim/runtime/rule_pack.h"
 #include "sim/scheduler/scheduler.h"
 #include "rules/human_evolution/human_evolution_context.h"
+#include "rules/human_evolution/commands.h"
 #include "rules/human_evolution/environment/climate_system.h"
 #include "rules/human_evolution/environment/fire_system.h"
 #include "rules/human_evolution/environment/smell_system.h"
@@ -16,11 +17,12 @@
 #include "sim/system/cognitive_social_system.h"
 #include "sim/system/agent_decision_system.h"
 
-// HumanEvolutionRulePack: defines the Human Evolution world's environment rules.
+// HumanEvolutionRulePack: defines the Human Evolution world.
 //
 // Fields: temperature, humidity, fire, wind_x, wind_y, smell, danger, smoke
-// Systems: ClimateSystem, FireSystem, SmellSystem, AgentPerceptionSystem,
-//          AgentDecisionSystem, AgentActionSystem, CognitivePerceptionSystem
+// Commands: IgniteFire, ExtinguishFire, EmitSmell, SetDanger, EmitSmoke
+// Systems: full cognitive pipeline (environment → perception → attention → memory
+//          → discovery → knowledge → decision → action → social)
 
 class HumanEvolutionRulePack : public IRulePack
 {
@@ -39,20 +41,37 @@ public:
         ctx_.environment.smoke       = fields.RegisterField(FieldKey("human_evolution.smoke"),       "smoke",        0.0f);
     }
 
+    void RegisterCommands() override
+    {
+        RegisterHumanEvolutionCommands();
+    }
+
     IRuleContext& GetContext() override { return ctx_; }
 
     std::vector<SystemRegistration> CreateSystems() override
     {
         std::vector<SystemRegistration> systems;
-        // Environment systems use lazy FieldKey lookup — no context needed
+
+        // Environment (lazy FieldKey lookup — no context needed)
         systems.push_back({SimPhase::Environment, std::make_unique<ClimateSystem>()});
         systems.push_back({SimPhase::Propagation, std::make_unique<FireSystem>()});
         systems.push_back({SimPhase::Propagation, std::make_unique<SmellSystem>()});
-        // Agent/cognitive systems receive EnvironmentContext via constructor
+
+        // Perception pipeline
         systems.push_back({SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx_.environment)});
-        systems.push_back({SimPhase::Decision,    std::make_unique<AgentDecisionSystem>()});
-        systems.push_back({SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>()});
+        systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>()});
+
+        // Decision pipeline
+        systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>()});
+        systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>()});
+        systems.push_back({SimPhase::Decision,    std::make_unique<AgentDecisionSystem>()});
+
+        // Action pipeline
+        systems.push_back({SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Action,      std::make_unique<CognitiveSocialSystem>()});
+
         return systems;
     }
 

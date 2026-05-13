@@ -1,23 +1,11 @@
 #include "sim/world/world_state.h"
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
-#include "rules/human_evolution/environment/climate_system.h"
-#include "rules/human_evolution/environment/fire_system.h"
-#include "rules/human_evolution/environment/smell_system.h"
-#include "rules/human_evolution/systems/agent_perception_system.h"
-#include "rules/human_evolution/systems/agent_action_system.h"
-#include "rules/human_evolution/systems/cognitive_perception_system.h"
-#include "sim/system/agent_decision_system.h"
-#include "sim/system/cognitive_attention_system.h"
-#include "sim/system/cognitive_memory_system.h"
-#include "sim/system/cognitive_discovery_system.h"
-#include "sim/system/cognitive_knowledge_system.h"
-#include "sim/system/cognitive_social_system.h"
+#include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "rules/reaction/semantic_reaction_system.h"
 #include "rules/reaction/semantic_predicate.h"
 #include "rules/reaction/reaction_effect.h"
 #include "rules/reaction/semantic_reaction_rule.h"
-#include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "api/snapshot/world_snapshot.h"
 #include <iostream>
 #include <fstream>
@@ -267,31 +255,12 @@ int main(int argc, char* argv[])
 
     Scheduler scheduler;
 
-    // Environment systems from RulePack
+    // All systems from RulePack (environment + full cognitive pipeline)
     for (auto& reg : rulePack.CreateSystems())
         scheduler.AddSystem(reg.phase, std::move(reg.system));
 
-    // Reaction rules (world-specific, registered directly)
+    // World-specific reaction rules (not in RulePack — registered directly)
     scheduler.AddSystem(SimPhase::Reaction,     std::move(reactionSys));
-
-    // Phase 1: runtime perception + decision + action
-    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<AgentPerceptionSystem>(envCtx));
-
-    // Phase 2: cognitive pipeline (perception → attention → memory)
-    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitivePerceptionSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitiveAttentionSystem>());
-    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitiveMemorySystem>());
-
-    // Phase 2: cognitive decision (discovery → knowledge)
-    scheduler.AddSystem(SimPhase::Decision,     std::make_unique<CognitiveDiscoverySystem>());
-    scheduler.AddSystem(SimPhase::Decision,     std::make_unique<CognitiveKnowledgeSystem>());
-
-    // Phase 1: runtime decision + action
-    scheduler.AddSystem(SimPhase::Decision,     std::make_unique<AgentDecisionSystem>());
-    scheduler.AddSystem(SimPhase::Action,       std::make_unique<AgentActionSystem>(envCtx));
-
-    // Phase 2: social learning (after actions, so it can observe results)
-    scheduler.AddSystem(SimPhase::Action,       std::make_unique<CognitiveSocialSystem>());
 
     i32 printInterval = cfg.ticks / 12;
     if (printInterval < 1) printInterval = 1;
