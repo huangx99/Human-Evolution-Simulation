@@ -133,6 +133,22 @@ inline Scheduler CreateHumanEvolutionScheduler(const HumanEvolution::Environment
     return scheduler;
 }
 
+// Create a scheduler without PatternDetectionSystem.
+// Used to prove Pattern is a pure observer (doesn't affect world hash).
+inline Scheduler CreateHumanEvolutionSchedulerWithoutPattern(
+    const HumanEvolution::EnvironmentContext& envCtx)
+{
+    Scheduler scheduler;
+    scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<AgentPerceptionSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Decision,   std::make_unique<AgentDecisionSystem>());
+    scheduler.AddSystem(SimPhase::Action,     std::make_unique<AgentActionSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<CognitivePerceptionSystem>(envCtx));
+    return scheduler;
+}
+
 // Create a scheduler with the full cognitive pipeline.
 // Extends the base systems with attention, memory, discovery, knowledge, and social learning.
 inline Scheduler CreateCognitiveScheduler(const HumanEvolution::EnvironmentContext& envCtx)

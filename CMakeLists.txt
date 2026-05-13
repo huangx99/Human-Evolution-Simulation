@@ -52,6 +52,7 @@ add_executable(human_evolution_tests
     app/tests/ecology_test.cpp
     app/tests/cognitive_test.cpp
     app/tests/pattern_test.cpp
+    app/tests/engine_gauntlet_test.cpp
 )
 target_link_libraries(human_evolution_tests
     human_evolution_core
