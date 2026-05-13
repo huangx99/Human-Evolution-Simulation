@@ -391,7 +391,6 @@ TEST(emission_focused_danger_emits_fear)
         const auto& sig = social.activeSignals[0];
         ASSERT_TRUE(sig.typeId.index == ctx.social.fear.index);
         ASSERT_TRUE(sig.sourceEntityId == 1);
-        ASSERT_TRUE(sig.concept == ConceptTag::Fear);
         ASSERT_TRUE(sig.origin.x == 5 && sig.origin.y == 5);
     }
 

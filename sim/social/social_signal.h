@@ -2,7 +2,6 @@
 
 #include "core/types/types.h"
 #include "core/math/vec2i.h"
-#include "sim/cognitive/concept_tag.h"
 #include "sim/social/social_signal_id.h"
 
 // SocialSignal: externalized information transmitted between entities.
@@ -24,8 +23,6 @@ struct SocialSignal
 
     EntityId sourceEntityId = 0;    // who/what created (agent, fire, corpse, etc.)
     EntityId targetEntityId = 0;    // 0 = broadcast (anyone nearby)
-
-    ConceptTag concept = ConceptTag::None;  // what the signal is about
 
     Vec2i origin;                       // where the signal came from
     f32 intensity = 0.0f;               // signal strength (decays with distance)

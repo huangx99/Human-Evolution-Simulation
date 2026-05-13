@@ -63,7 +63,6 @@ public:
             sig.typeId = ctx_.social.fear;
             sig.sourceEntityId = sourceAgent->id;
             sig.targetEntityId = 0;  // broadcast
-            sig.concept = ConceptTag::Fear;
             sig.origin = sourceAgent->position;
             sig.intensity = stim.intensity;
             sig.confidence = stim.confidence;

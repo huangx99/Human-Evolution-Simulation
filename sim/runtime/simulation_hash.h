@@ -160,7 +160,6 @@ inline void HashSocialSignal(SimHash& h, const SocialSignal& s)
     h.FeedU16(s.typeId.index);
     h.FeedU64(s.sourceEntityId);
     h.FeedU64(s.targetEntityId);
-    h.FeedU32(static_cast<u32>(s.concept));
     h.FeedI32(s.origin.x);
     h.FeedI32(s.origin.y);
     h.FeedF32(s.intensity);
