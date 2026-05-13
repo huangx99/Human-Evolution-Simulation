@@ -372,7 +372,7 @@ TEST(emission_focused_danger_emits_fear)
 
     // Build focused danger stimulus to inject during Decision phase
     FocusedStimulus focused;
-    focused.stimulus.sense = SenseType::Danger;
+    focused.stimulus.sense = SenseType::Internal;
     focused.stimulus.concept = rp.GetHumanEvolutionContext().concepts.danger;
     focused.stimulus.location = {5, 5};
     focused.stimulus.intensity = 0.8f;
@@ -441,7 +441,7 @@ TEST(emission_fear_signal_perceivable_by_nearby)
 
     // Build focused danger stimulus for Agent A
     FocusedStimulus focused;
-    focused.stimulus.sense = SenseType::Danger;
+    focused.stimulus.sense = SenseType::Internal;
     focused.stimulus.concept = rp.GetHumanEvolutionContext().concepts.danger;
     focused.stimulus.location = {5, 5};
     focused.stimulus.intensity = 0.9f;
@@ -647,7 +647,7 @@ TEST(same_agent_emits_one_fear_signal_per_tick)
 
     // Inject multiple danger focused stimuli for the same agent
     FocusedStimulus danger1;
-    danger1.stimulus.sense = SenseType::Danger;
+    danger1.stimulus.sense = SenseType::Internal;
     danger1.stimulus.concept = rp.GetHumanEvolutionContext().concepts.danger;
     danger1.stimulus.location = {5, 5};
     danger1.stimulus.intensity = 0.8f;
@@ -656,7 +656,7 @@ TEST(same_agent_emits_one_fear_signal_per_tick)
     danger1.attentionScore = 1.0f;
 
     FocusedStimulus fire;
-    fire.stimulus.sense = SenseType::Heat;
+    fire.stimulus.sense = SenseType::Thermal;
     fire.stimulus.concept = rp.GetHumanEvolutionContext().concepts.fire;
     fire.stimulus.location = {5, 5};
     fire.stimulus.intensity = 0.9f;

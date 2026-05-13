@@ -88,7 +88,7 @@ public:
                 PerceivedStimulus s;
                 s.id = cog.nextStimulusId++;
                 s.observerId = agent.id;
-                s.sense = SenseType::Heat;
+                s.sense = SenseType::Thermal;
                 s.concept = concepts_.heat;
                 s.location = agent.position;
                 s.intensity = (agent.localTemperature - 30.0f) / 30.0f;
@@ -102,7 +102,7 @@ public:
                 PerceivedStimulus s;
                 s.id = cog.nextStimulusId++;
                 s.observerId = agent.id;
-                s.sense = SenseType::Heat;
+                s.sense = SenseType::Thermal;
                 s.concept = concepts_.cold;
                 s.location = agent.position;
                 s.intensity = (10.0f - agent.localTemperature) / 20.0f;
@@ -121,7 +121,7 @@ public:
                     PerceivedStimulus s;
                     s.id = cog.nextStimulusId++;
                     s.observerId = agent.id;
-                    s.sense = SenseType::Danger;
+                    s.sense = SenseType::Internal;
                     s.concept = concepts_.danger;
                     s.location = agent.position;
                     s.intensity = dangerVal / 50.0f;
@@ -142,7 +142,7 @@ public:
                     PerceivedStimulus s;
                     s.id = cog.nextStimulusId++;
                     s.observerId = agent.id;
-                    s.sense = SenseType::Smoke;
+                    s.sense = SenseType::Smell;
                     s.concept = concepts_.smoke;
                     s.location = agent.position;
                     s.intensity = smokeVal / 40.0f;

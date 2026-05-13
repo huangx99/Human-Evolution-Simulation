@@ -8,11 +8,9 @@ enum class SenseType : u8
 {
     Vision,
     Smell,
-    Heat,
-    Smoke,
-    Danger,
     Touch,
     Sound,
+    Thermal,
     Internal
 };
 
