@@ -4,6 +4,7 @@
 #include "sim/system/field_writer.h"
 #include "sim/scheduler/system_descriptor.h"
 #include "sim/history/history_module.h"
+#include "sim/social/social_signal_module.h"
 
 // SystemContext: controlled access wrapper passed to every ISystem::Update().
 //
@@ -36,6 +37,8 @@ public:
           PatternModule&     Patterns()        { return world_.Patterns(); }
     const HistoryModule&     History()   const { return world_.History(); }
           HistoryModule&     History()         { return world_.History(); }
+    const SocialSignalModule& SocialSignals() const { return world_.SocialSignals(); }
+          SocialSignalModule& SocialSignals()       { return world_.SocialSignals(); }
 
     // Commands and Events
     CommandBuffer& Commands() { return world_.commands; }

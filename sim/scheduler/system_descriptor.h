@@ -20,6 +20,7 @@ enum class ModuleTag : uint8_t
     Agent,          // agents (position, hunger, health, action)
     Ecology,        // entities (material, state, capabilities)
     Cognitive,      // memories, hypotheses, knowledge graph, stimuli
+    Social,         // social signals between agents
     Command,        // CommandBuffer
     Event,          // EventBus
     Spatial,        // SpatialIndex

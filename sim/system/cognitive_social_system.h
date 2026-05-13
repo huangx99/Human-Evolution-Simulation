@@ -1,27 +1,18 @@
 #pragma once
 
-// CognitiveSocialSystem: emits social signals between nearby agents.
+// Phase 2.1 stub.
+// Temporarily excluded from all default pipelines during Phase 1.4
+// Social Runtime Boundary Cleanup.
 //
-// ARCHITECTURE NOTE: This system is a STUB. It only emits SocialSignal
-// objects into frameSocialSignals. It does NOT create memories directly.
+// Future: CognitiveSocialSystem -> ImitationObservationSystem
 //
-// Reason: "Memory only comes from FocusedStimulus" is a core invariant.
-// If social signals should enter memory, they must go through the full
-// pipeline: SocialSignal → SocialAttention → FocusedSocialStimulus → Memory.
-// That pipeline does not exist yet in Phase 2.
+// This system emits social signals between nearby agents.
+// It does NOT create memories directly — that requires the full
+// SocialSignal → SocialAttention → FocusedSocialStimulus → Memory pipeline.
 //
-// Future: when social cognition is implemented, social signals should be
-// perceived as stimuli, compete for attention, and only then form memories.
-// This preserves the attention bottleneck.
-//
-// Pipeline position: runs in SimPhase::Action.
-// Reads: agent positions, agent actions.
-// Writes: CognitiveModule::frameSocialSignals only.
-//
-// OWNERSHIP: Engine (sim/system/)
-// READS: AgentModule (agents), CognitiveModule (knowledgeGraph)
-// WRITES: CognitiveModule (frameSocialSignals) via EventBus
-// PHASE: SimPhase::Action
+// NOTE: This code still references CognitiveModule::frameSocialSignals
+// which was removed in Phase 1.4. It will need updating when re-enabled
+// in Phase 2.1 to use SocialSignalModule instead.
 
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"

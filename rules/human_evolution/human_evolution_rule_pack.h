@@ -14,7 +14,6 @@
 #include "sim/system/cognitive_memory_system.h"
 #include "sim/system/cognitive_discovery_system.h"
 #include "sim/system/cognitive_knowledge_system.h"
-#include "sim/system/cognitive_social_system.h"
 #include "rules/human_evolution/systems/agent_decision_system.h"
 #include "sim/pattern/pattern_detection_system.h"
 #include "sim/pattern/pattern_registry.h"
@@ -29,7 +28,7 @@
 // Fields: temperature, humidity, fire, wind_x, wind_y, smell, danger, smoke
 // Commands: IgniteFire, ExtinguishFire, EmitSmell, SetDanger, EmitSmoke
 // Systems: full cognitive pipeline (environment → perception → attention → memory
-//          → discovery → knowledge → decision → action → social)
+//          → discovery → knowledge → decision → action)
 
 class HumanEvolutionRulePack : public IRulePack
 {
@@ -61,6 +60,14 @@ public:
             HistoryKey("human_evolution.mass_death"), "mass_death");
     }
 
+    void RegisterSocialSignals(SocialSignalRegistry& registry) override
+    {
+        ctx_.social.fear = registry.Register(
+            MakeSocialSignalKey("human_evolution.fear"), "fear");
+        ctx_.social.deathWarning = registry.Register(
+            MakeSocialSignalKey("human_evolution.death_warning"), "death_warning");
+    }
+
     IRuleContext& GetContext() override { return ctx_; }
 
     std::vector<SystemRegistration> CreateSystems() override
@@ -85,7 +92,6 @@ public:
 
         // Action pipeline
         systems.push_back({SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx_.environment)});
-        systems.push_back({SimPhase::Action,      std::make_unique<CognitiveSocialSystem>()});
 
         // Pattern detection (read-only observer)
         {
@@ -184,7 +190,7 @@ inline Scheduler CreateHumanEvolutionSchedulerWithoutPattern(
 }
 
 // Create a scheduler with the full cognitive pipeline.
-// Extends the base systems with attention, memory, discovery, knowledge, and social learning.
+// Extends the base systems with attention, memory, discovery, and knowledge.
 inline Scheduler CreateCognitiveScheduler(const HumanEvolution::EnvironmentContext& envCtx)
 {
     Scheduler scheduler;
@@ -207,7 +213,6 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolution::EnvironmentConte
 
     // Action pipeline
     scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Action,      std::make_unique<CognitiveSocialSystem>());
 
     return scheduler;
 }

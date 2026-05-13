@@ -9,7 +9,6 @@
 //   - frameFocused: FocusedStimulus from CognitiveAttentionSystem
 //   - frameMemories: MemoryRecord from CognitiveMemorySystem
 //   - frameDiscoveries: DiscoveryRecord from CognitiveDiscoverySystem
-//   - frameSocialSignals: SocialSignal from CognitiveSocialSystem
 //
 // Agent-lifetime persistent data (accumulates over simulation):
 //   - agentMemories: per-agent memory records (decay over time, never cleared)
@@ -27,7 +26,6 @@
 #include "sim/cognitive/memory_record.h"
 #include "sim/cognitive/hypothesis.h"
 #include "sim/cognitive/knowledge_graph.h"
-#include "sim/cognitive/social_signal.h"
 #include "sim/cognitive/decision_modifier.h"
 #include <unordered_map>
 #include <vector>
@@ -43,7 +41,6 @@ struct CognitiveModule : public IModule
     std::vector<FocusedStimulus> frameFocused;
     std::vector<MemoryRecord> frameMemories;
     std::vector<DiscoveryRecord> frameDiscoveries;
-    std::vector<SocialSignal> frameSocialSignals;
 
     // === Per-agent cognitive summary (populated by CognitivePerceptionSystem) ===
     //
@@ -69,7 +66,6 @@ struct CognitiveModule : public IModule
     u64 nextMemoryId = 1;
     u64 nextHypothesisId = 1;
     u64 nextDiscoveryId = 1;
-    u64 nextSocialSignalId = 1;
 
     // === Per-frame lifecycle ===
 
@@ -80,7 +76,6 @@ struct CognitiveModule : public IModule
         frameMemories.clear();
         agentPerceivedSmoke.clear();
         frameDiscoveries.clear();
-        frameSocialSignals.clear();
     }
 
     // === Memory helpers ===

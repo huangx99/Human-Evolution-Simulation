@@ -54,6 +54,7 @@ add_executable(human_evolution_tests
     app/tests/pattern_test.cpp
     app/tests/engine_gauntlet_test.cpp
     app/tests/history_test.cpp
+    app/tests/social_test.cpp
 )
 target_link_libraries(human_evolution_tests
     human_evolution_core

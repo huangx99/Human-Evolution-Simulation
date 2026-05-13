@@ -3,6 +3,7 @@
 #include "sim/field/field_id.h"
 #include "sim/runtime/rule_context.h"
 #include "sim/history/history_id.h"
+#include "sim/social/social_signal_id.h"
 
 // HumanEvolutionContext: RulePack-specific context for the Human Evolution world.
 //
@@ -31,6 +32,13 @@ struct HistoryContext
     HistoryTypeId massDeath;
 };
 
+// Social signal type ids (registered via RegisterSocialSignals)
+struct SocialContext
+{
+    SocialSignalTypeId fear;
+    SocialSignalTypeId deathWarning;
+};
+
 // Future extensions (uncomment when needed):
 // struct AgentContext { ... };
 // struct CognitiveContext { ... };
@@ -43,6 +51,5 @@ class HumanEvolutionContext : public IRuleContext
 public:
     HumanEvolution::EnvironmentContext environment;
     HumanEvolution::HistoryContext history;
-    // HumanEvolution::AgentContext agent;
-    // HumanEvolution::CognitiveContext cognitive;
+    HumanEvolution::SocialContext social;
 };

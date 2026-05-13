@@ -127,3 +127,25 @@ Use sorted vectors or index-based iteration for hash input.
 **Why**: `unordered_map` iteration order varies across platforms (Linux vs Windows), compilers (clang vs gcc), and even runs (ASLR affects bucket layout). If the hash includes unordered iteration, determinism proofs fail cross-platform.
 
 **Enforcement**: Code review. Hash functions must iterate sorted vectors or index-based containers. `PatternModule` uses `vector<pair>` instead of `unordered_map` for this reason.
+
+---
+
+## Law 10: Social Signal Is Observable, Not Imperative
+
+```
+SocialSignal represents externalized information.
+It may be perceived as PerceivedStimulus.
+It must not issue commands.
+It must not directly mutate Agent behavior.
+It must not directly create MemoryRecord.
+
+All memory from social information must pass through:
+SocialSignal → PerceivedStimulus → FocusedStimulus → MemoryRecord.
+
+If SocialSignal is read by perception or cognition, it is
+simulation-affecting state and must remain deterministic under replay.
+```
+
+**Why**: Social signals are the foundation of group cognition. If a signal can directly issue commands or create memories, agents bypass the attention bottleneck (Law 4/5) and become omniscient. The pipeline ensures social information competes for attention like any other stimulus.
+
+**Enforcement**: `SocialSignalModule` is a standalone module. Systems that emit signals write to `SocialSignalModule::Emit()`. Systems that perceive signals must read through `CognitivePerceptionSystem` → `CognitiveAttentionSystem` → `CognitiveMemorySystem` pipeline. No direct SocialSignal → MemoryRecord path may exist.

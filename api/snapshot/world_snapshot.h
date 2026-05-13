@@ -265,7 +265,7 @@ struct WorldSnapshot
             snap.cognitive.frameFocusedCount = cog.frameFocused.size();
             snap.cognitive.frameMemoriesCount = cog.frameMemories.size();
             snap.cognitive.frameDiscoveriesCount = cog.frameDiscoveries.size();
-            snap.cognitive.frameSocialSignalsCount = cog.frameSocialSignals.size();
+            snap.cognitive.frameSocialSignalsCount = 0;  // Social signals moved to SocialSignalModule
 
             for (const auto& agent : world.Agents().agents)
             {

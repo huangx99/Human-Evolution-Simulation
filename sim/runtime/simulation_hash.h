@@ -197,7 +197,6 @@ inline u64 ComputeWorldHash(const WorldState& world, HashTier tier)
     h.FeedU64(cog.nextMemoryId);
     h.FeedU64(cog.nextHypothesisId);
     h.FeedU64(cog.nextDiscoveryId);
-    h.FeedU64(cog.nextSocialSignalId);
 
     // Sort unordered_map by EntityId for deterministic iteration
     {

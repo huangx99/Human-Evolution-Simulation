@@ -5,6 +5,7 @@
 #include "sim/field/field_module.h"
 #include "sim/runtime/rule_context.h"
 #include "sim/history/history_registry.h"
+#include "sim/social/social_signal_registry.h"
 #include <vector>
 #include <memory>
 
@@ -76,6 +77,10 @@ public:
     // Register domain-specific history event types with HistoryRegistry.
     // Default: empty (no custom history types)
     virtual void RegisterHistoryTypes(HistoryRegistry&) {}
+
+    // Register domain-specific social signal types with SocialSignalRegistry.
+    // Default: empty (no custom social signal types)
+    virtual void RegisterSocialSignals(SocialSignalRegistry&) {}
 
     // --- System creation (called once during WorldState construction) ---
 

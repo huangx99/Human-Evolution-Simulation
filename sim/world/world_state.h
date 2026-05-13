@@ -10,6 +10,8 @@
 #include "sim/pattern/pattern_registry.h"
 #include "sim/history/history_module.h"
 #include "sim/history/history_registry.h"
+#include "sim/social/social_signal_module.h"
+#include "sim/social/social_signal_registry.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
@@ -44,6 +46,9 @@ struct WorldState
         // RulePack registers its history event types
         rulePack.RegisterHistoryTypes(HistoryRegistry::Instance());
 
+        // RulePack registers its social signal types
+        rulePack.RegisterSocialSignals(SocialSignalRegistry::Instance());
+
         // Store RulePack context for snapshot/replay access
         ruleContext_ = &rulePack.GetContext();
 
@@ -52,6 +57,7 @@ struct WorldState
         modules.Register<CognitiveModule>();
         modules.Register<PatternModule>();
         modules.Register<HistoryModule>();
+        modules.Register<SocialSignalModule>();
     }
 
     // Convenience constructor: no RulePack (for engine-only tests).
@@ -67,6 +73,7 @@ struct WorldState
         modules.Register<CognitiveModule>();
         modules.Register<PatternModule>();
         modules.Register<HistoryModule>();
+        modules.Register<SocialSignalModule>();
     }
 
     // Deferred RulePack init: register fields.
@@ -77,6 +84,7 @@ struct WorldState
         rulePack.RegisterFields(fm);
         rulePack.RegisterCommands();
         rulePack.RegisterHistoryTypes(HistoryRegistry::Instance());
+        rulePack.RegisterSocialSignals(SocialSignalRegistry::Instance());
         ruleContext_ = &rulePack.GetContext();
     }
 
@@ -92,6 +100,7 @@ struct WorldState
     CognitiveModule& Cognitive() { return modules.Get<CognitiveModule>(); }
     PatternModule& Patterns() { return modules.Get<PatternModule>(); }
     HistoryModule& History() { return modules.Get<HistoryModule>(); }
+    SocialSignalModule& SocialSignals() { return modules.Get<SocialSignalModule>(); }
 
     const SimulationModule& Sim() const { return modules.Get<SimulationModule>(); }
     const FieldModule& Fields() const { return modules.Get<FieldModule>(); }
@@ -100,6 +109,7 @@ struct WorldState
     const CognitiveModule& Cognitive() const { return modules.Get<CognitiveModule>(); }
     const PatternModule& Patterns() const { return modules.Get<PatternModule>(); }
     const HistoryModule& History() const { return modules.Get<HistoryModule>(); }
+    const SocialSignalModule& SocialSignals() const { return modules.Get<SocialSignalModule>(); }
 
     // RulePack context access (for snapshot/replay)
     IRuleContext* RuleContext() { return ruleContext_; }

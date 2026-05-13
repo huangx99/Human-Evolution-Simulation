@@ -41,7 +41,7 @@ struct SavedWorldState
     std::unordered_map<EntityId, std::vector<MemoryRecord>> agentMemories;
     std::unordered_map<EntityId, std::vector<Hypothesis>> agentHypotheses;
     KnowledgeGraph knowledgeGraph;
-    u64 nextStimulusId, nextMemoryId, nextHypothesisId, nextDiscoveryId, nextSocialSignalId;
+    u64 nextStimulusId, nextMemoryId, nextHypothesisId, nextDiscoveryId;
 };
 
 // Save full world state into a SavedWorldState.
@@ -90,7 +90,6 @@ inline SavedWorldState SaveWorldState(const WorldState& world)
     s.nextMemoryId = cog.nextMemoryId;
     s.nextHypothesisId = cog.nextHypothesisId;
     s.nextDiscoveryId = cog.nextDiscoveryId;
-    s.nextSocialSignalId = cog.nextSocialSignalId;
 
     return s;
 }
@@ -146,7 +145,6 @@ inline void RestoreWorld(WorldState& world, const SavedWorldState& s)
     cog.nextMemoryId = s.nextMemoryId;
     cog.nextHypothesisId = s.nextHypothesisId;
     cog.nextDiscoveryId = s.nextDiscoveryId;
-    cog.nextSocialSignalId = s.nextSocialSignalId;
 
     // Clear frame buffers (they're transient)
     cog.ClearFrame();
