@@ -5,6 +5,7 @@
 #include "sim/scheduler/system_descriptor.h"
 #include "sim/history/history_module.h"
 #include "sim/social/social_signal_module.h"
+#include "sim/cognitive/internal_state_baseline_module.h"
 
 // SystemContext: controlled access wrapper passed to every ISystem::Update().
 //
@@ -39,6 +40,8 @@ public:
           HistoryModule&     History()         { return world_.History(); }
     const SocialSignalModule& SocialSignals() const { return world_.SocialSignals(); }
           SocialSignalModule& SocialSignals()       { return world_.SocialSignals(); }
+    const InternalStateBaselineModule& InternalStateBaselines() const { return world_.InternalStateBaselines(); }
+          InternalStateBaselineModule& InternalStateBaselines()       { return world_.InternalStateBaselines(); }
 
     // Commands and Events
     CommandBuffer& Commands() { return world_.commands; }

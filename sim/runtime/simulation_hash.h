@@ -255,6 +255,22 @@ inline u64 ComputeWorldHash(const WorldState& world, HashTier tier)
     for (const auto& sig : social.activeSignals)
         HashSocialSignal(h, sig);
 
+    // Internal state baselines
+    {
+        auto& baselines = world.InternalStateBaselines().baselines;
+        std::vector<std::pair<EntityId, InternalStateBaseline>> sorted(
+            baselines.begin(), baselines.end());
+        std::sort(sorted.begin(), sorted.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
+        h.FeedU64(static_cast<u64>(sorted.size()));
+        for (const auto& [id, base] : sorted)
+        {
+            h.FeedU64(id);
+            h.FeedF32(base.hunger);
+            h.FeedF32(base.health);
+        }
+    }
+
     if (tier == HashTier::Full)
         return h.value;
 

@@ -12,7 +12,8 @@ enum class SenseType : u8
     Smoke,
     Danger,
     Touch,
-    Sound
+    Sound,
+    Internal
 };
 
 // PerceivedStimulus: what an agent subjectively perceives.

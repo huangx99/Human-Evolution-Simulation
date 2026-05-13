@@ -12,6 +12,7 @@
 #include "sim/history/history_registry.h"
 #include "sim/social/social_signal_module.h"
 #include "sim/social/social_signal_registry.h"
+#include "sim/cognitive/internal_state_baseline_module.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
@@ -55,6 +56,7 @@ struct WorldState
         modules.Register<AgentModule>();
         modules.Register<EcologyModule>();
         modules.Register<CognitiveModule>();
+        modules.Register<InternalStateBaselineModule>();
         modules.Register<PatternModule>();
         modules.Register<HistoryModule>();
         modules.Register<SocialSignalModule>();
@@ -71,6 +73,7 @@ struct WorldState
         modules.Register<AgentModule>();
         modules.Register<EcologyModule>();
         modules.Register<CognitiveModule>();
+        modules.Register<InternalStateBaselineModule>();
         modules.Register<PatternModule>();
         modules.Register<HistoryModule>();
         modules.Register<SocialSignalModule>();
@@ -101,6 +104,7 @@ struct WorldState
     PatternModule& Patterns() { return modules.Get<PatternModule>(); }
     HistoryModule& History() { return modules.Get<HistoryModule>(); }
     SocialSignalModule& SocialSignals() { return modules.Get<SocialSignalModule>(); }
+    InternalStateBaselineModule& InternalStateBaselines() { return modules.Get<InternalStateBaselineModule>(); }
 
     const SimulationModule& Sim() const { return modules.Get<SimulationModule>(); }
     const FieldModule& Fields() const { return modules.Get<FieldModule>(); }
@@ -110,6 +114,7 @@ struct WorldState
     const PatternModule& Patterns() const { return modules.Get<PatternModule>(); }
     const HistoryModule& History() const { return modules.Get<HistoryModule>(); }
     const SocialSignalModule& SocialSignals() const { return modules.Get<SocialSignalModule>(); }
+    const InternalStateBaselineModule& InternalStateBaselines() const { return modules.Get<InternalStateBaselineModule>(); }
 
     // RulePack context access (for snapshot/replay)
     IRuleContext* RuleContext() { return ruleContext_; }
