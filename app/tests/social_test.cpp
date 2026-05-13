@@ -169,3 +169,68 @@ TEST(empty_social_module_does_not_change_hash)
 
     return true;
 }
+
+TEST(active_social_signal_changes_full_hash)
+{
+    // Two identical worlds, one with an active signal, should have different Full hashes.
+    HumanEvolutionRulePack rp;
+
+    WorldState a(32, 32, 42, rp);
+    a.SpawnAgent(5, 5);
+
+    WorldState b(32, 32, 42, rp);
+    b.SpawnAgent(5, 5);
+
+    // Empty: same hash
+    ASSERT_EQ(ComputeWorldHash(a, HashTier::Full),
+              ComputeWorldHash(b, HashTier::Full));
+
+    // Emit a signal into world b
+    SocialSignal sig;
+    sig.typeId = rp.GetHumanEvolutionContext().social.fear;
+    sig.sourceEntityId = 1;
+    sig.origin = {5, 5};
+    sig.intensity = 0.8f;
+    sig.confidence = 0.6f;
+    sig.effectiveRadius = 8.0f;
+    sig.createdTick = 0;
+    sig.ttl = 10;
+    b.SocialSignals().Emit(sig);
+
+    // Now hashes must differ
+    ASSERT_TRUE(ComputeWorldHash(a, HashTier::Full) !=
+                ComputeWorldHash(b, HashTier::Full));
+
+    return true;
+}
+
+TEST(same_active_social_signal_produces_same_full_hash)
+{
+    // Two identical worlds with identical signals should have the same hash.
+    HumanEvolutionRulePack rp;
+
+    auto makeWorldWithSignal = [&rp]() {
+        WorldState w(32, 32, 42, rp);
+        w.SpawnAgent(5, 5);
+
+        SocialSignal sig;
+        sig.typeId = rp.GetHumanEvolutionContext().social.fear;
+        sig.sourceEntityId = 1;
+        sig.origin = {5, 5};
+        sig.intensity = 0.8f;
+        sig.confidence = 0.6f;
+        sig.effectiveRadius = 8.0f;
+        sig.createdTick = 0;
+        sig.ttl = 10;
+        w.SocialSignals().Emit(sig);
+        return w;
+    };
+
+    WorldState a = makeWorldWithSignal();
+    WorldState b = makeWorldWithSignal();
+
+    ASSERT_EQ(ComputeWorldHash(a, HashTier::Full),
+              ComputeWorldHash(b, HashTier::Full));
+
+    return true;
+}

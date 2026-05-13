@@ -2,6 +2,7 @@
 
 #include "sim/world/world_state.h"
 #include "sim/command/command.h"
+#include "sim/social/social_signal.h"
 #include <cstring>
 #include <algorithm>
 #include <vector>
@@ -153,6 +154,22 @@ inline void HashEvent(SimHash& h, const Event& e)
     h.FeedF32(e.value);
 }
 
+inline void HashSocialSignal(SimHash& h, const SocialSignal& s)
+{
+    h.FeedU64(s.id);
+    h.FeedU16(s.typeId.index);
+    h.FeedU64(s.sourceEntityId);
+    h.FeedU64(s.targetEntityId);
+    h.FeedU32(static_cast<u32>(s.concept));
+    h.FeedI32(s.origin.x);
+    h.FeedI32(s.origin.y);
+    h.FeedF32(s.intensity);
+    h.FeedF32(s.confidence);
+    h.FeedF32(s.effectiveRadius);
+    h.FeedU64(s.createdTick);
+    h.FeedU32(s.ttl);
+}
+
 // --- Main hash function ---
 
 inline u64 ComputeWorldHash(const WorldState& world, HashTier tier)
@@ -231,6 +248,12 @@ inline u64 ComputeWorldHash(const WorldState& world, HashTier tier)
     h.FeedU64(kg.nextEdgeId);
     for (const auto& n : kg.nodes) HashKnowledgeNode(h, n);
     for (const auto& e : kg.edges) HashKnowledgeEdge(h, e);
+
+    const auto& social = world.SocialSignals();
+    h.FeedU64(social.nextSignalId);
+    h.FeedU64(static_cast<u64>(social.activeSignals.size()));
+    for (const auto& sig : social.activeSignals)
+        HashSocialSignal(h, sig);
 
     if (tier == HashTier::Full)
         return h.value;

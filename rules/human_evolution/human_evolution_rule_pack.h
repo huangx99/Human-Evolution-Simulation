@@ -14,6 +14,7 @@
 #include "sim/system/cognitive_memory_system.h"
 #include "sim/system/cognitive_discovery_system.h"
 #include "sim/system/cognitive_knowledge_system.h"
+#include "sim/system/social_signal_decay_system.h"
 #include "rules/human_evolution/systems/agent_decision_system.h"
 #include "sim/pattern/pattern_detection_system.h"
 #include "sim/pattern/pattern_registry.h"
@@ -22,6 +23,8 @@
 #include "sim/history/history_detection_system.h"
 #include "rules/human_evolution/history/first_stable_fire_detector.h"
 #include "rules/human_evolution/history/mass_death_detector.h"
+#include "rules/human_evolution/social/human_evolution_social_signal_perception_system.h"
+#include "rules/human_evolution/social/human_evolution_social_signal_emission_system.h"
 
 // HumanEvolutionRulePack: defines the Human Evolution world.
 //
@@ -78,10 +81,12 @@ public:
         systems.push_back({SimPhase::Environment, std::make_unique<ClimateSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Propagation, std::make_unique<FireSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Propagation, std::make_unique<SmellSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Propagation, std::make_unique<SocialSignalDecaySystem>()});
 
         // Perception pipeline
         systems.push_back({SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx_)});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>()});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>()});
 
@@ -92,6 +97,7 @@ public:
 
         // Action pipeline
         systems.push_back({SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Action,      std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx_)});
 
         // Pattern detection (read-only observer)
         {
