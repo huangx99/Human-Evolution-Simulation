@@ -77,14 +77,23 @@ struct GroupKnowledgeModule : public IModule
         return records.back();
     }
 
-    void ReinforceRecord(u64 recordId, f32 confidenceBoost, Tick tick)
+    // Reinforce an existing record with new evidence.
+    // evidenceTick: the newest tick among the contributing memories.
+    // If evidenceTick <= lastReinforcedTick, the evidence is stale — skip.
+    // contributorCount: number of distinct agents in the new cluster.
+    // Uses max (not ++) to avoid inflating contributors from same evidence.
+    void ReinforceRecord(u64 recordId, f32 confidenceBoost,
+                         u32 contributorCount, Tick evidenceTick, Tick tick)
     {
         for (auto& rec : records)
         {
             if (rec.id == recordId)
             {
+                if (evidenceTick <= rec.lastReinforcedTick)
+                    return;
+
                 rec.confidence = std::min(rec.confidence + confidenceBoost, 1.0f);
-                rec.contributors++;
+                rec.contributors = std::max(rec.contributors, contributorCount);
                 rec.lastReinforcedTick = tick;
                 return;
             }

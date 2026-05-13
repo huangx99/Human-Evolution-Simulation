@@ -50,12 +50,10 @@ TEST(rulepack_registers_group_knowledge_types)
     const auto& ctx = rp.GetHumanEvolutionContext();
 
     ASSERT_TRUE(ctx.groupKnowledge.sharedDangerZone.index > 0);
-    ASSERT_TRUE(ctx.groupKnowledge.safePath.index > 0);
-    ASSERT_TRUE(ctx.groupKnowledge.resourceCluster.index > 0);
+    ASSERT_TRUE(ctx.groupKnowledge.sharedFireBenefit.index > 0);
 
     ASSERT_EQ(reg.GetName(ctx.groupKnowledge.sharedDangerZone), "shared_danger_zone");
-    ASSERT_EQ(reg.GetName(ctx.groupKnowledge.safePath), "safe_path");
-    ASSERT_EQ(reg.GetName(ctx.groupKnowledge.resourceCluster), "resource_cluster");
+    ASSERT_EQ(reg.GetName(ctx.groupKnowledge.sharedFireBenefit), "shared_fire_benefit");
 
     return true;
 }
@@ -85,6 +83,30 @@ TEST(active_group_knowledge_changes_full_hash)
     return true;
 }
 
+// === Test 5: Group knowledge system is in the RulePack pipeline ===
+
+TEST(group_knowledge_system_in_pipeline)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+
+    auto systems = rp.CreateSystems();
+    bool found = false;
+    for (const auto& reg : systems)
+    {
+        auto desc = reg.system->Descriptor();
+        if (std::string(desc.name) == "GroupKnowledgeAggregationSystem")
+        {
+            ASSERT_TRUE(reg.phase == SimPhase::Analysis);
+            found = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found);
+
+    return true;
+}
+
 // Helper: create a scheduler with only the aggregation system
 static Scheduler CreateAggregationScheduler(const HumanEvolutionContext& ctx)
 {
@@ -110,7 +132,7 @@ static void AddMemory(CognitiveModule& cog, EntityId agentId, ConceptTypeId conc
     mems.push_back(mem);
 }
 
-// === Test 5: Single agent memory does NOT create group knowledge ===
+// === Test 6: Single agent memory does NOT create group knowledge ===
 
 TEST(single_agent_memory_does_not_create_group_knowledge)
 {
@@ -130,7 +152,7 @@ TEST(single_agent_memory_does_not_create_group_knowledge)
     return true;
 }
 
-// === Test 6: Same agent, multiple memories — still no group knowledge ===
+// === Test 7: Same agent, multiple memories — still no group knowledge ===
 
 TEST(same_agent_multiple_memories_does_not_create_group_knowledge)
 {
@@ -151,7 +173,7 @@ TEST(same_agent_multiple_memories_does_not_create_group_knowledge)
     return true;
 }
 
-// === Test 7: Two agents, same area — creates shared danger zone ===
+// === Test 8: Two agents, same area — creates shared danger zone ===
 
 TEST(two_agents_same_area_create_shared_danger_zone)
 {
@@ -177,7 +199,7 @@ TEST(two_agents_same_area_create_shared_danger_zone)
     return true;
 }
 
-// === Test 8: Far apart memories do NOT merge ===
+// === Test 9: Far apart memories do NOT merge ===
 
 TEST(far_apart_memories_do_not_merge)
 {
@@ -207,7 +229,7 @@ TEST(far_apart_memories_do_not_merge)
     return true;
 }
 
-// === Test 9: Observed flee memory contributes ===
+// === Test 10: Observed flee memory contributes ===
 
 TEST(observed_flee_memory_contributes)
 {
@@ -231,7 +253,7 @@ TEST(observed_flee_memory_contributes)
     return true;
 }
 
-// === Test 10: Old memory does NOT contribute ===
+// === Test 11: Old memory does NOT contribute ===
 
 TEST(old_memory_does_not_contribute)
 {
@@ -257,7 +279,7 @@ TEST(old_memory_does_not_contribute)
     return true;
 }
 
-// === Test 11: Aggregation does NOT write to commands ===
+// === Test 12: Aggregation does NOT write to commands ===
 
 TEST(aggregation_does_not_write_command)
 {
@@ -281,7 +303,7 @@ TEST(aggregation_does_not_write_command)
     return true;
 }
 
-// === Test 12: Aggregation does NOT write to cognitive module ===
+// === Test 13: Aggregation does NOT write to cognitive module ===
 
 TEST(aggregation_does_not_write_memory)
 {
@@ -307,7 +329,7 @@ TEST(aggregation_does_not_write_memory)
     return true;
 }
 
-// === Test 13: Aggregation does NOT modify agents ===
+// === Test 14: Aggregation does NOT modify agents ===
 
 TEST(aggregation_does_not_modify_agents)
 {
@@ -338,6 +360,146 @@ TEST(aggregation_does_not_modify_agents)
     ASSERT_EQ(agent2.position.y, pos2.y);
     ASSERT_TRUE(agent1.hunger == hunger1);
     ASSERT_TRUE(agent2.hunger == hunger2);
+
+    return true;
+}
+
+// === Test 15: Same memory batch does NOT reinforce every tick ===
+
+TEST(same_memory_batch_does_not_reinforce_every_tick)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    EntityId a1 = world.SpawnAgent(5, 5);
+    EntityId a2 = world.SpawnAgent(6, 6);
+
+    AddMemory(world.Cognitive(), a1, ctx.concepts.fire, {5, 5}, 0.8f, 0.9f, 0);
+    AddMemory(world.Cognitive(), a2, ctx.concepts.fire, {6, 6}, 0.7f, 0.85f, 0);
+
+    auto scheduler = CreateAggregationScheduler(ctx);
+
+    // Tick 1: creates record
+    scheduler.Tick(world);
+    ASSERT_EQ(world.GroupKnowledge().records.size(), 1u);
+    f32 confAfterFirst = world.GroupKnowledge().records[0].confidence;
+    u32 contribAfterFirst = world.GroupKnowledge().records[0].contributors;
+
+    // Tick 2: same memories, should NOT reinforce (stale evidence)
+    scheduler.Tick(world);
+    ASSERT_EQ(world.GroupKnowledge().records.size(), 1u);
+    ASSERT_NEAR(world.GroupKnowledge().records[0].confidence, confAfterFirst, 0.001f);
+    ASSERT_EQ(world.GroupKnowledge().records[0].contributors, contribAfterFirst);
+
+    // Tick 3: still no reinforce
+    scheduler.Tick(world);
+    ASSERT_NEAR(world.GroupKnowledge().records[0].confidence, confAfterFirst, 0.001f);
+    ASSERT_EQ(world.GroupKnowledge().records[0].contributors, contribAfterFirst);
+
+    return true;
+}
+
+// === Test 16: Contributors do not increase from same evidence ===
+
+TEST(contributors_do_not_increase_from_same_evidence)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    EntityId a1 = world.SpawnAgent(5, 5);
+    EntityId a2 = world.SpawnAgent(6, 6);
+
+    AddMemory(world.Cognitive(), a1, ctx.concepts.fire, {5, 5}, 0.8f, 0.9f, 0);
+    AddMemory(world.Cognitive(), a2, ctx.concepts.fire, {6, 6}, 0.7f, 0.85f, 0);
+
+    auto scheduler = CreateAggregationScheduler(ctx);
+
+    // Run multiple ticks
+    for (int i = 0; i < 5; i++)
+        scheduler.Tick(world);
+
+    // contributors should still be 2 (not 10)
+    ASSERT_EQ(world.GroupKnowledge().records.size(), 1u);
+    ASSERT_EQ(world.GroupKnowledge().records[0].contributors, 2u);
+
+    return true;
+}
+
+// === Test 17: Newer memory batch reinforces existing record ===
+
+TEST(newer_memory_batch_reinforces_existing_record)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    EntityId a1 = world.SpawnAgent(5, 5);
+    EntityId a2 = world.SpawnAgent(6, 6);
+
+    // Tick 0: create initial record
+    AddMemory(world.Cognitive(), a1, ctx.concepts.fire, {5, 5}, 0.8f, 0.9f, 0);
+    AddMemory(world.Cognitive(), a2, ctx.concepts.fire, {6, 6}, 0.7f, 0.85f, 0);
+
+    auto scheduler = CreateAggregationScheduler(ctx);
+    scheduler.Tick(world);
+
+    ASSERT_EQ(world.GroupKnowledge().records.size(), 1u);
+    f32 confBefore = world.GroupKnowledge().records[0].confidence;
+
+    // Tick 1: add NEW memories at tick 1 (newer evidence)
+    AddMemory(world.Cognitive(), a1, ctx.concepts.fire, {5, 5}, 0.9f, 0.95f, 1);
+    AddMemory(world.Cognitive(), a2, ctx.concepts.fire, {6, 6}, 0.85f, 0.9f, 1);
+
+    scheduler.Tick(world);
+
+    // Should reinforce because evidence is newer
+    ASSERT_EQ(world.GroupKnowledge().records.size(), 1u);
+    ASSERT_TRUE(world.GroupKnowledge().records[0].confidence > confBefore);
+
+    return true;
+}
+
+// === Test 18: Aggregation is deterministic with unordered memory insertion ===
+
+TEST(group_knowledge_aggregation_is_deterministic)
+{
+    // Run the same scenario twice — results must be identical
+    auto runOnce = []() -> std::vector<GroupKnowledgeRecord>
+    {
+        HumanEvolutionRulePack rp;
+        WorldState world(64, 64, 42, rp);
+        const auto& ctx = rp.GetHumanEvolutionContext();
+
+        // Insert memories in a specific order that could differ across runs
+        EntityId a1 = world.SpawnAgent(5, 5);
+        EntityId a2 = world.SpawnAgent(6, 6);
+        EntityId a3 = world.SpawnAgent(50, 50);
+        EntityId a4 = world.SpawnAgent(51, 51);
+
+        AddMemory(world.Cognitive(), a3, ctx.concepts.danger, {50, 50}, 0.6f, 0.7f, 0);
+        AddMemory(world.Cognitive(), a1, ctx.concepts.fire, {5, 5}, 0.8f, 0.9f, 0);
+        AddMemory(world.Cognitive(), a4, ctx.concepts.danger, {51, 51}, 0.5f, 0.6f, 0);
+        AddMemory(world.Cognitive(), a2, ctx.concepts.fire, {6, 6}, 0.7f, 0.85f, 0);
+
+        auto scheduler = CreateAggregationScheduler(ctx);
+        scheduler.Tick(world);
+
+        return world.GroupKnowledge().records;
+    };
+
+    auto records1 = runOnce();
+    auto records2 = runOnce();
+
+    ASSERT_EQ(records1.size(), records2.size());
+    for (size_t i = 0; i < records1.size(); i++)
+    {
+        ASSERT_EQ(records1[i].origin.x, records2[i].origin.x);
+        ASSERT_EQ(records1[i].origin.y, records2[i].origin.y);
+        ASSERT_EQ(records1[i].contributors, records2[i].contributors);
+        ASSERT_NEAR(records1[i].confidence, records2[i].confidence, 0.001f);
+    }
 
     return true;
 }

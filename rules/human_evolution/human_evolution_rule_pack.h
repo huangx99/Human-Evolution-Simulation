@@ -85,10 +85,8 @@ public:
     {
         ctx_.groupKnowledge.sharedDangerZone = registry.Register(
             MakeGroupKnowledgeKey("human_evolution.shared_danger_zone"), "shared_danger_zone");
-        ctx_.groupKnowledge.safePath = registry.Register(
-            MakeGroupKnowledgeKey("human_evolution.safe_path"), "safe_path");
-        ctx_.groupKnowledge.resourceCluster = registry.Register(
-            MakeGroupKnowledgeKey("human_evolution.resource_cluster"), "resource_cluster");
+        ctx_.groupKnowledge.sharedFireBenefit = registry.Register(
+            MakeGroupKnowledgeKey("human_evolution.shared_fire_benefit"), "shared_fire_benefit");
     }
 
     void RegisterConcepts(ConceptTypeRegistry& registry) override

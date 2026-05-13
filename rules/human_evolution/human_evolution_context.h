@@ -119,8 +119,7 @@ struct ConceptContext
 struct GroupKnowledgeContext
 {
     GroupKnowledgeTypeId sharedDangerZone;
-    GroupKnowledgeTypeId safePath;
-    GroupKnowledgeTypeId resourceCluster;
+    GroupKnowledgeTypeId sharedFireBenefit;
 };
 
 // Future extensions (uncomment when needed):
