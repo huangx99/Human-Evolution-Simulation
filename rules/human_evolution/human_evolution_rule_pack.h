@@ -15,7 +15,7 @@
 #include "sim/system/cognitive_discovery_system.h"
 #include "sim/system/cognitive_knowledge_system.h"
 #include "sim/system/cognitive_social_system.h"
-#include "sim/system/agent_decision_system.h"
+#include "rules/human_evolution/systems/agent_decision_system.h"
 
 // HumanEvolutionRulePack: defines the Human Evolution world.
 //
