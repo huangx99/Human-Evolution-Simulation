@@ -24,7 +24,6 @@ struct SavedWorldState
 {
     Tick tick;
     u64 randomState[2];
-    f32 windX, windY;
     i32 width, height;
 
     // Agents
@@ -35,7 +34,7 @@ struct SavedWorldState
     std::deque<EcologyEntity> ecologyEntities;
     EntityId nextEcologyId;
 
-    // Field snapshots (generic, keyed by FieldKey)
+    // Field snapshots (generic, keyed by FieldKey) — includes wind scalars
     std::vector<SavedField> fields;
 
     // Cognitive persistent state
@@ -51,15 +50,12 @@ inline SavedWorldState SaveWorldState(const WorldState& world)
 {
     SavedWorldState s;
     const auto& sim = world.Sim();
-    const auto& env = world.Env();
     const auto& agents = world.Agents();
     const auto& eco = world.Ecology().entities;
     const auto& cog = world.Cognitive();
 
     s.tick = sim.clock.currentTick;
     std::memcpy(s.randomState, sim.random.GetState(), 2 * sizeof(u64));
-    s.windX = env.wind.x;
-    s.windY = env.wind.y;
     s.width = world.width;
     s.height = world.height;
 
@@ -104,7 +100,6 @@ inline SavedWorldState SaveWorldState(const WorldState& world)
 inline void RestoreWorld(WorldState& world, const SavedWorldState& s)
 {
     auto& sim = world.Sim();
-    auto& env = world.Env();
     auto& agents = world.Agents();
     auto& eco = world.Ecology().entities;
     auto& cog = world.Cognitive();
@@ -112,8 +107,6 @@ inline void RestoreWorld(WorldState& world, const SavedWorldState& s)
     // Clock + RNG
     sim.clock.currentTick = s.tick;
     std::memcpy(const_cast<u64*>(sim.random.GetState()), s.randomState, 2 * sizeof(u64));
-    env.wind.x = s.windX;
-    env.wind.y = s.windY;
 
     // Agents
     agents.agents = s.agents;

@@ -1,3 +1,4 @@
+#include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "test_framework.h"
 #include "sim/system/system_context.h"
 #include "sim/world/module_registry.h"
@@ -12,10 +13,13 @@
 #include "api/snapshot/world_snapshot.h"
 #include <memory>
 
+static HumanEvolutionRulePack g_rulePack;
+
 // Test: ModuleRegistry basic operations
 TEST(module_registration)
 {
     WorldState world(8, 8, 42);
+    world.Init(g_rulePack);
 
     // Modules should be registered
     ASSERT_TRUE(world.modules.Has<SimulationModule>());
@@ -75,6 +79,7 @@ TEST(scheduler_phase_order)
     };
 
     WorldState world(4, 4, 42);
+    world.Init(g_rulePack);
     Scheduler scheduler;
 
     scheduler.AddSystem(SimPhase::Action, std::make_unique<PhaseTracker>(SimPhase::Action, executionOrder));
@@ -96,6 +101,7 @@ TEST(scheduler_phase_order)
 TEST(command_apply)
 {
     WorldState world(8, 8, 42);
+    world.Init(g_rulePack);
     world.SpawnAgent(2, 3);
 
     world.commands.Push(0, MoveAgentCommand{1, 5, 6});
@@ -112,6 +118,7 @@ TEST(command_apply)
 TEST(event_lifecycle)
 {
     WorldState world(4, 4, 42);
+    world.Init(g_rulePack);
 
     i32 receivedX = -1;
     f32 receivedValue = 0.0f;
@@ -146,6 +153,7 @@ TEST(event_lifecycle)
 TEST(snapshot_boundary)
 {
     WorldState world(8, 8, 42);
+    world.Init(g_rulePack);
     world.Env().fire.WriteNext(4, 4) = 100.0f;
     world.Env().fire.Swap();
 
@@ -164,6 +172,7 @@ TEST(snapshot_boundary)
 TEST(snapshot_full_capture)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
 
     // Create ecology entities
     auto& e1 = world.Ecology().entities.Create(MaterialId::Grass, "grass1");
@@ -257,6 +266,7 @@ TEST(expansion_new_field)
 TEST(spatial_index_basics)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // deque guarantees pointer/reference stability across insertions
@@ -304,6 +314,7 @@ TEST(determinism_100k)
 {
     auto run = [](u64 seed) -> std::string {
         WorldState world(16, 16, seed);
+        world.Init(g_rulePack);
         world.Env().fire.WriteNext(8, 8) = 50.0f;
         world.Env().fire.Swap();
         world.SpawnAgent(4, 4);

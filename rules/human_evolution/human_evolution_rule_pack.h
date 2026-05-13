@@ -29,6 +29,20 @@ public:
         fields.RegisterField(FieldKey("human_evolution.smoke"),       "smoke",        0.0f);
     }
 
+    FieldBindings BindFields() const override
+    {
+        FieldBindings b;
+        b.temperature = FieldKey("human_evolution.temperature");
+        b.humidity    = FieldKey("human_evolution.humidity");
+        b.fire        = FieldKey("human_evolution.fire");
+        b.windX       = FieldKey("human_evolution.wind_x");
+        b.windY       = FieldKey("human_evolution.wind_y");
+        b.smell       = FieldKey("human_evolution.smell");
+        b.danger      = FieldKey("human_evolution.danger");
+        b.smoke       = FieldKey("human_evolution.smoke");
+        return b;
+    }
+
     std::vector<SystemRegistration> CreateSystems() override
     {
         std::vector<SystemRegistration> systems;

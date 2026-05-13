@@ -174,8 +174,8 @@ struct WorldSnapshot
         snap.tick = world.Sim().clock.currentTick;
         snap.width = world.Width();
         snap.height = world.Height();
-        snap.windX = world.Env().wind.x;
-        snap.windY = world.Env().wind.y;
+        snap.windX = world.Env().windX.Read();
+        snap.windY = world.Env().windY.Read();
 
         const u64* rstate = world.Sim().random.GetState();
         snap.randomState[0] = rstate[0];

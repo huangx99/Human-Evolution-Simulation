@@ -15,10 +15,33 @@ struct SystemRegistration
     std::unique_ptr<ISystem> system;
 };
 
+// FieldBindings: maps semantic roles to FieldKeys.
+// The RulePack defines which fields play which roles.
+// The Engine uses these bindings to construct EnvironmentModule / InformationModule
+// without knowing field names.
+
+struct FieldBindings
+{
+    // EnvironmentModule fields (spatial 2D)
+    FieldKey temperature;
+    FieldKey humidity;
+    FieldKey fire;
+
+    // EnvironmentModule wind (scalar)
+    FieldKey windX;
+    FieldKey windY;
+
+    // InformationModule fields (spatial 2D)
+    FieldKey smell;
+    FieldKey danger;
+    FieldKey smoke;
+};
+
 // IRulePack: the boundary between Engine and world-specific rules.
 //
 // A RulePack defines WHAT the simulation contains:
 //   - Fields (temperature, fire, smell, ...)
+//   - Field bindings (which field plays which semantic role)
 //   - Concepts (mental models agents form)
 //   - Senses (perception channels)
 //   - Events (domain-specific event types)
@@ -48,6 +71,11 @@ public:
     // Register simulation fields (temperature, fire, smell, wind, etc.)
     // Pure virtual: every RulePack must define its fields.
     virtual void RegisterFields(FieldModule& fields) = 0;
+
+    // Return field bindings: which FieldKey plays which semantic role.
+    // Used by the Engine to construct EnvironmentModule / InformationModule.
+    // Pure virtual: every RulePack must define its bindings.
+    virtual FieldBindings BindFields() const = 0;
 
     // Register concept tags (mental models agents can form)
     // Default: empty (no custom concepts)

@@ -2,6 +2,7 @@
 #include "sim/world/world_state.h"
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
+#include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "rules/human_evolution/environment/climate_system.h"
 #include "rules/human_evolution/environment/fire_system.h"
 #include "rules/human_evolution/environment/smell_system.h"
@@ -12,9 +13,12 @@
 #include "sim/runtime/replay.h"
 #include "api/snapshot/world_snapshot.h"
 
+static HumanEvolutionRulePack g_rulePack;
+
 static WorldSnapshot RunSimulation(u64 seed, i32 ticks)
 {
     WorldState world(32, 32, seed);
+    world.Init(g_rulePack);
 
     world.Env().fire.WriteNext(16, 16) = 80.0f;
     world.Env().fire.WriteNext(17, 16) = 60.0f;
@@ -69,6 +73,7 @@ TEST(determinism_hash_proof)
 {
     auto makeWorld = [](u64 seed) {
         WorldState world(16, 16, seed);
+        world.Init(g_rulePack);
         world.Env().fire.WriteNext(8, 8) = 50.0f;
         world.Env().fire.Swap();
         world.SpawnAgent(4, 4);
@@ -115,6 +120,7 @@ TEST(minimal_replay)
     // fields directly (Climate, Fire, Smell) are not replayed.
 
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     world.Env().fire.WriteNext(8, 8) = 80.0f;
     world.Env().fire.WriteNext(9, 8) = 60.0f;
     world.Env().fire.Swap();
@@ -149,11 +155,13 @@ TEST(minimal_replay)
 
     // First replay: restore + apply commands
     WorldState replay1(16, 16, 42);
+    replay1.Init(g_rulePack);
     RestoreWorld(replay1, saved);
     ReplayEngine::Replay(replay1, replayCmds, 4, 6);
 
     // Second replay: same restore + same commands → must be identical
     WorldState replay2(16, 16, 42);
+    replay2.Init(g_rulePack);
     RestoreWorld(replay2, saved);
     ReplayEngine::Replay(replay2, replayCmds, 4, 6);
 

@@ -2,9 +2,11 @@
 
 #include "sim/world/module_registry.h"
 #include "sim/field/field_ref.h"
+#include "sim/runtime/rule_pack.h"
 
-// DEPRECATED alias facade — fields delegate to FieldModule.
-// Use FieldModule via world.Fields() in new code.
+// InformationModule: alias facade for information-related fields.
+// FieldKeys are provided by the RulePack via FieldBindings — this module
+// does NOT know any field names.
 
 struct InformationModule : public IModule
 {
@@ -12,10 +14,10 @@ struct InformationModule : public IModule
     FieldRef danger;
     FieldRef smoke;
 
-    InformationModule(FieldModule& fm)
-        : smell(&fm, fm.FindByKey(FieldKey("human_evolution.smell")))
-        , danger(&fm, fm.FindByKey(FieldKey("human_evolution.danger")))
-        , smoke(&fm, fm.FindByKey(FieldKey("human_evolution.smoke")))
+    InformationModule(FieldModule& fm, const FieldBindings& b)
+        : smell(&fm, fm.FindByKey(b.smell))
+        , danger(&fm, fm.FindByKey(b.danger))
+        , smoke(&fm, fm.FindByKey(b.smoke))
     {
     }
 

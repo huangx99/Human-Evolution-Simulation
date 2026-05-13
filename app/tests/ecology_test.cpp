@@ -1,3 +1,4 @@
+#include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "test_framework.h"
 #include "sim/system/system_context.h"
 #include "sim/ecology/material_id.h"
@@ -12,6 +13,8 @@
 #include "rules/reaction/reaction_effect.h"
 #include "rules/reaction/semantic_reaction_rule.h"
 #include "rules/reaction/semantic_reaction_system.h"
+
+static HumanEvolutionRulePack g_rulePack;
 
 // Test: MaterialDB has entries for all defined materials
 TEST(ecology_material_db_init)
@@ -505,6 +508,7 @@ static SemanticReactionRule MakeIgnitionRule()
 TEST(semantic_exec_hot_stone)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // Place hot stone at (5,5)
@@ -535,6 +539,7 @@ TEST(semantic_exec_hot_stone)
 TEST(semantic_exec_torch_ignites)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // Place torch at (5,5)
@@ -564,6 +569,7 @@ TEST(semantic_exec_torch_ignites)
 TEST(semantic_exec_wet_wood_no_burn)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // Place heat source at (5,5)
@@ -594,6 +600,7 @@ TEST(semantic_exec_wet_wood_no_burn)
 TEST(semantic_exec_rotten_meat)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // Place corpse at (5,5)
@@ -651,6 +658,7 @@ TEST(semantic_exec_rotten_meat)
 TEST(semantic_exec_wet_grass_no_burn)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     auto& heatSource = ecology.Create(MaterialId::Stone, "hot_stone");
@@ -680,6 +688,7 @@ TEST(semantic_exec_wet_grass_no_burn)
 TEST(extension_coal_ignites_grass)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // Coal has HeatEmission by default in MaterialDB
@@ -707,6 +716,7 @@ TEST(extension_coal_ignites_grass)
 TEST(extension_rotting_plant_smell)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // RottingPlant is Dead + Decomposing by default
@@ -762,6 +772,7 @@ TEST(extension_rotting_plant_smell)
 TEST(extension_coal_no_ignite_wet)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     auto& coal = ecology.Create(MaterialId::Coal, "coal");
@@ -789,6 +800,7 @@ TEST(extension_coal_no_ignite_wet)
 TEST(reaction_same_entity_no_cross_contamination)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // Heat source nearby
@@ -831,6 +843,7 @@ TEST(reaction_same_entity_no_cross_contamination)
 TEST(reaction_same_cell_applies_to_all)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     auto& heatSource = ecology.Create(MaterialId::Stone, "hot_stone");
@@ -866,6 +879,7 @@ TEST(reaction_same_cell_applies_to_all)
 TEST(reaction_same_entity_corpse_decay)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     // A dead flesh entity (should decay)
@@ -927,6 +941,7 @@ TEST(reaction_same_entity_corpse_decay)
 TEST(command_payload_u32_precision)
 {
     WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
     auto& ecology = world.Ecology().entities;
 
     auto& entity = ecology.Create(MaterialId::Stone, "test_entity");
@@ -956,6 +971,7 @@ TEST(command_payload_u32_precision)
 TEST(command_modify_field_bounds_check)
 {
     WorldState world(8, 8, 42);
+    world.Init(g_rulePack);
 
     // Try to modify a field at invalid coordinates
     world.commands.Push(0,

@@ -17,6 +17,7 @@
 #include "rules/reaction/semantic_predicate.h"
 #include "rules/reaction/reaction_effect.h"
 #include "rules/reaction/semantic_reaction_rule.h"
+#include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "api/snapshot/world_snapshot.h"
 #include <iostream>
 #include <fstream>
@@ -66,7 +67,7 @@ void PrintWorldState(const WorldState& world, i32 interval)
               << env.temperature.At(cx, cy) << " C" << std::endl;
     std::cout << "Humidity (center): " << env.humidity.At(cx, cy) << "%" << std::endl;
     std::cout << "Wind: (" << std::fixed << std::setprecision(2)
-              << env.wind.x << ", " << env.wind.y << ")" << std::endl;
+              << env.windX.Read() << ", " << env.windY.Read() << ")" << std::endl;
 
     i32 fireCount = 0;
     f32 maxFire = 0.0f;
@@ -156,7 +157,8 @@ int main(int argc, char* argv[])
     std::cout << "Seed: " << cfg.seed << "  Ticks: " << cfg.ticks << std::endl;
     std::cout << "====================================" << std::endl << std::endl;
 
-    WorldState world(32, 32, cfg.seed);
+    HumanEvolutionRulePack rulePack;
+    WorldState world(32, 32, cfg.seed, rulePack);
 
     world.Env().fire.WriteNext(16, 16) = 80.0f;
     world.Env().fire.WriteNext(17, 16) = 60.0f;
@@ -264,10 +266,13 @@ int main(int argc, char* argv[])
     }
 
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Environment,  std::make_unique<ClimateSystem>());
+
+    // Environment systems from RulePack
+    for (auto& reg : rulePack.CreateSystems())
+        scheduler.AddSystem(reg.phase, std::move(reg.system));
+
+    // Reaction rules (world-specific, registered directly)
     scheduler.AddSystem(SimPhase::Reaction,     std::move(reactionSys));
-    scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<FireSystem>());
-    scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<SmellSystem>());
 
     // Phase 1: runtime perception + decision + action
     scheduler.AddSystem(SimPhase::Perception,   std::make_unique<AgentPerceptionSystem>());

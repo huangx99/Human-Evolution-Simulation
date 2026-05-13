@@ -1,3 +1,4 @@
+#include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "test_framework.h"
 #include "sim/world/world_state.h"
 #include "sim/scheduler/scheduler.h"
@@ -15,6 +16,8 @@
 #include "sim/system/cognitive_knowledge_system.h"
 #include "sim/system/cognitive_social_system.h"
 #include "sim/cognitive/concept_tag.h"
+
+static HumanEvolutionRulePack g_rulePack;
 
 // Helper: create a scheduler with all cognitive systems
 static Scheduler CreateCognitiveScheduler()
@@ -43,6 +46,7 @@ static Scheduler CreateCognitiveScheduler()
 TEST(cognitive_perception_filtering)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Place fire at center
     world.Env().fire.WriteNext(16, 16) = 80.0f;
@@ -95,6 +99,7 @@ TEST(cognitive_perception_filtering)
 TEST(cognitive_attention_filtering)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Create fire and food smell near agent
     world.Env().fire.WriteNext(16, 16) = 60.0f;
@@ -173,6 +178,7 @@ TEST(cognitive_memory_decay)
     // This is correct behavior — the test verifies the decay mechanism works.
 
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Small fire — low attention score → stays ShortTerm (fast decay)
     world.Env().fire.WriteNext(16, 16) = 10.0f;
@@ -243,6 +249,7 @@ TEST(cognitive_memory_decay)
 TEST(cognitive_hypothesis_formation)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Place persistent fire source
     world.Env().fire.WriteNext(16, 16) = 80.0f;
@@ -300,6 +307,7 @@ TEST(cognitive_knowledge_polysemy)
     // === Agent A: near intense fire → fire memories have NEGATIVE emotional weight ===
     {
         WorldState world(32, 32, 42);
+        world.Init(g_rulePack);
 
         world.Env().fire.WriteNext(16, 16) = 100.0f;
         world.Env().fire.WriteNext(17, 16) = 80.0f;
@@ -343,6 +351,7 @@ TEST(cognitive_knowledge_polysemy)
     // === Agent B: near mild fire → fire memories have less negative or neutral emotional weight ===
     {
         WorldState world(32, 32, 42);
+        world.Init(g_rulePack);
 
         // Small, contained fire
         world.Env().fire.WriteNext(16, 16) = 25.0f;
@@ -407,6 +416,7 @@ TEST(cognitive_wrong_knowledge)
 
     // === Agent A: near fire ===
     WorldState worldA(32, 32, 42);
+    worldA.Init(g_rulePack);
     worldA.Env().fire.WriteNext(16, 16) = 80.0f;
     worldA.Env().fire.Swap();
     worldA.SpawnAgent(16, 15);
@@ -428,6 +438,7 @@ TEST(cognitive_wrong_knowledge)
 
     // === Agent B: no fire, near corpse smell ===
     WorldState worldB(32, 32, 42);
+    worldB.Init(g_rulePack);
     auto& corpse = worldB.Ecology().entities.Create(MaterialId::Flesh, "corpse");
     corpse.x = 16; corpse.y = 16;
     corpse.state = MaterialState::Dead;
@@ -477,6 +488,7 @@ TEST(cognitive_wrong_knowledge)
 TEST(cognitive_knowledge_reinforcement)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     world.Env().fire.WriteNext(16, 16) = 80.0f;
     world.Env().fire.Swap();
@@ -531,6 +543,7 @@ TEST(cognitive_knowledge_reinforcement)
 TEST(cognitive_individual_difference)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Fire at one location
     world.Env().fire.WriteNext(16, 16) = 80.0f;
@@ -601,6 +614,7 @@ TEST(cognitive_individual_difference)
 TEST(cognitive_full_pipeline)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Fire source
     world.Env().fire.WriteNext(16, 16) = 80.0f;
@@ -664,6 +678,7 @@ TEST(cognitive_full_pipeline)
 TEST(cognitive_different_knowledge_graphs)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Fire at center
     world.Env().fire.WriteNext(16, 16) = 80.0f;
@@ -751,6 +766,7 @@ TEST(cognitive_different_knowledge_graphs)
 TEST(cognitive_fire_danger_confidence)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     world.Env().fire.WriteNext(16, 16) = 100.0f;
     world.Env().fire.WriteNext(17, 16) = 80.0f;
@@ -809,6 +825,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
     f32 baselineScore = 0.0f;
     {
         WorldState world(32, 32, 42);
+        world.Init(g_rulePack);
 
         for (i32 dy = -2; dy <= 2; dy++)
             for (i32 dx = -2; dx <= 2; dx++)
@@ -837,6 +854,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
     f32 knowledgeScore = 0.0f;
     {
         WorldState world(32, 32, 42);
+        world.Init(g_rulePack);
 
         // Manually create Smoke → Signals → Fire knowledge
         // NOTE: capture node IDs by value — push_back can invalidate references
@@ -889,6 +907,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
 TEST(cognitive_memory_decay_unreinforced)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Brief fire exposure
     world.Env().fire.WriteNext(16, 16) = 60.0f;
@@ -945,6 +964,7 @@ TEST(cognitive_memory_decay_unreinforced)
 TEST(cognitive_rule_driven_discovery)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Hot environment (heat stimulus)
     for (i32 dy = -1; dy <= 1; dy++)
@@ -1013,6 +1033,7 @@ TEST(cognitive_rule_driven_discovery)
 TEST(cognitive_knowledge_debug_dump)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     world.Env().fire.WriteNext(16, 16) = 80.0f;
     world.Env().fire.Swap();
@@ -1072,6 +1093,7 @@ TEST(cognitive_knowledge_debug_dump)
 TEST(cognitive_memory_from_focused_only)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     world.Env().fire.WriteNext(16, 16) = 80.0f;
     world.Env().fire.Swap();
@@ -1136,6 +1158,7 @@ TEST(cognitive_memory_from_focused_only)
 TEST(cognitive_attention_bottleneck)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Create strong fire + smoke + smell to generate multiple stimuli
     world.Env().fire.WriteNext(16, 16) = 100.0f;
@@ -1226,6 +1249,7 @@ TEST(cognitive_knowledge_drives_behavior_divergence)
 {
     // === Phase 1: Agent A with Fire→Danger knowledge ===
     WorldState worldA(32, 32, 42);
+    worldA.Init(g_rulePack);
 
     // Inject Fire→Danger knowledge for Agent A
     // NOTE: capture node IDs by value — push_back can invalidate references
@@ -1263,6 +1287,7 @@ TEST(cognitive_knowledge_drives_behavior_divergence)
 
     // === Phase 2: Agent B with Food→Satiety knowledge ===
     WorldState worldB(32, 32, 42);
+    worldB.Init(g_rulePack);
 
     {
         auto& kgB = worldB.Cognitive().knowledgeGraph;
@@ -1408,6 +1433,7 @@ TEST(cognitive_natural_learning_changes_behavior)
     // === Phase 1: No experience — no knowledge ===
     {
         WorldState world(32, 32, 42);
+        world.Init(g_rulePack);
         world.SpawnAgent(16, 15);
         world.RebuildSpatial();
 
@@ -1418,6 +1444,7 @@ TEST(cognitive_natural_learning_changes_behavior)
     // === Phase 2: Agent experiences fire environment for many ticks ===
     {
         WorldState world(32, 32, 42);
+        world.Init(g_rulePack);
 
         world.Env().fire.WriteNext(16, 16) = 100.0f;
         world.Env().fire.Swap();
@@ -1483,6 +1510,7 @@ TEST(cognitive_natural_learning_changes_behavior)
 TEST(cognitive_contradicted_knowledge_persists)
 {
     WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
 
     // Inject a Contradicted hypothesis and its corresponding knowledge edge
     auto& cog = world.Cognitive();

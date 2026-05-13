@@ -2,25 +2,30 @@
 
 #include "sim/world/module_registry.h"
 #include "sim/field/field_ref.h"
+#include "sim/field/scalar_field_ref.h"
+#include "sim/runtime/rule_pack.h"
 
-// DEPRECATED alias facade — spatial fields delegate to FieldModule.
-// Use FieldModule via world.Fields() in new code.
-// Wind is scalar (not 2D), so kept as plain f32 and synced separately.
+// EnvironmentModule: alias facade for environment-related fields.
+// FieldKeys are provided by the RulePack via FieldBindings — this module
+// does NOT know any field names. Wind is stored as ScalarFieldRef (no
+// separate f32 struct, no Scheduler sync needed).
 
 struct EnvironmentModule : public IModule
 {
     FieldRef temperature;
     FieldRef humidity;
     FieldRef fire;
+    ScalarFieldRef windX;
+    ScalarFieldRef windY;
 
-    struct Wind { f32 x = 0.0f; f32 y = 0.0f; } wind;
-
-    EnvironmentModule(FieldModule& fm)
-        : temperature(&fm, fm.FindByKey(FieldKey("human_evolution.temperature")))
-        , humidity(&fm, fm.FindByKey(FieldKey("human_evolution.humidity")))
-        , fire(&fm, fm.FindByKey(FieldKey("human_evolution.fire")))
+    EnvironmentModule(FieldModule& fm, const FieldBindings& b)
+        : temperature(&fm, fm.FindByKey(b.temperature))
+        , humidity(&fm, fm.FindByKey(b.humidity))
+        , fire(&fm, fm.FindByKey(b.fire))
+        , windX(&fm, fm.FindByKey(b.windX))
+        , windY(&fm, fm.FindByKey(b.windY))
     {
     }
 
-    void SwapAll() {}  // no-op — FieldModule.SwapAll() handles spatial fields
+    void SwapAll() {}  // no-op — FieldModule.SwapAll() handles it
 };

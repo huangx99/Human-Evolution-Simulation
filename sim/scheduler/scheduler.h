@@ -61,14 +61,6 @@ public:
             case SimPhase::BeginTick:
                 if (!world.spatial.IsInitialized())
                     world.RebuildSpatial();
-                // Sync scalar wind: FieldModule → env.wind (for code that reads env.wind.x/y)
-                {
-                    auto& fm = world.Fields();
-                    auto wx = fm.FindByKey(FieldKey("human_evolution.wind_x"));
-                    auto wy = fm.FindByKey(FieldKey("human_evolution.wind_y"));
-                    world.Env().wind.x = fm.Read(wx, 0, 0);
-                    world.Env().wind.y = fm.Read(wy, 0, 0);
-                }
                 world.Cognitive().ClearFrame();
                 break;
             case SimPhase::CommandApply:
@@ -79,15 +71,6 @@ public:
                 break;
             case SimPhase::EndTick:
                 world.lastTickHash = ComputeWorldHash(world, HashTier::Full);
-                // Sync scalar wind: env.wind → FieldModule (for hash/replay)
-                {
-                    auto& fm = world.Fields();
-                    auto wx = fm.FindByKey(FieldKey("human_evolution.wind_x"));
-                    auto wy = fm.FindByKey(FieldKey("human_evolution.wind_y"));
-                    fm.WriteNext(wx, 0, 0, world.Env().wind.x);
-                    fm.WriteNext(wy, 0, 0, world.Env().wind.y);
-                }
-                // Swap all double buffers (FieldModule is the single swap point)
                 world.Fields().SwapAll();
                 world.Sim().clock.Step();
                 break;

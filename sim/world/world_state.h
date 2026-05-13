@@ -11,6 +11,7 @@
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
+#include "sim/runtime/rule_pack.h"
 
 struct WorldState
 {
@@ -23,29 +24,56 @@ struct WorldState
     i32 height;
     u64 lastTickHash = 0;
 
+    // Primary constructor: engine modules + RulePack-driven fields/systems
+    WorldState(i32 w, i32 h, u64 seed, IRulePack& rulePack)
+        : width(w), height(h), spatial(w, h)
+    {
+        modules.Register<SimulationModule>(seed);
+        modules.Register<FieldModule>(w, h);
+
+        // RulePack registers its fields into FieldModule
+        auto& fm = modules.Get<FieldModule>();
+        rulePack.RegisterFields(fm);
+
+        // RulePack provides field bindings — Engine constructs alias facades
+        auto bindings = rulePack.BindFields();
+        modules.Register<EnvironmentModule>(fm, bindings);
+        modules.Register<InformationModule>(fm, bindings);
+
+        modules.Register<AgentModule>();
+        modules.Register<EcologyModule>();
+        modules.Register<CognitiveModule>();
+    }
+
+    // Convenience constructor: no RulePack (for engine-only tests).
+    // EnvironmentModule/InformationModule have invalid FieldRefs — use FieldModule directly.
     WorldState(i32 w, i32 h, u64 seed)
         : width(w), height(h), spatial(w, h)
     {
         modules.Register<SimulationModule>(seed);
         modules.Register<FieldModule>(w, h);
 
-        // Register fields BEFORE alias facades (they look up FieldIndex at construction)
+        FieldBindings empty;
         auto& fm = modules.Get<FieldModule>();
-        fm.RegisterField(FieldKey("human_evolution.temperature"), "temperature", 20.0f);
-        fm.RegisterField(FieldKey("human_evolution.humidity"),    "humidity",    50.0f);
-        fm.RegisterField(FieldKey("human_evolution.fire"),        "fire",         0.0f);
-        fm.RegisterScalarField(FieldKey("human_evolution.wind_x"), "wind_x", 0.0f);
-        fm.RegisterScalarField(FieldKey("human_evolution.wind_y"), "wind_y", 0.0f);
-        fm.RegisterField(FieldKey("human_evolution.smell"),       "smell",        0.0f);
-        fm.RegisterField(FieldKey("human_evolution.danger"),      "danger",       0.0f);
-        fm.RegisterField(FieldKey("human_evolution.smoke"),       "smoke",        0.0f);
+        modules.Register<EnvironmentModule>(fm, empty);
+        modules.Register<InformationModule>(fm, empty);
 
-        // Alias facades — delegate to FieldModule, no own Field2D
-        modules.Register<EnvironmentModule>(fm);
-        modules.Register<InformationModule>(fm);
         modules.Register<AgentModule>();
         modules.Register<EcologyModule>();
         modules.Register<CognitiveModule>();
+    }
+
+    // Deferred RulePack init: register fields + rebuild facades.
+    // Use when WorldState was constructed without a RulePack.
+    void Init(IRulePack& rulePack)
+    {
+        auto& fm = modules.Get<FieldModule>();
+        rulePack.RegisterFields(fm);
+
+        // Re-register alias facades with real bindings
+        auto bindings = rulePack.BindFields();
+        modules.Register<EnvironmentModule>(fm, bindings);
+        modules.Register<InformationModule>(fm, bindings);
     }
 
     void RebuildSpatial()
