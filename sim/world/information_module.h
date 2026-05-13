@@ -5,19 +5,19 @@
 #include "sim/runtime/rule_pack.h"
 
 // InformationModule: alias facade for information-related fields.
-// FieldKeys are provided by the RulePack via FieldBindings — this module
-// does NOT know any field names.
+// Generic field names (info0-info2) — the RulePack defines which field
+// plays which semantic role. The Engine does NOT know any role names.
 
 struct InformationModule : public IModule
 {
-    FieldRef smell;
-    FieldRef danger;
-    FieldRef smoke;
+    FieldRef info0;  // spatial 2D
+    FieldRef info1;  // spatial 2D
+    FieldRef info2;  // spatial 2D
 
     InformationModule(FieldModule& fm, const FieldBindings& b)
-        : smell(&fm, fm.FindByKey(b.smell))
-        , danger(&fm, fm.FindByKey(b.danger))
-        , smoke(&fm, fm.FindByKey(b.smoke))
+        : info0(&fm, fm.FindByKey(b.info0))
+        , info1(&fm, fm.FindByKey(b.info1))
+        , info2(&fm, fm.FindByKey(b.info2))
     {
     }
 

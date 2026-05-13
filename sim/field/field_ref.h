@@ -5,7 +5,7 @@
 // FieldRef: alias into a FieldModule-owned field.
 // All read/write operations delegate to the owning FieldModule.
 // Used by EnvironmentModule/InformationModule facades so that
-//   world.Env().fire.WriteNext(x,y) = v
+//   world.Env().env2.WriteNext(x,y) = v
 // writes the same buffer as
 //   ctx.Fields().WriteNext(fire_, x, y, v)
 //

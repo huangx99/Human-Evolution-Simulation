@@ -6,24 +6,23 @@
 #include "sim/runtime/rule_pack.h"
 
 // EnvironmentModule: alias facade for environment-related fields.
-// FieldKeys are provided by the RulePack via FieldBindings — this module
-// does NOT know any field names. Wind is stored as ScalarFieldRef (no
-// separate f32 struct, no Scheduler sync needed).
+// Generic field names (env0-env4) — the RulePack defines which field
+// plays which semantic role. The Engine does NOT know any role names.
 
 struct EnvironmentModule : public IModule
 {
-    FieldRef temperature;
-    FieldRef humidity;
-    FieldRef fire;
-    ScalarFieldRef windX;
-    ScalarFieldRef windY;
+    FieldRef env0;       // spatial 2D
+    FieldRef env1;       // spatial 2D
+    FieldRef env2;       // spatial 2D
+    ScalarFieldRef env3; // scalar
+    ScalarFieldRef env4; // scalar
 
     EnvironmentModule(FieldModule& fm, const FieldBindings& b)
-        : temperature(&fm, fm.FindByKey(b.temperature))
-        , humidity(&fm, fm.FindByKey(b.humidity))
-        , fire(&fm, fm.FindByKey(b.fire))
-        , windX(&fm, fm.FindByKey(b.windX))
-        , windY(&fm, fm.FindByKey(b.windY))
+        : env0(&fm, fm.FindByKey(b.env0))
+        , env1(&fm, fm.FindByKey(b.env1))
+        , env2(&fm, fm.FindByKey(b.env2))
+        , env3(&fm, fm.FindByKey(b.env3))
+        , env4(&fm, fm.FindByKey(b.env4))
     {
     }
 

@@ -1,4 +1,5 @@
 #include "rules/human_evolution/human_evolution_rule_pack.h"
+#include "rules/human_evolution/commands.h"
 #include "test_framework.h"
 #include "sim/system/system_context.h"
 #include "sim/world/module_registry.h"
@@ -154,8 +155,8 @@ TEST(snapshot_boundary)
 {
     WorldState world(8, 8, 42);
     world.Init(g_rulePack);
-    world.Env().fire.WriteNext(4, 4) = 100.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(4, 4) = 100.0f;
+    world.Env().env2.Swap();
 
     Tick tickBefore = world.Sim().clock.currentTick;
     WorldSnapshot snap = WorldSnapshot::Capture(world);
@@ -315,8 +316,8 @@ TEST(determinism_100k)
     auto run = [](u64 seed) -> std::string {
         WorldState world(16, 16, seed);
         world.Init(g_rulePack);
-        world.Env().fire.WriteNext(8, 8) = 50.0f;
-        world.Env().fire.Swap();
+        world.Env().env2.WriteNext(8, 8) = 50.0f;
+        world.Env().env2.Swap();
         world.SpawnAgent(4, 4);
 
         Scheduler scheduler;

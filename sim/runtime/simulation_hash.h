@@ -135,49 +135,11 @@ inline void HashKnowledgeEdge(SimHash& h, const KnowledgeEdge& e)
     h.FeedU64(e.lastObservedTick);
 }
 
-// Hash a single typed command struct via visitor
-inline void HashCommandByKind(SimHash& h, const Command& cmd)
+// Hash a single command via polymorphic FeedHash
+inline void HashCommand(SimHash& h, const CommandBase& cmd)
 {
-    h.FeedU16(static_cast<u16>(GetCommandKind(cmd)));
-
-    std::visit([&](const auto& inner) {
-        std::visit([&](const auto& typed) {
-            using T = std::decay_t<decltype(typed)>;
-            if constexpr (std::is_same_v<T, MoveAgentCommand>) {
-                h.FeedU64(typed.id); h.FeedI32(typed.x); h.FeedI32(typed.y);
-            } else if constexpr (std::is_same_v<T, SetAgentActionCommand>) {
-                h.FeedU64(typed.id); h.FeedU8(static_cast<u8>(typed.action));
-            } else if constexpr (std::is_same_v<T, DamageAgentCommand>) {
-                h.FeedU64(typed.id); h.FeedF32(typed.amount);
-            } else if constexpr (std::is_same_v<T, FeedAgentCommand>) {
-                h.FeedU64(typed.id); h.FeedF32(typed.amount);
-            } else if constexpr (std::is_same_v<T, ModifyHungerCommand>) {
-                h.FeedU64(typed.id); h.FeedF32(typed.delta);
-            } else if constexpr (std::is_same_v<T, IgniteFireCommand>) {
-                h.FeedI32(typed.x); h.FeedI32(typed.y); h.FeedF32(typed.intensity);
-            } else if constexpr (std::is_same_v<T, ExtinguishFireCommand>) {
-                h.FeedI32(typed.x); h.FeedI32(typed.y);
-            } else if constexpr (std::is_same_v<T, EmitSmellCommand>) {
-                h.FeedI32(typed.x); h.FeedI32(typed.y); h.FeedF32(typed.amount);
-            } else if constexpr (std::is_same_v<T, SetDangerCommand>) {
-                h.FeedI32(typed.x); h.FeedI32(typed.y); h.FeedF32(typed.value);
-            } else if constexpr (std::is_same_v<T, AddEntityStateCommand>) {
-                h.FeedU64(typed.id); h.FeedU32(typed.state);
-            } else if constexpr (std::is_same_v<T, RemoveEntityStateCommand>) {
-                h.FeedU64(typed.id); h.FeedU32(typed.state);
-            } else if constexpr (std::is_same_v<T, AddEntityCapabilityCommand>) {
-                h.FeedU64(typed.id); h.FeedU32(typed.capability);
-            } else if constexpr (std::is_same_v<T, RemoveEntityCapabilityCommand>) {
-                h.FeedU64(typed.id); h.FeedU32(typed.capability);
-            } else if constexpr (std::is_same_v<T, ModifyFieldValueCommand>) {
-                h.FeedI32(typed.x); h.FeedI32(typed.y);
-                h.FeedU64(typed.field.value);
-                h.FeedI32(typed.mode); h.FeedF32(typed.value);
-            } else if constexpr (std::is_same_v<T, EmitSmokeCommand>) {
-                h.FeedI32(typed.x); h.FeedI32(typed.y); h.FeedF32(typed.amount);
-            }
-        }, inner);
-    }, cmd);
+    h.FeedU16(static_cast<u16>(cmd.GetKind()));
+    cmd.FeedHash(h);
 }
 
 inline void HashEvent(SimHash& h, const Event& e)
@@ -278,7 +240,7 @@ inline u64 ComputeWorldHash(const WorldState& world, HashTier tier)
     for (const auto& qc : world.commands.GetHistory())
     {
         h.FeedU64(qc.tick);
-        HashCommandByKind(h, qc.command);
+        HashCommand(h, *qc.command);
     }
 
     for (const auto& e : world.events.GetArchive())

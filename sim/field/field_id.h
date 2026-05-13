@@ -15,6 +15,9 @@ struct FieldKey
     explicit FieldKey(const char* name)
         : value(FNV1a(name)) {}
 
+    // Raw value constructor (for deserialization)
+    static FieldKey FromRaw(u64 v) { FieldKey k; k.value = v; return k; }
+
     bool operator==(const FieldKey& o) const { return value == o.value; }
     bool operator!=(const FieldKey& o) const { return value != o.value; }
     bool operator<(const FieldKey& o) const { return value < o.value; }

@@ -24,9 +24,9 @@ public:
             i32 x = agent.position.x;
             i32 y = agent.position.y;
 
-            if (!info.smell.InBounds(x, y)) continue;
+            if (!info.info0.InBounds(x, y)) continue;
 
-            agent.localTemperature = env.temperature.At(x, y);
+            agent.localTemperature = env.env0.At(x, y);
             agent.nearestSmell = 0.0f;
             agent.nearestFire = 0.0f;
 
@@ -38,15 +38,15 @@ public:
                     i32 nx = x + sx;
                     i32 ny = y + sy;
 
-                    if (!info.smell.InBounds(nx, ny)) continue;
+                    if (!info.info0.InBounds(nx, ny)) continue;
 
                     f32 dist = std::sqrt(static_cast<f32>(sx * sx + sy * sy));
                     if (dist > scanRadius) continue;
 
-                    f32 smellVal = info.smell.At(nx, ny) / (1.0f + dist);
+                    f32 smellVal = info.info0.At(nx, ny) / (1.0f + dist);
                     if (smellVal > agent.nearestSmell) agent.nearestSmell = smellVal;
 
-                    f32 fireVal = env.fire.At(nx, ny) / (1.0f + dist);
+                    f32 fireVal = env.env2.At(nx, ny) / (1.0f + dist);
                     if (fireVal > agent.nearestFire) agent.nearestFire = fireVal;
                 }
             }

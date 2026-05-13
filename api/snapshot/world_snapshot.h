@@ -174,8 +174,8 @@ struct WorldSnapshot
         snap.tick = world.Sim().clock.currentTick;
         snap.width = world.Width();
         snap.height = world.Height();
-        snap.windX = world.Env().windX.Read();
-        snap.windY = world.Env().windY.Read();
+        snap.windX = world.Env().env3.Read();
+        snap.windY = world.Env().env4.Read();
 
         const u64* rstate = world.Sim().random.GetState();
         snap.randomState[0] = rstate[0];
@@ -186,15 +186,15 @@ struct WorldSnapshot
         {
             for (i32 x = 0; x < snap.width; x++)
             {
-                f32 f = world.Env().fire.At(x, y);
-                f32 s = world.Info().smell.At(x, y);
-                f32 d = world.Info().danger.At(x, y);
+                f32 f = world.Env().env2.At(x, y);
+                f32 s = world.Info().info0.At(x, y);
+                f32 d = world.Info().info1.At(x, y);
                 if (f > 0.0f || s > 1.0f || d > 0.0f)
                 {
                     snap.hotCells.push_back({
                         x, y,
-                        world.Env().temperature.At(x, y),
-                        world.Env().humidity.At(x, y),
+                        world.Env().env0.At(x, y),
+                        world.Env().env1.At(x, y),
                         f, s, d
                     });
                 }

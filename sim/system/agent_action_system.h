@@ -38,10 +38,10 @@ public:
                 {
                     i32 nx = agent.position.x + off[0];
                     i32 ny = agent.position.y + off[1];
-                    if (!env.fire.InBounds(nx, ny)) continue;
-                    if (env.fire.At(nx, ny) < bestFire)
+                    if (!env.env2.InBounds(nx, ny)) continue;
+                    if (env.env2.At(nx, ny) < bestFire)
                     {
-                        bestFire = env.fire.At(nx, ny);
+                        bestFire = env.env2.At(nx, ny);
                         bestDx = off[0];
                         bestDy = off[1];
                     }
@@ -59,10 +59,10 @@ public:
                 {
                     i32 nx = agent.position.x + off[0];
                     i32 ny = agent.position.y + off[1];
-                    if (!info.smell.InBounds(nx, ny)) continue;
-                    if (info.smell.At(nx, ny) > bestSmell)
+                    if (!info.info0.InBounds(nx, ny)) continue;
+                    if (info.info0.At(nx, ny) > bestSmell)
                     {
-                        bestSmell = info.smell.At(nx, ny);
+                        bestSmell = info.info0.At(nx, ny);
                         bestDx = off[0];
                         bestDy = off[1];
                     }
@@ -86,16 +86,16 @@ public:
             // Submit move command
             i32 newX = agent.position.x + dx;
             i32 newY = agent.position.y + dy;
-            if (env.temperature.InBounds(newX, newY))
+            if (env.env0.InBounds(newX, newY))
             {
                 world.commands.Submit(sim.clock.currentTick,
                     MoveAgentCommand{agent.id, newX, newY});
             }
 
             // Eating: submit FeedAgent command
-            if (info.smell.InBounds(agent.position.x, agent.position.y))
+            if (info.info0.InBounds(agent.position.x, agent.position.y))
             {
-                if (info.smell.At(agent.position.x, agent.position.y) > 20.0f)
+                if (info.info0.At(agent.position.x, agent.position.y) > 20.0f)
                 {
                     world.commands.Submit(sim.clock.currentTick,
                         FeedAgentCommand{agent.id, 5.0f});

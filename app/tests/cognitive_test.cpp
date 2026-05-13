@@ -49,8 +49,8 @@ TEST(cognitive_perception_filtering)
     world.Init(g_rulePack);
 
     // Place fire at center
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     // Agent A: far from fire (corner)
     world.SpawnAgent(1, 1);
@@ -102,8 +102,8 @@ TEST(cognitive_attention_filtering)
     world.Init(g_rulePack);
 
     // Create fire and food smell near agent
-    world.Env().fire.WriteNext(16, 16) = 60.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 60.0f;
+    world.Env().env2.Swap();
     // Add strong smell nearby
     for (i32 dy = -2; dy <= 2; dy++)
     {
@@ -111,11 +111,11 @@ TEST(cognitive_attention_filtering)
         {
             i32 x = 16 + dx;
             i32 y = 16 + dy;
-            if (world.Info().smell.InBounds(x, y))
-                world.Info().smell.WriteNext(x, y) = 30.0f;
+            if (world.Info().info0.InBounds(x, y))
+                world.Info().info0.WriteNext(x, y) = 30.0f;
         }
     }
-    world.Info().smell.Swap();
+    world.Info().info0.Swap();
 
     // Agent near both fire and food smell, very hungry
     auto agentId = world.SpawnAgent(16, 15);
@@ -181,8 +181,8 @@ TEST(cognitive_memory_decay)
     world.Init(g_rulePack);
 
     // Small fire — low attention score → stays ShortTerm (fast decay)
-    world.Env().fire.WriteNext(16, 16) = 10.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 10.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
@@ -208,20 +208,20 @@ TEST(cognitive_memory_decay)
     ASSERT_TRUE(peakFireStrength > 0.0f);
 
     // Remove fire and clear all stimuli to prevent new memory formation
-    world.Env().fire.FillBoth(0.0f);
-    world.Env().temperature.FillBoth(20.0f);
-    world.Info().smell.FillBoth(0.0f);
-    world.Info().danger.FillBoth(0.0f);
-    world.Info().smoke.FillBoth(0.0f);
+    world.Env().env2.FillBoth(0.0f);
+    world.Env().env0.FillBoth(20.0f);
+    world.Info().info0.FillBoth(0.0f);
+    world.Info().info1.FillBoth(0.0f);
+    world.Info().info2.FillBoth(0.0f);
 
     // Run enough ticks for ShortTerm memories to decay (0.98^100 ≈ 0.13)
     for (i32 i = 0; i < 100; i++)
     {
-        world.Env().fire.FillBoth(0.0f);
-        world.Env().temperature.FillBoth(20.0f);
-        world.Info().smell.FillBoth(0.0f);
-        world.Info().danger.FillBoth(0.0f);
-        world.Info().smoke.FillBoth(0.0f);
+        world.Env().env2.FillBoth(0.0f);
+        world.Env().env0.FillBoth(20.0f);
+        world.Info().info0.FillBoth(0.0f);
+        world.Info().info1.FillBoth(0.0f);
+        world.Info().info2.FillBoth(0.0f);
         scheduler.Tick(world);
     }
 
@@ -252,8 +252,8 @@ TEST(cognitive_hypothesis_formation)
     world.Init(g_rulePack);
 
     // Place persistent fire source
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     // Agent near fire (will perceive fire + heat repeatedly)
     world.SpawnAgent(16, 15);
@@ -268,8 +268,8 @@ TEST(cognitive_hypothesis_formation)
         // Replenish fire periodically
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 80.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 80.0f;
+            world.Env().env2.Swap();
         }
         scheduler.Tick(world);
     }
@@ -309,10 +309,10 @@ TEST(cognitive_knowledge_polysemy)
         WorldState world(32, 32, 42);
         world.Init(g_rulePack);
 
-        world.Env().fire.WriteNext(16, 16) = 100.0f;
-        world.Env().fire.WriteNext(17, 16) = 80.0f;
-        world.Env().fire.WriteNext(15, 16) = 80.0f;
-        world.Env().fire.Swap();
+        world.Env().env2.WriteNext(16, 16) = 100.0f;
+        world.Env().env2.WriteNext(17, 16) = 80.0f;
+        world.Env().env2.WriteNext(15, 16) = 80.0f;
+        world.Env().env2.Swap();
 
         world.SpawnAgent(16, 16);
         world.RebuildSpatial();
@@ -323,8 +323,8 @@ TEST(cognitive_knowledge_polysemy)
         {
             if (i % 10 == 0)
             {
-                world.Env().fire.WriteNext(16, 16) = 100.0f;
-                world.Env().fire.Swap();
+                world.Env().env2.WriteNext(16, 16) = 100.0f;
+                world.Env().env2.Swap();
             }
             scheduler.Tick(world);
         }
@@ -354,8 +354,8 @@ TEST(cognitive_knowledge_polysemy)
         world.Init(g_rulePack);
 
         // Small, contained fire
-        world.Env().fire.WriteNext(16, 16) = 25.0f;
-        world.Env().fire.Swap();
+        world.Env().env2.WriteNext(16, 16) = 25.0f;
+        world.Env().env2.Swap();
 
         // Agent nearby but not on top of it
         world.SpawnAgent(16, 14);
@@ -367,8 +367,8 @@ TEST(cognitive_knowledge_polysemy)
         {
             if (i % 10 == 0)
             {
-                world.Env().fire.WriteNext(16, 16) = 25.0f;
-                world.Env().fire.Swap();
+                world.Env().env2.WriteNext(16, 16) = 25.0f;
+                world.Env().env2.Swap();
             }
             scheduler.Tick(world);
         }
@@ -417,8 +417,8 @@ TEST(cognitive_wrong_knowledge)
     // === Agent A: near fire ===
     WorldState worldA(32, 32, 42);
     worldA.Init(g_rulePack);
-    worldA.Env().fire.WriteNext(16, 16) = 80.0f;
-    worldA.Env().fire.Swap();
+    worldA.Env().env2.WriteNext(16, 16) = 80.0f;
+    worldA.Env().env2.Swap();
     worldA.SpawnAgent(16, 15);
     worldA.RebuildSpatial();
 
@@ -427,8 +427,8 @@ TEST(cognitive_wrong_knowledge)
     {
         if (i % 10 == 0)
         {
-            worldA.Env().fire.WriteNext(16, 16) = 80.0f;
-            worldA.Env().fire.Swap();
+            worldA.Env().env2.WriteNext(16, 16) = 80.0f;
+            worldA.Env().env2.Swap();
         }
         schedulerA.Tick(worldA);
     }
@@ -490,8 +490,8 @@ TEST(cognitive_knowledge_reinforcement)
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
 
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
@@ -503,8 +503,8 @@ TEST(cognitive_knowledge_reinforcement)
     {
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 80.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 80.0f;
+            world.Env().env2.Swap();
         }
         scheduler.Tick(world);
     }
@@ -523,8 +523,8 @@ TEST(cognitive_knowledge_reinforcement)
     {
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 80.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 80.0f;
+            world.Env().env2.Swap();
         }
         scheduler.Tick(world);
     }
@@ -546,8 +546,8 @@ TEST(cognitive_individual_difference)
     world.Init(g_rulePack);
 
     // Fire at one location
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     // Agent A: near fire (will perceive fire)
     world.SpawnAgent(16, 15);
@@ -562,8 +562,8 @@ TEST(cognitive_individual_difference)
     {
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 80.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 80.0f;
+            world.Env().env2.Swap();
         }
         scheduler.Tick(world);
     }
@@ -617,8 +617,8 @@ TEST(cognitive_full_pipeline)
     world.Init(g_rulePack);
 
     // Fire source
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     // Agent near fire
     world.SpawnAgent(16, 15);
@@ -631,8 +631,8 @@ TEST(cognitive_full_pipeline)
     {
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 80.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 80.0f;
+            world.Env().env2.Swap();
         }
         scheduler.Tick(world);
     }
@@ -681,8 +681,8 @@ TEST(cognitive_different_knowledge_graphs)
     world.Init(g_rulePack);
 
     // Fire at center
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     // Corpse at another location
     auto& corpse = world.Ecology().entities.Create(MaterialId::Flesh, "corpse");
@@ -701,8 +701,8 @@ TEST(cognitive_different_knowledge_graphs)
     {
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 80.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 80.0f;
+            world.Env().env2.Swap();
         }
         scheduler.Tick(world);
     }
@@ -768,9 +768,9 @@ TEST(cognitive_fire_danger_confidence)
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
 
-    world.Env().fire.WriteNext(16, 16) = 100.0f;
-    world.Env().fire.WriteNext(17, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 100.0f;
+    world.Env().env2.WriteNext(17, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(16, 16);  // right on top of fire
     world.RebuildSpatial();
@@ -782,9 +782,9 @@ TEST(cognitive_fire_danger_confidence)
     {
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 100.0f;
-            world.Env().fire.WriteNext(17, 16) = 80.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 100.0f;
+            world.Env().env2.WriteNext(17, 16) = 80.0f;
+            world.Env().env2.Swap();
         }
         scheduler.Tick(world);
     }
@@ -829,9 +829,9 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
 
         for (i32 dy = -2; dy <= 2; dy++)
             for (i32 dx = -2; dx <= 2; dx++)
-                if (world.Info().smoke.InBounds(16+dx, 16+dy))
-                    world.Info().smoke.WriteNext(16+dx, 16+dy) = 30.0f;
-        world.Info().smoke.Swap();
+                if (world.Info().info2.InBounds(16+dx, 16+dy))
+                    world.Info().info2.WriteNext(16+dx, 16+dy) = 30.0f;
+        world.Info().info2.Swap();
 
         world.SpawnAgent(16, 16);
         world.RebuildSpatial();
@@ -872,9 +872,9 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
         // Same smoke stimulus as baseline
         for (i32 dy = -2; dy <= 2; dy++)
             for (i32 dx = -2; dx <= 2; dx++)
-                if (world.Info().smoke.InBounds(16+dx, 16+dy))
-                    world.Info().smoke.WriteNext(16+dx, 16+dy) = 30.0f;
-        world.Info().smoke.Swap();
+                if (world.Info().info2.InBounds(16+dx, 16+dy))
+                    world.Info().info2.WriteNext(16+dx, 16+dy) = 30.0f;
+        world.Info().info2.Swap();
 
         world.SpawnAgent(16, 16);
         world.RebuildSpatial();
@@ -910,8 +910,8 @@ TEST(cognitive_memory_decay_unreinforced)
     world.Init(g_rulePack);
 
     // Brief fire exposure
-    world.Env().fire.WriteNext(16, 16) = 60.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 60.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
@@ -936,11 +936,11 @@ TEST(cognitive_memory_decay_unreinforced)
     ASSERT_TRUE(peakStrength > 0.0f);
 
     // Remove fire and run many ticks without reinforcement
-    world.Env().fire.FillBoth(0.0f);
+    world.Env().env2.FillBoth(0.0f);
 
     for (i32 i = 0; i < 100; i++)
     {
-        world.Env().fire.FillBoth(0.0f);
+        world.Env().env2.FillBoth(0.0f);
         scheduler.Tick(world);
     }
 
@@ -973,15 +973,15 @@ TEST(cognitive_rule_driven_discovery)
         {
             i32 x = 16 + dx;
             i32 y = 16 + dy;
-            if (world.Env().temperature.InBounds(x, y))
-                world.Env().temperature.WriteNext(x, y) = 50.0f;
+            if (world.Env().env0.InBounds(x, y))
+                world.Env().env0.WriteNext(x, y) = 50.0f;
         }
     }
-    world.Env().temperature.Swap();
+    world.Env().env0.Swap();
 
     // Also place fire to trigger danger perception
-    world.Env().fire.WriteNext(16, 16) = 60.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 60.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(16, 16);
     world.RebuildSpatial();
@@ -992,13 +992,13 @@ TEST(cognitive_rule_driven_discovery)
     {
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 60.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 60.0f;
+            world.Env().env2.Swap();
             for (i32 dy = -1; dy <= 1; dy++)
                 for (i32 dx = -1; dx <= 1; dx++)
-                    if (world.Env().temperature.InBounds(16+dx, 16+dy))
-                        world.Env().temperature.WriteNext(16+dx, 16+dy) = 50.0f;
-            world.Env().temperature.Swap();
+                    if (world.Env().env0.InBounds(16+dx, 16+dy))
+                        world.Env().env0.WriteNext(16+dx, 16+dy) = 50.0f;
+            world.Env().env0.Swap();
         }
         scheduler.Tick(world);
     }
@@ -1035,8 +1035,8 @@ TEST(cognitive_knowledge_debug_dump)
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
 
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
@@ -1047,8 +1047,8 @@ TEST(cognitive_knowledge_debug_dump)
     {
         if (i % 10 == 0)
         {
-            world.Env().fire.WriteNext(16, 16) = 80.0f;
-            world.Env().fire.Swap();
+            world.Env().env2.WriteNext(16, 16) = 80.0f;
+            world.Env().env2.Swap();
         }
         scheduler.Tick(world);
     }
@@ -1095,8 +1095,8 @@ TEST(cognitive_memory_from_focused_only)
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
 
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
@@ -1161,31 +1161,31 @@ TEST(cognitive_attention_bottleneck)
     world.Init(g_rulePack);
 
     // Create strong fire + smoke + smell to generate multiple stimuli
-    world.Env().fire.WriteNext(16, 16) = 100.0f;
-    world.Env().fire.WriteNext(17, 16) = 80.0f;
-    world.Env().fire.WriteNext(15, 16) = 80.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 100.0f;
+    world.Env().env2.WriteNext(17, 16) = 80.0f;
+    world.Env().env2.WriteNext(15, 16) = 80.0f;
+    world.Env().env2.Swap();
 
     // Strong smell
     for (i32 dy = -3; dy <= 3; dy++)
         for (i32 dx = -3; dx <= 3; dx++)
-            if (world.Info().smell.InBounds(16+dx, 15+dy))
-                world.Info().smell.WriteNext(16+dx, 15+dy) = 50.0f;
-    world.Info().smell.Swap();
+            if (world.Info().info0.InBounds(16+dx, 15+dy))
+                world.Info().info0.WriteNext(16+dx, 15+dy) = 50.0f;
+    world.Info().info0.Swap();
 
     // Strong smoke
     for (i32 dy = -3; dy <= 3; dy++)
         for (i32 dx = -3; dx <= 3; dx++)
-            if (world.Info().smoke.InBounds(16+dx, 15+dy))
-                world.Info().smoke.WriteNext(16+dx, 15+dy) = 40.0f;
-    world.Info().smoke.Swap();
+            if (world.Info().info2.InBounds(16+dx, 15+dy))
+                world.Info().info2.WriteNext(16+dx, 15+dy) = 40.0f;
+    world.Info().info2.Swap();
 
     // Hot temperature
     for (i32 dy = -2; dy <= 2; dy++)
         for (i32 dx = -2; dx <= 2; dx++)
-            if (world.Env().temperature.InBounds(16+dx, 15+dy))
-                world.Env().temperature.WriteNext(16+dx, 15+dy) = 45.0f;
-    world.Env().temperature.Swap();
+            if (world.Env().env0.InBounds(16+dx, 15+dy))
+                world.Env().env0.WriteNext(16+dx, 15+dy) = 45.0f;
+    world.Env().env0.Swap();
 
     world.SpawnAgent(16, 15);
     world.RebuildSpatial();
@@ -1446,8 +1446,8 @@ TEST(cognitive_natural_learning_changes_behavior)
         WorldState world(32, 32, 42);
         world.Init(g_rulePack);
 
-        world.Env().fire.WriteNext(16, 16) = 100.0f;
-        world.Env().fire.Swap();
+        world.Env().env2.WriteNext(16, 16) = 100.0f;
+        world.Env().env2.Swap();
 
         world.SpawnAgent(16, 15);
         world.RebuildSpatial();
@@ -1458,8 +1458,8 @@ TEST(cognitive_natural_learning_changes_behavior)
         {
             if (i % 10 == 0)
             {
-                world.Env().fire.WriteNext(16, 16) = 100.0f;
-                world.Env().fire.Swap();
+                world.Env().env2.WriteNext(16, 16) = 100.0f;
+                world.Env().env2.Swap();
             }
             scheduler.Tick(world);
         }

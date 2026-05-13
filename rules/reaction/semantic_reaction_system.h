@@ -4,6 +4,7 @@
 #include "sim/system/system_context.h"
 #include "rules/reaction/semantic_reaction_rule.h"
 #include "sim/command/command.h"
+#include "rules/human_evolution/commands.h"
 #include "sim/event/event.h"
 #include <vector>
 #include <cmath>

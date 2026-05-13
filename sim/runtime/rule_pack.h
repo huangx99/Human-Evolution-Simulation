@@ -15,26 +15,26 @@ struct SystemRegistration
     std::unique_ptr<ISystem> system;
 };
 
-// FieldBindings: maps semantic roles to FieldKeys.
-// The RulePack defines which fields play which roles.
+// FieldBindings: generic indexed field role mapping.
 // The Engine uses these bindings to construct EnvironmentModule / InformationModule
-// without knowing field names.
+// without knowing any semantic role names (temperature, fire, smell, etc.).
+// Each RulePack maps its own semantic roles to these generic indices.
+//
+// EnvironmentModule field slots:
+//   env0, env1, env2 = spatial 2D fields (FieldRef)
+//   env3, env4       = scalar fields (ScalarFieldRef)
+//
+// InformationModule field slots:
+//   info0, info1, info2 = spatial 2D fields (FieldRef)
 
 struct FieldBindings
 {
-    // EnvironmentModule fields (spatial 2D)
-    FieldKey temperature;
-    FieldKey humidity;
-    FieldKey fire;
+    // EnvironmentModule: 3 spatial + 2 scalar
+    FieldKey env0, env1, env2;   // spatial 2D
+    FieldKey env3, env4;         // scalar
 
-    // EnvironmentModule wind (scalar)
-    FieldKey windX;
-    FieldKey windY;
-
-    // InformationModule fields (spatial 2D)
-    FieldKey smell;
-    FieldKey danger;
-    FieldKey smoke;
+    // InformationModule: 3 spatial
+    FieldKey info0, info1, info2;  // spatial 2D
 };
 
 // IRulePack: the boundary between Engine and world-specific rules.

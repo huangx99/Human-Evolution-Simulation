@@ -44,7 +44,7 @@ public:
             i32 y = agent.position.y;
 
             // === Smell perception ===
-            if (info.smell.InBounds(ax, y) && agent.nearestSmell > smellThreshold)
+            if (info.info0.InBounds(ax, y) && agent.nearestSmell > smellThreshold)
             {
                 PerceivedStimulus s;
                 s.id = cog.nextStimulusId++;
@@ -106,9 +106,9 @@ public:
             }
 
             // === Danger field perception ===
-            if (info.danger.InBounds(ax, y))
+            if (info.info1.InBounds(ax, y))
             {
-                f32 dangerVal = info.danger.At(ax, y);
+                f32 dangerVal = info.info1.At(ax, y);
                 if (dangerVal > dangerThreshold)
                 {
                     PerceivedStimulus s;
@@ -127,9 +127,9 @@ public:
 
             // === Smoke perception ===
             // Also populates agentPerceivedSmoke for DecisionSystem
-            if (info.smoke.InBounds(ax, y))
+            if (info.info2.InBounds(ax, y))
             {
-                f32 smokeVal = info.smoke.At(ax, y);
+                f32 smokeVal = info.info2.At(ax, y);
                 cog.agentPerceivedSmoke[agent.id] = smokeVal;
                 if (smokeVal > smokeThreshold)
                 {

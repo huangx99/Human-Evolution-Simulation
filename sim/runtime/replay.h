@@ -177,7 +177,7 @@ struct ReplayEngine
             CommandBuffer tempBuffer;
             while (cmdIdx < commands.size() && commands[cmdIdx].tick <= t)
             {
-                tempBuffer.Push(commands[cmdIdx].tick, commands[cmdIdx].command);
+                tempBuffer.Push(commands[cmdIdx].tick, commands[cmdIdx].command->Clone());
                 cmdIdx++;
             }
             tempBuffer.Apply(world);

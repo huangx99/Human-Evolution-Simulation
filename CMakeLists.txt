@@ -14,7 +14,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 # === Core library ===
 add_library(human_evolution_core STATIC
     core/random/random.cpp
-    sim/command/command_buffer.cpp
+    sim/command/command.cpp
 )
 target_include_directories(human_evolution_core PUBLIC ${CMAKE_SOURCE_DIR})
 

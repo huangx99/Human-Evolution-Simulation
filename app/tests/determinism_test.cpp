@@ -1,14 +1,8 @@
 #include "test_framework.h"
+#include "rules/human_evolution/commands.h"
 #include "sim/world/world_state.h"
 #include "sim/scheduler/scheduler.h"
-#include "sim/scheduler/phase.h"
 #include "rules/human_evolution/human_evolution_rule_pack.h"
-#include "rules/human_evolution/environment/climate_system.h"
-#include "rules/human_evolution/environment/fire_system.h"
-#include "rules/human_evolution/environment/smell_system.h"
-#include "sim/system/agent_perception_system.h"
-#include "sim/system/agent_decision_system.h"
-#include "sim/system/agent_action_system.h"
 #include "sim/runtime/simulation_hash.h"
 #include "sim/runtime/replay.h"
 #include "api/snapshot/world_snapshot.h"
@@ -20,22 +14,17 @@ static WorldSnapshot RunSimulation(u64 seed, i32 ticks)
     WorldState world(32, 32, seed);
     world.Init(g_rulePack);
 
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.WriteNext(17, 16) = 60.0f;
-    world.Env().fire.WriteNext(8, 8) = 60.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.WriteNext(17, 16) = 60.0f;
+    world.Env().env2.WriteNext(8, 8) = 60.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(5, 5);
     world.SpawnAgent(10, 20);
     world.SpawnAgent(25, 10);
 
     Scheduler scheduler;
-    scheduler.AddSystem(SimPhase::Environment,  std::make_unique<ClimateSystem>());
-    scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<FireSystem>());
-    scheduler.AddSystem(SimPhase::Propagation,  std::make_unique<SmellSystem>());
-    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<AgentPerceptionSystem>());
-    scheduler.AddSystem(SimPhase::Decision,     std::make_unique<AgentDecisionSystem>());
-    scheduler.AddSystem(SimPhase::Action,       std::make_unique<AgentActionSystem>());
+    RegisterHumanEvolutionSystems(scheduler);
 
     for (i32 i = 0; i < ticks; i++)
     {
@@ -74,21 +63,14 @@ TEST(determinism_hash_proof)
     auto makeWorld = [](u64 seed) {
         WorldState world(16, 16, seed);
         world.Init(g_rulePack);
-        world.Env().fire.WriteNext(8, 8) = 50.0f;
-        world.Env().fire.Swap();
+        world.Env().env2.WriteNext(8, 8) = 50.0f;
+        world.Env().env2.Swap();
         world.SpawnAgent(4, 4);
         return world;
     };
 
     auto makeScheduler = []() {
-        Scheduler scheduler;
-        scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>());
-        scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>());
-        scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>());
-        scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>());
-        scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>());
-        scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>());
-        return scheduler;
+        return CreateHumanEvolutionScheduler();
     };
 
     WorldState a = makeWorld(42);
@@ -121,9 +103,9 @@ TEST(minimal_replay)
 
     WorldState world(16, 16, 42);
     world.Init(g_rulePack);
-    world.Env().fire.WriteNext(8, 8) = 80.0f;
-    world.Env().fire.WriteNext(9, 8) = 60.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(8, 8) = 80.0f;
+    world.Env().env2.WriteNext(9, 8) = 60.0f;
+    world.Env().env2.Swap();
     world.SpawnAgent(4, 4);
     world.SpawnAgent(10, 10);
 

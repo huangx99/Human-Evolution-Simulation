@@ -1,6 +1,7 @@
 #pragma once
 
-// Typed Command system — replaces the generic Command struct with type-safe variants.
+// Polymorphic Command system — engine defines CommandBase + core commands.
+// World-specific commands (IgniteFire, EmitSmell, etc.) live in rules/.
 //
 // === ARCHITECTURE RULES (Runtime Laws) ===
 //
@@ -11,18 +12,26 @@
 //
 // Rule 2: Stable Command Identity
 //   Every command has a stable CommandKind : u16 ID that NEVER changes.
-//   Variant index is an implementation detail — serialization/replay/network
-//   must use CommandKind, never std::variant::index().
+//   Used for serialization/replay/hash — never raw type info.
 //
 // Rule 3: No Source-of-Truth Duplication
 //   Commands store only the intent (target + delta), not current state.
 //   WorldState is the single source of truth.
+//
+// Rule 4: Engine commands only — world commands in rules/
+//   Engine: MoveAgent, SetAgentAction, DamageAgent, FeedAgent, ModifyHunger,
+//           AddEntityState, RemoveEntityState, AddEntityCapability,
+//           RemoveEntityCapability, ModifyFieldValue
+//   World:  IgniteFire, ExtinguishFire, EmitSmell, SetDanger, EmitSmoke
 
 #include "core/types/types.h"
 #include "sim/entity/agent_action.h"
 #include "sim/field/field_id.h"
-#include <variant>
-#include <type_traits>
+#include "sim/field/field_module.h"
+#include <memory>
+#include <cstring>
+
+struct WorldState;
 
 // === Stable command identity (for serialization/replay) ===
 enum class CommandKind : u16
@@ -34,137 +43,269 @@ enum class CommandKind : u16
     FeedAgent = 4,
     ModifyHunger = 5,
 
-    // Environment
-    IgniteFire = 10,
-    ExtinguishFire = 11,
-    EmitSmell = 12,
-
-    // Information
-    SetDanger = 20,
-
     // Ecology entity
     AddEntityState = 30,
     RemoveEntityState = 31,
     AddEntityCapability = 32,
     RemoveEntityCapability = 33,
     ModifyFieldValue = 34,
-    EmitSmoke = 35,
+
+    // World-specific commands start at 100
+    // (IgniteFire=100, ExtinguishFire=101, etc. — defined in rules/)
 };
 
-// === Typed command structs ===
+// === Polymorphic command base ===
+//
+// All commands inherit from CommandBase. The engine defines core commands;
+// world-specific commands are registered by RulePacks.
 
-// Agent commands
-struct MoveAgentCommand      { EntityId id; i32 x, y; };
-struct SetAgentActionCommand { EntityId id; AgentAction action; };
-struct DamageAgentCommand    { EntityId id; f32 amount; };
-struct FeedAgentCommand      { EntityId id; f32 amount; };
-struct ModifyHungerCommand   { EntityId id; f32 delta; };
+class CommandBase
+{
+public:
+    virtual ~CommandBase() = default;
 
-// Environment commands
-struct IgniteFireCommand     { i32 x, y; f32 intensity; };
-struct ExtinguishFireCommand { i32 x, y; };
-struct EmitSmellCommand      { i32 x, y; f32 amount; };
+    // Execute this command on the world
+    virtual void Execute(WorldState& world) const = 0;
 
-// Information commands
-struct SetDangerCommand      { i32 x, y; f32 value; };
+    // Deep copy (for replay history)
+    virtual std::unique_ptr<CommandBase> Clone() const = 0;
 
-// Ecology entity commands
-struct AddEntityStateCommand         { EntityId id; u32 state; };
-struct RemoveEntityStateCommand      { EntityId id; u32 state; };
-struct AddEntityCapabilityCommand    { EntityId id; u32 capability; };
-struct RemoveEntityCapabilityCommand { EntityId id; u32 capability; };
-struct ModifyFieldValueCommand       { i32 x, y; FieldKey field; i32 mode; f32 value; };
-struct EmitSmokeCommand              { i32 x, y; f32 amount; };
+    // Stable kind ID (for serialization/replay/hash)
+    virtual CommandKind GetKind() const = 0;
 
-// === Sub-variants by domain (prevents type explosion) ===
-using AgentCommand = std::variant<
-    MoveAgentCommand, SetAgentActionCommand, DamageAgentCommand,
-    FeedAgentCommand, ModifyHungerCommand
->;
+    // Serialize command parameters to buffer (for replay persistence)
+    // Default: no data (commands with no parameters)
+    virtual void SerializeData(std::vector<u8>&) const {}
 
-using EnvironmentCommand = std::variant<
-    IgniteFireCommand, ExtinguishFireCommand, EmitSmellCommand, SetDangerCommand
->;
+    // Hash command parameters (for determinism verification)
+    virtual void FeedHash(class SimHash&) const {}
+};
 
-using EcologyCommand = std::variant<
-    AddEntityStateCommand, RemoveEntityStateCommand,
-    AddEntityCapabilityCommand, RemoveEntityCapabilityCommand,
-    ModifyFieldValueCommand, EmitSmokeCommand
->;
+// === Engine command structs ===
 
-// === Top-level Command ===
-using Command = std::variant<
-    AgentCommand, EnvironmentCommand, EcologyCommand
->;
+struct MoveAgentCommand : public CommandBase
+{
+    EntityId id = 0;
+    i32 x = 0, y = 0;
+
+    MoveAgentCommand() = default;
+    MoveAgentCommand(EntityId id, i32 x, i32 y) : id(id), x(x), y(y) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<MoveAgentCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::MoveAgent; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct SetAgentActionCommand : public CommandBase
+{
+    EntityId id = 0;
+    AgentAction action = AgentAction::Idle;
+
+    SetAgentActionCommand() = default;
+    SetAgentActionCommand(EntityId id, AgentAction action) : id(id), action(action) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<SetAgentActionCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::SetAgentAction; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct DamageAgentCommand : public CommandBase
+{
+    EntityId id = 0;
+    f32 amount = 0.0f;
+
+    DamageAgentCommand() = default;
+    DamageAgentCommand(EntityId id, f32 amount) : id(id), amount(amount) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<DamageAgentCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::DamageAgent; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct FeedAgentCommand : public CommandBase
+{
+    EntityId id = 0;
+    f32 amount = 0.0f;
+
+    FeedAgentCommand() = default;
+    FeedAgentCommand(EntityId id, f32 amount) : id(id), amount(amount) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<FeedAgentCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::FeedAgent; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct ModifyHungerCommand : public CommandBase
+{
+    EntityId id = 0;
+    f32 delta = 0.0f;
+
+    ModifyHungerCommand() = default;
+    ModifyHungerCommand(EntityId id, f32 delta) : id(id), delta(delta) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<ModifyHungerCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::ModifyHunger; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct AddEntityStateCommand : public CommandBase
+{
+    EntityId id = 0;
+    u32 state = 0;
+
+    AddEntityStateCommand() = default;
+    AddEntityStateCommand(EntityId id, u32 state) : id(id), state(state) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<AddEntityStateCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::AddEntityState; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct RemoveEntityStateCommand : public CommandBase
+{
+    EntityId id = 0;
+    u32 state = 0;
+
+    RemoveEntityStateCommand() = default;
+    RemoveEntityStateCommand(EntityId id, u32 state) : id(id), state(state) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<RemoveEntityStateCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::RemoveEntityState; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct AddEntityCapabilityCommand : public CommandBase
+{
+    EntityId id = 0;
+    u32 capability = 0;
+
+    AddEntityCapabilityCommand() = default;
+    AddEntityCapabilityCommand(EntityId id, u32 cap) : id(id), capability(cap) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<AddEntityCapabilityCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::AddEntityCapability; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct RemoveEntityCapabilityCommand : public CommandBase
+{
+    EntityId id = 0;
+    u32 capability = 0;
+
+    RemoveEntityCapabilityCommand() = default;
+    RemoveEntityCapabilityCommand(EntityId id, u32 cap) : id(id), capability(cap) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<RemoveEntityCapabilityCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::RemoveEntityCapability; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+struct ModifyFieldValueCommand : public CommandBase
+{
+    i32 x = 0, y = 0;
+    FieldKey field;
+    i32 mode = 0;  // 0=add, 1=set
+    f32 value = 0.0f;
+
+    ModifyFieldValueCommand() = default;
+    ModifyFieldValueCommand(i32 x, i32 y, FieldKey field, i32 mode, f32 value)
+        : x(x), y(y), field(field), mode(mode), value(value) {}
+
+    void Execute(WorldState& world) const override;
+    std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<ModifyFieldValueCommand>(*this); }
+    CommandKind GetKind() const override { return CommandKind::ModifyFieldValue; }
+    void SerializeData(std::vector<u8>& buf) const override;
+    void FeedHash(class SimHash& h) const override;
+};
+
+// === CommandFactory: extensible command deserialization ===
+//
+// Engine registers core factories; RulePacks register world-specific ones.
+
+using CommandFactory = std::unique_ptr<CommandBase>(*)(const u8* data, size_t size);
+
+class CommandRegistry
+{
+public:
+    static CommandRegistry& Instance()
+    {
+        static CommandRegistry reg;
+        return reg;
+    }
+
+    void Register(CommandKind kind, CommandFactory factory)
+    {
+        factories_[static_cast<u16>(kind)] = factory;
+    }
+
+    std::unique_ptr<CommandBase> Create(CommandKind kind, const u8* data, size_t size) const
+    {
+        auto idx = static_cast<u16>(kind);
+        if (idx < MAX_KINDS && factories_[idx])
+            return factories_[idx](data, size);
+        return nullptr;
+    }
+
+private:
+    static constexpr size_t MAX_KINDS = 256;
+    CommandFactory factories_[MAX_KINDS] = {};
+
+    CommandRegistry();
+};
 
 // === QueuedCommand: command + tick for history ===
 struct QueuedCommand
 {
     Tick tick;
-    Command command;
+    std::unique_ptr<CommandBase> command;
+
+    QueuedCommand() = default;
+    QueuedCommand(Tick t, std::unique_ptr<CommandBase> c) : tick(t), command(std::move(c)) {}
+
+    // Move-only
+    QueuedCommand(QueuedCommand&&) = default;
+    QueuedCommand& operator=(QueuedCommand&&) = default;
+    QueuedCommand(const QueuedCommand& o) : tick(o.tick), command(o.command ? o.command->Clone() : nullptr) {}
+    QueuedCommand& operator=(const QueuedCommand& o)
+    {
+        tick = o.tick;
+        command = o.command ? o.command->Clone() : nullptr;
+        return *this;
+    }
 };
 
-// === MakeCommand: centralized wrapping (one overload per command type) ===
-// Adding a new command type? Add one MakeCommand overload here. CommandBuffer stays untouched.
-
-inline Command MakeCommand(MoveAgentCommand cmd)      { return AgentCommand{cmd}; }
-inline Command MakeCommand(SetAgentActionCommand cmd)  { return AgentCommand{cmd}; }
-inline Command MakeCommand(DamageAgentCommand cmd)     { return AgentCommand{cmd}; }
-inline Command MakeCommand(FeedAgentCommand cmd)       { return AgentCommand{cmd}; }
-inline Command MakeCommand(ModifyHungerCommand cmd)    { return AgentCommand{cmd}; }
-
-inline Command MakeCommand(IgniteFireCommand cmd)      { return EnvironmentCommand{cmd}; }
-inline Command MakeCommand(ExtinguishFireCommand cmd)  { return EnvironmentCommand{cmd}; }
-inline Command MakeCommand(EmitSmellCommand cmd)       { return EnvironmentCommand{cmd}; }
-inline Command MakeCommand(SetDangerCommand cmd)       { return EnvironmentCommand{cmd}; }
-
-inline Command MakeCommand(AddEntityStateCommand cmd)         { return EcologyCommand{cmd}; }
-inline Command MakeCommand(RemoveEntityStateCommand cmd)      { return EcologyCommand{cmd}; }
-inline Command MakeCommand(AddEntityCapabilityCommand cmd)    { return EcologyCommand{cmd}; }
-inline Command MakeCommand(RemoveEntityCapabilityCommand cmd) { return EcologyCommand{cmd}; }
-inline Command MakeCommand(ModifyFieldValueCommand cmd)       { return EcologyCommand{cmd}; }
-inline Command MakeCommand(EmitSmokeCommand cmd)              { return EcologyCommand{cmd}; }
-
-// === IsCommandType trait: type constraint for template Submit ===
-template<typename T> struct IsCommandType : std::false_type {};
-
-template<> struct IsCommandType<MoveAgentCommand>      : std::true_type {};
-template<> struct IsCommandType<SetAgentActionCommand>  : std::true_type {};
-template<> struct IsCommandType<DamageAgentCommand>     : std::true_type {};
-template<> struct IsCommandType<FeedAgentCommand>       : std::true_type {};
-template<> struct IsCommandType<ModifyHungerCommand>    : std::true_type {};
-template<> struct IsCommandType<IgniteFireCommand>      : std::true_type {};
-template<> struct IsCommandType<ExtinguishFireCommand>  : std::true_type {};
-template<> struct IsCommandType<EmitSmellCommand>       : std::true_type {};
-template<> struct IsCommandType<SetDangerCommand>       : std::true_type {};
-template<> struct IsCommandType<AddEntityStateCommand>         : std::true_type {};
-template<> struct IsCommandType<RemoveEntityStateCommand>      : std::true_type {};
-template<> struct IsCommandType<AddEntityCapabilityCommand>    : std::true_type {};
-template<> struct IsCommandType<RemoveEntityCapabilityCommand> : std::true_type {};
-template<> struct IsCommandType<ModifyFieldValueCommand>       : std::true_type {};
-template<> struct IsCommandType<EmitSmokeCommand>              : std::true_type {};
-
-// === GetCommandKind: stable ID from Command (for serialization/replay) ===
-inline CommandKind GetCommandKind(const Command& cmd)
+// === Helper: append typed data to buffer ===
+template<typename T>
+inline void AppendBytes(std::vector<u8>& buf, const T& val)
 {
-    return std::visit([](const auto& inner) -> CommandKind {
-        return std::visit([](const auto& typed) -> CommandKind {
-            using T = std::decay_t<decltype(typed)>;
-            if constexpr (std::is_same_v<T, MoveAgentCommand>)             return CommandKind::MoveAgent;
-            else if constexpr (std::is_same_v<T, SetAgentActionCommand>)   return CommandKind::SetAgentAction;
-            else if constexpr (std::is_same_v<T, DamageAgentCommand>)      return CommandKind::DamageAgent;
-            else if constexpr (std::is_same_v<T, FeedAgentCommand>)        return CommandKind::FeedAgent;
-            else if constexpr (std::is_same_v<T, ModifyHungerCommand>)     return CommandKind::ModifyHunger;
-            else if constexpr (std::is_same_v<T, IgniteFireCommand>)       return CommandKind::IgniteFire;
-            else if constexpr (std::is_same_v<T, ExtinguishFireCommand>)   return CommandKind::ExtinguishFire;
-            else if constexpr (std::is_same_v<T, EmitSmellCommand>)        return CommandKind::EmitSmell;
-            else if constexpr (std::is_same_v<T, SetDangerCommand>)        return CommandKind::SetDanger;
-            else if constexpr (std::is_same_v<T, AddEntityStateCommand>)         return CommandKind::AddEntityState;
-            else if constexpr (std::is_same_v<T, RemoveEntityStateCommand>)      return CommandKind::RemoveEntityState;
-            else if constexpr (std::is_same_v<T, AddEntityCapabilityCommand>)    return CommandKind::AddEntityCapability;
-            else if constexpr (std::is_same_v<T, RemoveEntityCapabilityCommand>) return CommandKind::RemoveEntityCapability;
-            else if constexpr (std::is_same_v<T, ModifyFieldValueCommand>)       return CommandKind::ModifyFieldValue;
-            else if constexpr (std::is_same_v<T, EmitSmokeCommand>)              return CommandKind::EmitSmoke;
-        }, inner);
-    }, cmd);
+    const u8* p = reinterpret_cast<const u8*>(&val);
+    buf.insert(buf.end(), p, p + sizeof(T));
+}
+
+template<typename T>
+inline T ReadBytes(const u8*& data, size_t& remaining)
+{
+    T val;
+    std::memcpy(&val, data, sizeof(T));
+    data += sizeof(T);
+    remaining -= sizeof(T);
+    return val;
 }

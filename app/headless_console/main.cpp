@@ -64,10 +64,10 @@ void PrintWorldState(const WorldState& world, i32 interval)
     i32 cx = world.Width() / 2;
     i32 cy = world.Height() / 2;
     std::cout << "Temperature (center): " << std::fixed << std::setprecision(1)
-              << env.temperature.At(cx, cy) << " C" << std::endl;
-    std::cout << "Humidity (center): " << env.humidity.At(cx, cy) << "%" << std::endl;
+              << env.env0.At(cx, cy) << " C" << std::endl;
+    std::cout << "Humidity (center): " << env.env1.At(cx, cy) << "%" << std::endl;
     std::cout << "Wind: (" << std::fixed << std::setprecision(2)
-              << env.windX.Read() << ", " << env.windY.Read() << ")" << std::endl;
+              << env.env3.Read() << ", " << env.env4.Read() << ")" << std::endl;
 
     i32 fireCount = 0;
     f32 maxFire = 0.0f;
@@ -75,7 +75,7 @@ void PrintWorldState(const WorldState& world, i32 interval)
     {
         for (i32 x = 0; x < world.Width(); x++)
         {
-            f32 f = env.fire.At(x, y);
+            f32 f = env.env2.At(x, y);
             if (f > 0.0f) { fireCount++; if (f > maxFire) maxFire = f; }
         }
     }
@@ -160,13 +160,13 @@ int main(int argc, char* argv[])
     HumanEvolutionRulePack rulePack;
     WorldState world(32, 32, cfg.seed, rulePack);
 
-    world.Env().fire.WriteNext(16, 16) = 80.0f;
-    world.Env().fire.WriteNext(17, 16) = 60.0f;
-    world.Env().fire.WriteNext(16, 17) = 60.0f;
-    world.Env().fire.WriteNext(15, 16) = 40.0f;
-    world.Env().fire.WriteNext(8, 8) = 60.0f;
-    world.Env().fire.WriteNext(9, 8) = 40.0f;
-    world.Env().fire.Swap();
+    world.Env().env2.WriteNext(16, 16) = 80.0f;
+    world.Env().env2.WriteNext(17, 16) = 60.0f;
+    world.Env().env2.WriteNext(16, 17) = 60.0f;
+    world.Env().env2.WriteNext(15, 16) = 40.0f;
+    world.Env().env2.WriteNext(8, 8) = 60.0f;
+    world.Env().env2.WriteNext(9, 8) = 40.0f;
+    world.Env().env2.Swap();
 
     world.SpawnAgent(5, 5);
     world.SpawnAgent(10, 20);

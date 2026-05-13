@@ -609,8 +609,8 @@ TEST(semantic_exec_rotten_meat)
     corpse.state = MaterialState::Dead;
 
     // Set temperature > 25 at that cell
-    world.Env().temperature.WriteNext(5, 5) = 30.0f;
-    world.Env().temperature.Swap();
+    world.Env().env0.WriteNext(5, 5) = 30.0f;
+    world.Env().env0.Swap();
 
     // Build decay rule: Flesh + Dead + Temp>25 → EmitSmell
     SemanticReactionRule rule;
@@ -645,10 +645,10 @@ TEST(semantic_exec_rotten_meat)
     sys.AddRule(rule);
     { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
-    world.Info().smell.Swap();
+    world.Info().info0.Swap();
 
     // Verify: smell field should have increased
-    f32 smell = world.Info().smell.At(5, 5);
+    f32 smell = world.Info().info0.At(5, 5);
     ASSERT_TRUE(smell > 0.0f);
 
     return true;
@@ -724,8 +724,8 @@ TEST(extension_rotting_plant_smell)
     plant.x = 5; plant.y = 5;
 
     // Set temperature > 20
-    world.Env().temperature.WriteNext(5, 5) = 25.0f;
-    world.Env().temperature.Swap();
+    world.Env().env0.WriteNext(5, 5) = 25.0f;
+    world.Env().env0.Swap();
 
     // Build rule: Dead + Decomposing + Temp>20 → EmitSmell
     SemanticReactionRule rule;
@@ -759,9 +759,9 @@ TEST(extension_rotting_plant_smell)
     sys.AddRule(rule);
     { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
-    world.Info().smell.Swap();
+    world.Info().info0.Swap();
 
-    f32 smell = world.Info().smell.At(5, 5);
+    f32 smell = world.Info().info0.At(5, 5);
     ASSERT_TRUE(smell > 0.0f);
 
     return true;
@@ -892,8 +892,8 @@ TEST(reaction_same_entity_corpse_decay)
     deadPlant.x = 5; deadPlant.y = 5;
     deadPlant.state = MaterialState::Dead;
 
-    world.Env().temperature.WriteNext(5, 5) = 30.0f;
-    world.Env().temperature.Swap();
+    world.Env().env0.WriteNext(5, 5) = 30.0f;
+    world.Env().env0.Swap();
 
     // Rule: HasMaterial(Flesh) + HasState(Dead) + Temp>25 → EmitSmell
     SemanticReactionRule rule;
@@ -927,10 +927,10 @@ TEST(reaction_same_entity_corpse_decay)
     sys.AddRule(rule);
     { SystemContext ctx(world); sys.Update(ctx); }
     world.commands.Apply(world);
-    world.Info().smell.Swap();
+    world.Info().info0.Swap();
 
     // Smell should be emitted (from corpse, not dead_plant)
-    f32 smell = world.Info().smell.At(5, 5);
+    f32 smell = world.Info().info0.At(5, 5);
     ASSERT_TRUE(smell > 0.0f);
 
     return true;
