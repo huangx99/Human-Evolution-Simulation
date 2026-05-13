@@ -7,6 +7,7 @@
 #include "sim/world/ecology_module.h"
 #include "sim/cognitive/cognitive_module.h"
 #include "sim/pattern/pattern_module.h"
+#include "sim/pattern/pattern_temporal_state_module.h"
 #include "sim/pattern/pattern_registry.h"
 #include "sim/history/history_module.h"
 #include "sim/history/history_registry.h"
@@ -14,9 +15,12 @@
 #include "sim/social/social_signal_registry.h"
 #include "sim/social/observed_action_registry.h"
 #include "sim/cognitive/internal_state_baseline_module.h"
+#include "sim/cognitive/awareness_cooldown_module.h"
 #include "sim/cognitive/concept_registry.h"
 #include "sim/group_knowledge/group_knowledge_module.h"
 #include "sim/group_knowledge/group_knowledge_registry.h"
+#include "sim/cultural_trace/cultural_trace_module.h"
+#include "sim/cultural_trace/cultural_trace_registry.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
@@ -63,6 +67,12 @@ struct WorldState
         // RulePack registers its group knowledge types
         rulePack.RegisterGroupKnowledgeTypes(GroupKnowledgeRegistry::Instance());
 
+        // RulePack registers its pattern types
+        rulePack.RegisterPatternTypes(PatternRegistry::Instance());
+
+        // RulePack registers its cultural trace types
+        rulePack.RegisterCulturalTraceTypes(CulturalTraceRegistry::Instance());
+
         // Store RulePack context for snapshot/replay access
         ruleContext_ = &rulePack.GetContext();
 
@@ -71,9 +81,12 @@ struct WorldState
         modules.Register<CognitiveModule>();
         modules.Register<InternalStateBaselineModule>();
         modules.Register<PatternModule>();
+        modules.Register<PatternTemporalStateModule>();
         modules.Register<HistoryModule>();
         modules.Register<SocialSignalModule>();
         modules.Register<GroupKnowledgeModule>();
+        modules.Register<CulturalTraceModule>();
+        modules.Register<AwarenessCooldownModule>();
     }
 
     // Convenience constructor: no RulePack (for engine-only tests).
@@ -89,9 +102,12 @@ struct WorldState
         modules.Register<CognitiveModule>();
         modules.Register<InternalStateBaselineModule>();
         modules.Register<PatternModule>();
+        modules.Register<PatternTemporalStateModule>();
         modules.Register<HistoryModule>();
         modules.Register<SocialSignalModule>();
         modules.Register<GroupKnowledgeModule>();
+        modules.Register<CulturalTraceModule>();
+        modules.Register<AwarenessCooldownModule>();
     }
 
     // Deferred RulePack init: register fields.
@@ -104,8 +120,10 @@ struct WorldState
         rulePack.RegisterHistoryTypes(HistoryRegistry::Instance());
         rulePack.RegisterSocialSignals(SocialSignalRegistry::Instance());
         rulePack.RegisterObservedActions(ObservedActionRegistry::Instance());
+        rulePack.RegisterPatternTypes(PatternRegistry::Instance());
         rulePack.RegisterConcepts(ConceptTypeRegistry::Instance());
         rulePack.RegisterGroupKnowledgeTypes(GroupKnowledgeRegistry::Instance());
+        rulePack.RegisterCulturalTraceTypes(CulturalTraceRegistry::Instance());
         ruleContext_ = &rulePack.GetContext();
     }
 
@@ -124,6 +142,9 @@ struct WorldState
     SocialSignalModule& SocialSignals() { return modules.Get<SocialSignalModule>(); }
     InternalStateBaselineModule& InternalStateBaselines() { return modules.Get<InternalStateBaselineModule>(); }
     GroupKnowledgeModule& GroupKnowledge() { return modules.Get<GroupKnowledgeModule>(); }
+    PatternTemporalStateModule& PatternTemporalState() { return modules.Get<PatternTemporalStateModule>(); }
+    CulturalTraceModule& CulturalTrace() { return modules.Get<CulturalTraceModule>(); }
+    AwarenessCooldownModule& AwarenessCooldown() { return modules.Get<AwarenessCooldownModule>(); }
 
     const SimulationModule& Sim() const { return modules.Get<SimulationModule>(); }
     const FieldModule& Fields() const { return modules.Get<FieldModule>(); }
@@ -135,6 +156,9 @@ struct WorldState
     const SocialSignalModule& SocialSignals() const { return modules.Get<SocialSignalModule>(); }
     const InternalStateBaselineModule& InternalStateBaselines() const { return modules.Get<InternalStateBaselineModule>(); }
     const GroupKnowledgeModule& GroupKnowledge() const { return modules.Get<GroupKnowledgeModule>(); }
+    const PatternTemporalStateModule& PatternTemporalState() const { return modules.Get<PatternTemporalStateModule>(); }
+    const CulturalTraceModule& CulturalTrace() const { return modules.Get<CulturalTraceModule>(); }
+    const AwarenessCooldownModule& AwarenessCooldown() const { return modules.Get<AwarenessCooldownModule>(); }
 
     // RulePack context access (for snapshot/replay)
     IRuleContext* RuleContext() { return ruleContext_; }

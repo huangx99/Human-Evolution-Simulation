@@ -24,11 +24,15 @@
 #include "sim/history/history_detection_system.h"
 #include "rules/human_evolution/history/first_stable_fire_detector.h"
 #include "rules/human_evolution/history/mass_death_detector.h"
+#include "rules/human_evolution/history/social_history_detector.h"
 #include "rules/human_evolution/social/human_evolution_social_signal_perception_system.h"
 #include "rules/human_evolution/social/human_evolution_social_signal_emission_system.h"
 #include "rules/human_evolution/social/human_evolution_imitation_observation_system.h"
 #include "rules/human_evolution/systems/internal_state_stimulus_system.h"
 #include "rules/human_evolution/systems/group_knowledge_aggregation_system.h"
+#include "rules/human_evolution/systems/collective_avoidance_system.h"
+#include "rules/human_evolution/systems/cultural_trace_detection_system.h"
+#include "rules/human_evolution/systems/group_knowledge_awareness_system.h"
 
 // HumanEvolutionRulePack: defines the Human Evolution world.
 //
@@ -65,6 +69,12 @@ public:
             HistoryKey("human_evolution.first_stable_fire_usage"), "first_stable_fire_usage");
         ctx_.history.massDeath = registry.Register(
             HistoryKey("human_evolution.mass_death"), "mass_death");
+        ctx_.history.firstSharedDangerMemory = registry.Register(
+            HistoryKey("human_evolution.first_shared_danger_memory"), "first_shared_danger_memory");
+        ctx_.history.firstCollectiveAvoidance = registry.Register(
+            HistoryKey("human_evolution.first_collective_avoidance"), "first_collective_avoidance");
+        ctx_.history.firstDangerAvoidanceTrace = registry.Register(
+            HistoryKey("human_evolution.first_danger_avoidance_trace"), "first_danger_avoidance_trace");
     }
 
     void RegisterSocialSignals(SocialSignalRegistry& registry) override
@@ -161,6 +171,26 @@ public:
         ctx_.concepts.fear      = registry.Register(MakeConceptKey("human_evolution.fear"),      "fear",      f(F::Abstract, F::Danger, F::Negative));
         ctx_.concepts.curiosity = registry.Register(MakeConceptKey("human_evolution.curiosity"), "curiosity", f2(F::Abstract, F::Positive));
         ctx_.concepts.trust     = registry.Register(MakeConceptKey("human_evolution.trust"),     "trust",     f(F::Abstract, F::Social, F::Positive));
+
+        // Group knowledge awareness
+        ctx_.concepts.groupDangerEvidence = registry.Register(
+            MakeConceptKey("human_evolution.group_danger_evidence"),
+            "group_danger_evidence",
+            static_cast<u32>(F::Danger | F::Social | F::Abstract));
+    }
+
+    void RegisterPatternTypes(PatternRegistry& registry) override
+    {
+        ctx_.socialPatterns.collectiveAvoidance = registry.Register(
+            PatternKey("human_evolution.collective_avoidance"), "collective_avoidance");
+        registry.Register(
+            PatternKey("human_evolution.stable_fire_zone"), "stable_fire_zone");
+    }
+
+    void RegisterCulturalTraceTypes(CulturalTraceRegistry& registry) override
+    {
+        ctx_.culturalTraces.dangerAvoidanceTrace = registry.Register(
+            MakeCulturalTraceKey("human_evolution.danger_avoidance_trace"), "danger_avoidance_trace");
     }
 
     IRuleContext& GetContext() override { return ctx_; }
@@ -182,6 +212,8 @@ public:
         systems.push_back({SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx_)});
         systems.push_back({SimPhase::Perception,  std::make_unique<HumanEvolutionImitationObservationSystem>(ctx_)});
         systems.push_back({SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>(ctx_.concepts)});
+        systems.push_back({SimPhase::Perception,  std::make_unique<GroupKnowledgeAwarenessSystem>(
+            ctx_.concepts.groupDangerEvidence, ctx_.groupKnowledge.sharedDangerZone)});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>()});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>(memoryPolicy_.get())});
 
@@ -198,12 +230,20 @@ public:
         systems.push_back({SimPhase::Analysis, std::make_unique<GroupKnowledgeAggregationSystem>(
             ctx_.concepts, ctx_.groupKnowledge.sharedDangerZone)});
 
+        // Collective avoidance detection (reads GroupKnowledge, writes Pattern)
+        systems.push_back({SimPhase::Analysis, std::make_unique<CollectiveAvoidanceSystem>(
+            ctx_.socialPatterns.collectiveAvoidance,
+            PatternKey("human_evolution.collective_avoidance"),
+            ctx_.groupKnowledge.sharedDangerZone)});
+
+        // Cultural trace detection (reads GroupKnowledge + Pattern, writes CulturalTrace)
+        systems.push_back({SimPhase::Analysis, std::make_unique<CulturalTraceDetectionSystem>(
+            ctx_.culturalTraces.dangerAvoidanceTrace,
+            PatternKey("human_evolution.collective_avoidance"),
+            ctx_.groupKnowledge.sharedDangerZone)});
+
         // Pattern detection (read-only observer)
         {
-            // Register Human Evolution pattern types
-            PatternRegistry::Instance().Register(
-                PatternKey("human_evolution.stable_fire_zone"), "stable_fire_zone");
-
             auto patternSys = std::make_unique<PatternDetectionSystem>();
             patternSys->AddDetector(std::make_unique<HighFrequencyPathDetector>(10));
 
@@ -238,6 +278,15 @@ public:
             massDeathCfg.threshold = 3;
             massDeathCfg.cooldownTicks = 50;
             historySys->AddDetector(std::make_unique<MassDeathDetector>(std::move(massDeathCfg)));
+
+            // Social emergence milestones (fires once per type)
+            historySys->AddDetector(std::make_unique<SocialHistoryDetector>(
+                HistoryKey("human_evolution.first_shared_danger_memory"),
+                HistoryKey("human_evolution.first_collective_avoidance"),
+                HistoryKey("human_evolution.first_danger_avoidance_trace"),
+                ctx_.groupKnowledge.sharedDangerZone,
+                PatternKey("human_evolution.collective_avoidance"),
+                ctx_.culturalTraces.dangerAvoidanceTrace));
 
             systems.push_back({SimPhase::History, std::move(historySys)});
         }
@@ -403,6 +452,8 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionImitationObservationSystem>(ctx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<GroupKnowledgeAwarenessSystem>(
+        ctx.concepts.groupDangerEvidence, ctx.groupKnowledge.sharedDangerZone));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>(memoryPolicyPtr));
 
@@ -415,6 +466,28 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
 
     scheduler.AddSystem(SimPhase::Analysis,    std::make_unique<GroupKnowledgeAggregationSystem>(
         ctx.concepts, ctx.groupKnowledge.sharedDangerZone));
+
+    scheduler.AddSystem(SimPhase::Analysis,    std::make_unique<CollectiveAvoidanceSystem>(
+        ctx.socialPatterns.collectiveAvoidance,
+        PatternKey("human_evolution.collective_avoidance"),
+        ctx.groupKnowledge.sharedDangerZone));
+
+    scheduler.AddSystem(SimPhase::Analysis,    std::make_unique<CulturalTraceDetectionSystem>(
+        ctx.culturalTraces.dangerAvoidanceTrace,
+        PatternKey("human_evolution.collective_avoidance"),
+        ctx.groupKnowledge.sharedDangerZone));
+
+    {
+        auto historySys = std::make_unique<HistoryDetectionSystem>();
+        historySys->AddDetector(std::make_unique<SocialHistoryDetector>(
+            HistoryKey("human_evolution.first_shared_danger_memory"),
+            HistoryKey("human_evolution.first_collective_avoidance"),
+            HistoryKey("human_evolution.first_danger_avoidance_trace"),
+            ctx.groupKnowledge.sharedDangerZone,
+            PatternKey("human_evolution.collective_avoidance"),
+            ctx.culturalTraces.dangerAvoidanceTrace));
+        scheduler.AddSystem(SimPhase::History, std::move(historySys));
+    }
 
     return scheduler;
 }

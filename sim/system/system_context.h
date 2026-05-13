@@ -6,7 +6,10 @@
 #include "sim/history/history_module.h"
 #include "sim/social/social_signal_module.h"
 #include "sim/cognitive/internal_state_baseline_module.h"
+#include "sim/cognitive/awareness_cooldown_module.h"
 #include "sim/group_knowledge/group_knowledge_module.h"
+#include "sim/pattern/pattern_temporal_state_module.h"
+#include "sim/cultural_trace/cultural_trace_module.h"
 
 // SystemContext: controlled access wrapper passed to every ISystem::Update().
 //
@@ -45,6 +48,12 @@ public:
           InternalStateBaselineModule& InternalStateBaselines()       { return world_.InternalStateBaselines(); }
     const GroupKnowledgeModule& GroupKnowledge() const { return world_.GroupKnowledge(); }
           GroupKnowledgeModule& GroupKnowledge()       { return world_.GroupKnowledge(); }
+    const PatternTemporalStateModule& PatternTemporalState() const { return world_.PatternTemporalState(); }
+          PatternTemporalStateModule& PatternTemporalState()       { return world_.PatternTemporalState(); }
+    const CulturalTraceModule& CulturalTrace() const { return world_.CulturalTrace(); }
+          CulturalTraceModule& CulturalTrace()       { return world_.CulturalTrace(); }
+    const AwarenessCooldownModule& AwarenessCooldown() const { return world_.AwarenessCooldown(); }
+          AwarenessCooldownModule& AwarenessCooldown()       { return world_.AwarenessCooldown(); }
 
     // Commands and Events
     CommandBuffer& Commands() { return world_.commands; }

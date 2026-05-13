@@ -9,6 +9,8 @@
 #include "sim/social/observed_action_registry.h"
 #include "sim/cognitive/concept_registry.h"
 #include "sim/group_knowledge/group_knowledge_registry.h"
+#include "sim/pattern/pattern_registry.h"
+#include "sim/cultural_trace/cultural_trace_registry.h"
 #include <vector>
 #include <memory>
 
@@ -92,6 +94,14 @@ public:
     // Register domain-specific group knowledge types with GroupKnowledgeRegistry.
     // Default: empty (no custom group knowledge types)
     virtual void RegisterGroupKnowledgeTypes(GroupKnowledgeRegistry&) {}
+
+    // Register domain-specific pattern types with PatternRegistry.
+    // Default: empty (no custom pattern types)
+    virtual void RegisterPatternTypes(PatternRegistry&) {}
+
+    // Register domain-specific cultural trace types with CulturalTraceRegistry.
+    // Default: empty (no custom cultural trace types)
+    virtual void RegisterCulturalTraceTypes(CulturalTraceRegistry&) {}
 
     // --- System creation (called once during WorldState construction) ---
 

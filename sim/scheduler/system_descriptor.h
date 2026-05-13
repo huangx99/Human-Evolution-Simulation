@@ -26,8 +26,11 @@ enum class ModuleTag : uint8_t
     Event,          // EventBus
     Spatial,        // SpatialIndex
     Pattern,        // PatternModule (long-term structure detection)
+    PatternTemporalState, // PatternTemporalStateModule (derived detector state)
     History,        // HistoryModule (significant historical events)
     GroupKnowledge, // GroupKnowledgeModule (emergent shared knowledge)
+    CulturalTrace,  // CulturalTraceModule (derived cultural traces)
+    AwarenessCooldown, // AwarenessCooldownModule (cognitive awareness cooldown)
     Count
 };
 

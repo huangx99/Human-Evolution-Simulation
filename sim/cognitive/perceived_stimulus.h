@@ -11,7 +11,8 @@ enum class SenseType : u8
     Touch,
     Sound,
     Thermal,
-    Internal
+    Internal,
+    Social   // social cognitive input (GroupKnowledge, CulturalTrace)
 };
 
 // PerceivedStimulus: what an agent subjectively perceives.

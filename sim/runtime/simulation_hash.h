@@ -295,6 +295,19 @@ inline u64 ComputeWorldHash(const WorldState& world, HashTier tier)
             HashGroupKnowledgeRecord(h, r);
     }
 
+    // Awareness cooldown records
+    {
+        const auto& ac = world.AwarenessCooldown();
+        h.FeedU64(static_cast<u64>(ac.records.size()));
+        for (const auto& r : ac.records)
+        {
+            h.FeedU64(r.agentId);
+            h.FeedU64(r.sourceRecordId);
+            h.FeedU64(r.concept.index);
+            h.FeedU64(r.lastEmittedTick);
+        }
+    }
+
     if (tier == HashTier::Full)
         return h.value;
 

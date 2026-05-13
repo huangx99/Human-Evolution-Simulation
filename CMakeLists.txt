@@ -59,6 +59,10 @@ add_executable(human_evolution_tests
     app/tests/imitation_runtime_test.cpp
     app/tests/internal_state_test.cpp
     app/tests/group_knowledge_test.cpp
+    app/tests/collective_avoidance_test.cpp
+    app/tests/cultural_trace_test.cpp
+    app/tests/social_history_test.cpp
+    app/tests/group_knowledge_awareness_test.cpp
 )
 target_link_libraries(human_evolution_tests
     human_evolution_core

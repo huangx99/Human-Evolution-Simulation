@@ -7,6 +7,8 @@
 #include "sim/social/observed_action_id.h"
 #include "sim/cognitive/concept_id.h"
 #include "sim/group_knowledge/group_knowledge_id.h"
+#include "sim/pattern/pattern_id.h"
+#include "sim/cultural_trace/cultural_trace_id.h"
 
 // HumanEvolutionContext: RulePack-specific context for the Human Evolution world.
 //
@@ -33,6 +35,9 @@ struct HistoryContext
 {
     HistoryTypeId firstStableFireUsage;
     HistoryTypeId massDeath;
+    HistoryTypeId firstSharedDangerMemory;
+    HistoryTypeId firstCollectiveAvoidance;
+    HistoryTypeId firstDangerAvoidanceTrace;
 };
 
 // Social signal type ids (registered via RegisterSocialSignals)
@@ -113,6 +118,9 @@ struct ConceptContext
     ConceptTypeId fear;
     ConceptTypeId curiosity;
     ConceptTypeId trust;
+
+    // Group knowledge awareness
+    ConceptTypeId groupDangerEvidence;
 };
 
 // Group knowledge type ids (registered via RegisterGroupKnowledgeTypes)
@@ -120,6 +128,18 @@ struct GroupKnowledgeContext
 {
     GroupKnowledgeTypeId sharedDangerZone;
     GroupKnowledgeTypeId sharedFireBenefit;
+};
+
+// Social pattern type ids (registered via RegisterPatternTypes)
+struct SocialPatternContext
+{
+    PatternTypeId collectiveAvoidance;
+};
+
+// Cultural trace type ids (registered via RegisterCulturalTraceTypes)
+struct CulturalTraceContext
+{
+    CulturalTraceTypeId dangerAvoidanceTrace;
 };
 
 // Future extensions (uncomment when needed):
@@ -138,4 +158,6 @@ public:
     HumanEvolution::ObservedActionContext observedActions;
     HumanEvolution::ConceptContext concepts;
     HumanEvolution::GroupKnowledgeContext groupKnowledge;
+    HumanEvolution::SocialPatternContext socialPatterns;
+    HumanEvolution::CulturalTraceContext culturalTraces;
 };
