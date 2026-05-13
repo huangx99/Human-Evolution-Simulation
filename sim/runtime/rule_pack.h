@@ -7,6 +7,7 @@
 #include "sim/history/history_registry.h"
 #include "sim/social/social_signal_registry.h"
 #include "sim/social/observed_action_registry.h"
+#include "sim/cognitive/concept_registry.h"
 #include <vector>
 #include <memory>
 
@@ -59,9 +60,9 @@ public:
     // Pure virtual: every RulePack must provide a context.
     virtual IRuleContext& GetContext() = 0;
 
-    // Register concept tags (mental models agents can form)
+    // Register concept tags (mental models agents can form) with ConceptTypeRegistry.
     // Default: empty (no custom concepts)
-    virtual void RegisterConcepts() {}
+    virtual void RegisterConcepts(ConceptTypeRegistry&) {}
 
     // Register sense channels (perception modalities)
     // Default: empty (use engine defaults)

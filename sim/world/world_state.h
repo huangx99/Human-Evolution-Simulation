@@ -14,6 +14,7 @@
 #include "sim/social/social_signal_registry.h"
 #include "sim/social/observed_action_registry.h"
 #include "sim/cognitive/internal_state_baseline_module.h"
+#include "sim/cognitive/concept_registry.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command_buffer.h"
 #include "sim/spatial/spatial_index.h"
@@ -54,6 +55,9 @@ struct WorldState
         // RulePack registers its observed action types
         rulePack.RegisterObservedActions(ObservedActionRegistry::Instance());
 
+        // RulePack registers its cognitive concepts
+        rulePack.RegisterConcepts(ConceptTypeRegistry::Instance());
+
         // Store RulePack context for snapshot/replay access
         ruleContext_ = &rulePack.GetContext();
 
@@ -93,6 +97,7 @@ struct WorldState
         rulePack.RegisterHistoryTypes(HistoryRegistry::Instance());
         rulePack.RegisterSocialSignals(SocialSignalRegistry::Instance());
         rulePack.RegisterObservedActions(ObservedActionRegistry::Instance());
+        rulePack.RegisterConcepts(ConceptTypeRegistry::Instance());
         ruleContext_ = &rulePack.GetContext();
     }
 

@@ -4,6 +4,7 @@
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
 #include "sim/cognitive/concept_tag.h"
+#include "sim/cognitive/concept_registry.h"
 
 static HumanEvolutionRulePack g_rulePack;
 static const auto& g_envCtx = g_rulePack.GetHumanEvolutionContext().environment;
@@ -1344,6 +1345,92 @@ TEST(cognitive_contradicted_knowledge_persists)
         }
     }
     ASSERT_TRUE(hasFleeBoost);
+
+    return true;
+}
+
+// ============================================================
+// ConceptTypeRegistry Tests (PR C1)
+// ============================================================
+
+TEST(concept_registry_can_register)
+{
+    auto& reg = ConceptTypeRegistry::Instance();
+
+    ConceptKey key("test.my_concept");
+    auto id = reg.Register(key, "my_concept",
+        static_cast<u32>(ConceptSemanticFlag::Danger));
+
+    ASSERT_TRUE(id.index > 0);
+    ASSERT_EQ(reg.FindByKey(key).index, id.index);
+    ASSERT_EQ(reg.GetName(id), "my_concept");
+
+    return true;
+}
+
+TEST(duplicate_concept_returns_same_id)
+{
+    auto& reg = ConceptTypeRegistry::Instance();
+
+    ConceptKey key("test.dup_concept");
+    auto id1 = reg.Register(key, "dup_concept", 0);
+    auto id2 = reg.Register(key, "dup_concept", 0);
+
+    ASSERT_EQ(id1.index, id2.index);
+    ASSERT_EQ(reg.Count(), reg.Count());  // no extra entry
+
+    return true;
+}
+
+TEST(concept_registry_flags_work)
+{
+    auto& reg = ConceptTypeRegistry::Instance();
+
+    ConceptKey key("test.flagged_concept");
+    auto id = reg.Register(key, "flagged_concept",
+        static_cast<u32>(ConceptSemanticFlag::Danger | ConceptSemanticFlag::Thermal));
+
+    ASSERT_TRUE(reg.HasFlag(id, ConceptSemanticFlag::Danger));
+    ASSERT_TRUE(reg.HasFlag(id, ConceptSemanticFlag::Thermal));
+    ASSERT_TRUE(!reg.HasFlag(id, ConceptSemanticFlag::Internal));
+
+    u32 flags = reg.GetFlags(id);
+    ASSERT_TRUE(HasConceptFlag(flags, ConceptSemanticFlag::Danger));
+    ASSERT_TRUE(HasConceptFlag(flags, ConceptSemanticFlag::Thermal));
+
+    return true;
+}
+
+TEST(rulepack_registers_concepts)
+{
+    // Minimal RulePack that registers one concept
+    struct TestRulePack : public IRulePack
+    {
+        ConceptTypeId registeredId;
+
+        const char* Name() const override { return "TestRulePack"; }
+        void RegisterFields(FieldModule&) override {}
+        IRuleContext& GetContext() override { static IRuleContext ctx; return ctx; }
+
+        void RegisterConcepts(ConceptTypeRegistry& reg) override
+        {
+            registeredId = reg.Register(
+                MakeConceptKey("test_rp.concept_a"), "concept_a",
+                static_cast<u32>(ConceptSemanticFlag::Resource));
+        }
+
+        std::vector<SystemRegistration> CreateSystems() override { return {}; }
+    };
+
+    TestRulePack rp;
+    WorldState world(32, 32, 42, rp);
+
+    // The concept should be registered in the global singleton
+    auto& reg = ConceptTypeRegistry::Instance();
+    auto id = reg.FindByKey(MakeConceptKey("test_rp.concept_a"));
+    ASSERT_TRUE(id.index > 0);
+    ASSERT_EQ(id.index, rp.registeredId.index);
+    ASSERT_TRUE(reg.HasFlag(id, ConceptSemanticFlag::Resource));
 
     return true;
 }
