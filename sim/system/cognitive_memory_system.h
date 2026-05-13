@@ -20,10 +20,16 @@
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
 #include "sim/cognitive/concept_registry.h"
+#include "sim/cognitive/memory_inference_policy.h"
 
 class CognitiveMemorySystem : public ISystem
 {
 public:
+    CognitiveMemorySystem() = default;
+
+    explicit CognitiveMemorySystem(const IMemoryInferencePolicy* policy)
+        : policy_(policy) {}
+
     void Update(SystemContext& ctx) override
     {
         auto& world = ctx.World();
@@ -55,8 +61,15 @@ public:
             mem.lastReinforcedTick = sim.clock.currentTick;
             mem.sourceStimulusId = s.id;
 
-            // Infer result tags based on current agent state
-            InferResultTags(mem, s, world);
+            // Infer result tags via injected policy (domain-specific)
+            if (policy_)
+            {
+                auto* agent = world.Agents().Find(s.observerId);
+                if (agent)
+                    policy_->InferResultTags(s, agent->hunger,
+                                             agent->localTemperature,
+                                             mem.resultTags);
+            }
 
             // Store in persistent memory
             cog.GetAgentMemories(s.observerId).push_back(mem);
@@ -137,45 +150,5 @@ private:
         return 0.0f;
     }
 
-    // Infer what happened as a result of this perception.
-    // Uses semantic flags instead of domain-specific concept names.
-    void InferResultTags(MemoryRecord& mem, const PerceivedStimulus& s,
-                          WorldState& world)
-    {
-        const auto& reg = ConceptTypeRegistry::Instance();
-
-        // Find the agent
-        auto* agent = world.Agents().Find(s.observerId);
-        if (!agent) return;
-
-        // If agent is hungry and perceived edible resource, result is satiety
-        if (agent->hunger > 50.0f &&
-            reg.HasFlag(s.concept, ConceptSemanticFlag::Resource) &&
-            reg.HasFlag(s.concept, ConceptSemanticFlag::Organic))
-        {
-            // Look up satiety concept from the registry
-            auto satietyId = reg.FindByKey(MakeConceptKey("human_evolution.satiety"));
-            if (satietyId) mem.resultTags.push_back(satietyId);
-        }
-
-        // If agent was near fire-like danger and took damage, result includes pain
-        if (reg.HasFlag(s.concept, ConceptSemanticFlag::Danger) &&
-            reg.HasFlag(s.concept, ConceptSemanticFlag::Thermal) &&
-            agent->localTemperature > 50.0f)
-        {
-            auto painId = reg.FindByKey(MakeConceptKey("human_evolution.pain"));
-            auto burningId = reg.FindByKey(MakeConceptKey("human_evolution.burning"));
-            if (painId) mem.resultTags.push_back(painId);
-            if (burningId) mem.resultTags.push_back(burningId);
-        }
-
-        // If agent is cold and found warmth, result is comfort
-        if (agent->localTemperature < 10.0f &&
-            reg.HasFlag(s.concept, ConceptSemanticFlag::Positive) &&
-            reg.HasFlag(s.concept, ConceptSemanticFlag::Thermal))
-        {
-            auto comfortId = reg.FindByKey(MakeConceptKey("human_evolution.comfort"));
-            if (comfortId) mem.resultTags.push_back(comfortId);
-        }
-    }
+    const IMemoryInferencePolicy* policy_ = nullptr;
 };

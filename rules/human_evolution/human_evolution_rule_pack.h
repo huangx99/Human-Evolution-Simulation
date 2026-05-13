@@ -13,6 +13,7 @@
 #include "sim/system/cognitive_attention_system.h"
 #include "sim/system/cognitive_memory_system.h"
 #include "sim/system/cognitive_discovery_system.h"
+#include "rules/human_evolution/systems/human_evolution_memory_inference_policy.h"
 #include "sim/system/cognitive_knowledge_system.h"
 #include "sim/system/social_signal_decay_system.h"
 #include "rules/human_evolution/systems/agent_decision_system.h"
@@ -157,6 +158,7 @@ public:
 
     std::vector<SystemRegistration> CreateSystems() override
     {
+        memoryPolicy_ = std::make_unique<HumanEvolutionMemoryInferencePolicy>(ctx_.concepts);
         std::vector<SystemRegistration> systems;
 
         // Environment (constructor-injected EnvironmentContext)
@@ -172,7 +174,7 @@ public:
         systems.push_back({SimPhase::Perception,  std::make_unique<HumanEvolutionImitationObservationSystem>(ctx_)});
         systems.push_back({SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>(ctx_.concepts)});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>()});
-        systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>()});
+        systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>(memoryPolicy_.get())});
 
         // Decision pipeline
         systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(BuildDiscoveryRules())});
@@ -235,6 +237,7 @@ public:
 
 private:
     HumanEvolutionContext ctx_;
+    std::unique_ptr<HumanEvolutionMemoryInferencePolicy> memoryPolicy_;
 
     std::vector<DiscoveryRule> BuildDiscoveryRules() const
     {
