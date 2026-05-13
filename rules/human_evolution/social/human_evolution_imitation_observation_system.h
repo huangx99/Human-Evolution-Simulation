@@ -9,6 +9,9 @@
 // NOT a command system. NOT behavior copying.
 // Only writes CognitiveModule.frameStimuli.
 //
+// Uses ctx_.observedActions.observedFlee (registered via RegisterObservedActions)
+// instead of hardcoded ObservedActionKind enum.
+//
 // OWNERSHIP: RulePack (rules/human_evolution/social/)
 // READS: Agent, Simulation
 // WRITES: Cognitive (frameStimuli)
@@ -74,7 +77,7 @@ public:
                     bestScore = score;
                     bestObserved.observerEntityId = observer.id;
                     bestObserved.actorEntityId = actor.id;
-                    bestObserved.kind = ObservedActionKind::Flee;
+                    bestObserved.typeId = ctx_.observedActions.observedFlee;
                     bestObserved.observedTick = now;
                     bestObserved.origin = actor.position;
                     bestObserved.visibility = visibility;

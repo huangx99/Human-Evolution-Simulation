@@ -4,6 +4,7 @@
 #include "sim/runtime/rule_context.h"
 #include "sim/history/history_id.h"
 #include "sim/social/social_signal_id.h"
+#include "sim/social/observed_action_id.h"
 
 // HumanEvolutionContext: RulePack-specific context for the Human Evolution world.
 //
@@ -39,6 +40,12 @@ struct SocialContext
     SocialSignalTypeId deathWarning;
 };
 
+// Observed action type ids (registered via RegisterObservedActions)
+struct ObservedActionContext
+{
+    ObservedActionTypeId observedFlee;
+};
+
 // Future extensions (uncomment when needed):
 // struct AgentContext { ... };
 // struct CognitiveContext { ... };
@@ -52,4 +59,5 @@ public:
     HumanEvolution::EnvironmentContext environment;
     HumanEvolution::HistoryContext history;
     HumanEvolution::SocialContext social;
+    HumanEvolution::ObservedActionContext observedActions;
 };

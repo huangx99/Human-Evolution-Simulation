@@ -73,6 +73,12 @@ public:
             MakeSocialSignalKey("human_evolution.death_warning"), "death_warning");
     }
 
+    void RegisterObservedActions(ObservedActionRegistry& registry) override
+    {
+        ctx_.observedActions.observedFlee = registry.Register(
+            MakeObservedActionKey("human_evolution.observed_flee"), "observed_flee");
+    }
+
     IRuleContext& GetContext() override { return ctx_; }
 
     std::vector<SystemRegistration> CreateSystems() override

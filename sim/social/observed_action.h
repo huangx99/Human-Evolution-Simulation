@@ -2,27 +2,23 @@
 
 // ObservedAction: lightweight struct for agent-to-agent behavior observation.
 //
-// Used by ImitationObservationSystem to represent "observer saw actor do X".
-// NOT persisted, NOT hashed — only a transient input to PerceivedStimulus generation.
+// Used by rule-pack systems (e.g. ImitationObservationSystem) to represent
+// "observer saw actor do X". NOT persisted, NOT hashed — only a transient
+// input to PerceivedStimulus generation.
 //
-// Uses ObservedActionKind instead of AgentAction to decouple from
-// agent state changes. Phase 2.1 only needs Flee.
+// The action type is identified by ObservedActionTypeId, which is registered
+// by the RulePack via IRulePack::RegisterObservedActions(). The engine layer
+// does NOT contain any domain-specific action kinds (no Flee, GatherNearFire, etc.).
 
 #include "core/types/types.h"
-
-enum class ObservedActionKind : u8
-{
-    Unknown = 0,
-    Flee,
-    GatherNearFire
-};
+#include "sim/social/observed_action_id.h"
 
 struct ObservedAction
 {
     EntityId observerEntityId = 0;
     EntityId actorEntityId = 0;
 
-    ObservedActionKind kind = ObservedActionKind::Unknown;
+    ObservedActionTypeId typeId;
 
     Tick observedTick = 0;
     Vec2i origin;

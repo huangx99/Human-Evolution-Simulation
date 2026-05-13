@@ -6,6 +6,7 @@
 #include "sim/runtime/rule_context.h"
 #include "sim/history/history_registry.h"
 #include "sim/social/social_signal_registry.h"
+#include "sim/social/observed_action_registry.h"
 #include <vector>
 #include <memory>
 
@@ -81,6 +82,10 @@ public:
     // Register domain-specific social signal types with SocialSignalRegistry.
     // Default: empty (no custom social signal types)
     virtual void RegisterSocialSignals(SocialSignalRegistry&) {}
+
+    // Register domain-specific observed action types with ObservedActionRegistry.
+    // Default: empty (no custom observed action types)
+    virtual void RegisterObservedActions(ObservedActionRegistry&) {}
 
     // --- System creation (called once during WorldState construction) ---
 

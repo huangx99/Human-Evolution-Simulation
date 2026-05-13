@@ -1,6 +1,8 @@
 #include "sim/world/world_state.h"
 #include "sim/social/social_signal_registry.h"
 #include "sim/social/social_signal_module.h"
+#include "sim/social/observed_action_registry.h"
+#include "sim/social/observed_action.h"
 #include "sim/runtime/simulation_hash.h"
 #include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "test_framework.h"
@@ -231,6 +233,58 @@ TEST(same_active_social_signal_produces_same_full_hash)
 
     ASSERT_EQ(ComputeWorldHash(a, HashTier::Full),
               ComputeWorldHash(b, HashTier::Full));
+
+    return true;
+}
+
+// === ObservedAction Registry Tests ===
+
+// Test: ObservedActionRegistry can register and lookup types
+TEST(observed_action_registry_can_register)
+{
+    ObservedActionKey key("test.my_action");
+    auto& reg = ObservedActionRegistry::Instance();
+    auto id = reg.Register(key, "my_action");
+
+    ASSERT_TRUE(id.index > 0);
+    ASSERT_EQ(reg.FindByKey(key), id);
+    ASSERT_EQ(reg.GetName(id), "my_action");
+
+    // Idempotent: same key returns same id
+    auto id2 = reg.Register(key, "my_action");
+    ASSERT_EQ(id.index, id2.index);
+
+    return true;
+}
+
+// Test: HumanEvolutionRulePack registers observed_flee
+TEST(rulepack_registers_observed_flee_action)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    ASSERT_TRUE(ctx.observedActions.observedFlee.index > 0);
+
+    // Verify it's findable in the registry
+    auto& reg = ObservedActionRegistry::Instance();
+    ObservedActionKey expectedKey("human_evolution.observed_flee");
+    ASSERT_EQ(reg.FindByKey(expectedKey), ctx.observedActions.observedFlee);
+
+    return true;
+}
+
+// Test: Engine ObservedAction struct uses typeId, not hardcoded kind
+TEST(engine_observed_action_uses_type_id)
+{
+    // Compile-time proof: ObservedAction has typeId (ObservedActionTypeId),
+    // not kind (ObservedActionKind). If ObservedActionKind still existed,
+    // the old code that referenced it would fail to compile.
+    ObservedAction action;
+    ObservedActionTypeId tid;
+    tid.index = 1;
+    action.typeId = tid;
+    ASSERT_EQ(action.typeId.index, 1);
 
     return true;
 }
