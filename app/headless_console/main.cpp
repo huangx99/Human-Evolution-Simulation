@@ -4,10 +4,10 @@
 #include "rules/human_evolution/environment/climate_system.h"
 #include "rules/human_evolution/environment/fire_system.h"
 #include "rules/human_evolution/environment/smell_system.h"
-#include "sim/system/agent_perception_system.h"
+#include "rules/human_evolution/systems/agent_perception_system.h"
+#include "rules/human_evolution/systems/agent_action_system.h"
+#include "rules/human_evolution/systems/cognitive_perception_system.h"
 #include "sim/system/agent_decision_system.h"
-#include "sim/system/agent_action_system.h"
-#include "sim/system/cognitive_perception_system.h"
 #include "sim/system/cognitive_attention_system.h"
 #include "sim/system/cognitive_memory_system.h"
 #include "sim/system/cognitive_discovery_system.h"
@@ -51,11 +51,11 @@ RunConfig ParseArgs(int argc, char* argv[])
     return cfg;
 }
 
-void PrintWorldState(const WorldState& world, i32 interval)
+void PrintWorldState(const WorldState& world, const HumanEvolution::EnvironmentContext& envCtx, i32 interval)
 {
     if (world.Sim().clock.currentTick % interval != 0) return;
 
-    auto& env = world.Env();
+    const auto& fm = world.Fields();
     auto& agentMod = world.Agents();
     auto& cog = world.Cognitive();
 
@@ -64,10 +64,10 @@ void PrintWorldState(const WorldState& world, i32 interval)
     i32 cx = world.Width() / 2;
     i32 cy = world.Height() / 2;
     std::cout << "Temperature (center): " << std::fixed << std::setprecision(1)
-              << env.env0.At(cx, cy) << " C" << std::endl;
-    std::cout << "Humidity (center): " << env.env1.At(cx, cy) << "%" << std::endl;
+              << fm.Read(envCtx.temperature, cx, cy) << " C" << std::endl;
+    std::cout << "Humidity (center): " << fm.Read(envCtx.humidity, cx, cy) << "%" << std::endl;
     std::cout << "Wind: (" << std::fixed << std::setprecision(2)
-              << env.env3.Read() << ", " << env.env4.Read() << ")" << std::endl;
+              << fm.Read(envCtx.windX, 0, 0) << ", " << fm.Read(envCtx.windY, 0, 0) << ")" << std::endl;
 
     i32 fireCount = 0;
     f32 maxFire = 0.0f;
@@ -75,7 +75,7 @@ void PrintWorldState(const WorldState& world, i32 interval)
     {
         for (i32 x = 0; x < world.Width(); x++)
         {
-            f32 f = env.env2.At(x, y);
+            f32 f = fm.Read(envCtx.fire, x, y);
             if (f > 0.0f) { fireCount++; if (f > maxFire) maxFire = f; }
         }
     }
@@ -104,7 +104,6 @@ void PrintWorldState(const WorldState& world, i32 interval)
         if (!mems.empty())
         {
             std::cout << "  memories=" << mems.size();
-            // Show strongest memory
             const MemoryRecord* strongest = &mems[0];
             for (const auto& m : mems)
             {
@@ -117,7 +116,6 @@ void PrintWorldState(const WorldState& world, i32 interval)
             std::cout << std::endl;
         }
 
-        // Knowledge graph dump
         std::string knowledgeDump = cog.knowledgeGraph.Dump(agent.id);
         if (!knowledgeDump.empty())
         {
@@ -159,14 +157,16 @@ int main(int argc, char* argv[])
 
     HumanEvolutionRulePack rulePack;
     WorldState world(32, 32, cfg.seed, rulePack);
+    const auto& envCtx = rulePack.GetHumanEvolutionContext().environment;
+    auto& fm = world.Fields();
 
-    world.Env().env2.WriteNext(16, 16) = 80.0f;
-    world.Env().env2.WriteNext(17, 16) = 60.0f;
-    world.Env().env2.WriteNext(16, 17) = 60.0f;
-    world.Env().env2.WriteNext(15, 16) = 40.0f;
-    world.Env().env2.WriteNext(8, 8) = 60.0f;
-    world.Env().env2.WriteNext(9, 8) = 40.0f;
-    world.Env().env2.Swap();
+    fm.WriteNext(envCtx.fire, 16, 16, 80.0f);
+    fm.WriteNext(envCtx.fire, 17, 16, 60.0f);
+    fm.WriteNext(envCtx.fire, 16, 17, 60.0f);
+    fm.WriteNext(envCtx.fire, 15, 16, 40.0f);
+    fm.WriteNext(envCtx.fire, 8, 8, 60.0f);
+    fm.WriteNext(envCtx.fire, 9, 8, 40.0f);
+    fm.SwapAll();
 
     world.SpawnAgent(5, 5);
     world.SpawnAgent(10, 20);
@@ -275,10 +275,10 @@ int main(int argc, char* argv[])
     scheduler.AddSystem(SimPhase::Reaction,     std::move(reactionSys));
 
     // Phase 1: runtime perception + decision + action
-    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<AgentPerceptionSystem>());
+    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<AgentPerceptionSystem>(envCtx));
 
     // Phase 2: cognitive pipeline (perception → attention → memory)
-    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitivePerceptionSystem>());
+    scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitivePerceptionSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitiveAttentionSystem>());
     scheduler.AddSystem(SimPhase::Perception,   std::make_unique<CognitiveMemorySystem>());
 
@@ -288,7 +288,7 @@ int main(int argc, char* argv[])
 
     // Phase 1: runtime decision + action
     scheduler.AddSystem(SimPhase::Decision,     std::make_unique<AgentDecisionSystem>());
-    scheduler.AddSystem(SimPhase::Action,       std::make_unique<AgentActionSystem>());
+    scheduler.AddSystem(SimPhase::Action,       std::make_unique<AgentActionSystem>(envCtx));
 
     // Phase 2: social learning (after actions, so it can observe results)
     scheduler.AddSystem(SimPhase::Action,       std::make_unique<CognitiveSocialSystem>());
@@ -300,12 +300,12 @@ int main(int argc, char* argv[])
     {
         scheduler.Tick(world);
         if (!cfg.quiet)
-            PrintWorldState(world, printInterval);
+            PrintWorldState(world, envCtx, printInterval);
     }
 
     if (!cfg.dumpPath.empty())
     {
-        WorldSnapshot snap = WorldSnapshot::Capture(world);
+        WorldSnapshot snap = WorldSnapshot::Capture(world, envCtx);
         std::string data = snap.Serialize();
         std::ofstream ofs(cfg.dumpPath);
         if (ofs.is_open())

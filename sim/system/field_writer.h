@@ -3,10 +3,10 @@
 #include "sim/field/field_module.h"
 
 // FieldWriter: controlled write access to simulation fields.
-// Systems read through const module accessors (ctx.Env(), ctx.Info()).
+// Systems read through const FieldModule (ctx.GetFieldModule()).
 // Systems write through FieldWriter (ctx.Fields().WriteNext()).
 //
-// Phase 1.1-b: delegates to FieldModule. Legacy named accessors removed.
+// Delegates to FieldModule.
 
 class FieldWriter
 {

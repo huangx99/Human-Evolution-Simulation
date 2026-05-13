@@ -30,8 +30,10 @@ struct IgniteFireCommand : public CommandBase
 
     void Execute(WorldState& world) const override
     {
-        if (world.Env().env2.InBounds(x, y))
-            world.Env().env2.WriteNext(x, y) = intensity;
+        auto& fm = world.Fields();
+        auto idx = fm.FindByKey(FieldKey("human_evolution.fire"));
+        if (idx && fm.InBounds(idx, x, y))
+            fm.WriteNext(idx, x, y, intensity);
     }
 
     std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<IgniteFireCommand>(*this); }
@@ -57,8 +59,10 @@ struct ExtinguishFireCommand : public CommandBase
 
     void Execute(WorldState& world) const override
     {
-        if (world.Env().env2.InBounds(x, y))
-            world.Env().env2.WriteNext(x, y) = 0.0f;
+        auto& fm = world.Fields();
+        auto idx = fm.FindByKey(FieldKey("human_evolution.fire"));
+        if (idx && fm.InBounds(idx, x, y))
+            fm.WriteNext(idx, x, y, 0.0f);
     }
 
     std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<ExtinguishFireCommand>(*this); }
@@ -85,8 +89,10 @@ struct EmitSmellCommand : public CommandBase
 
     void Execute(WorldState& world) const override
     {
-        if (world.Info().info0.InBounds(x, y))
-            world.Info().info0.WriteNext(x, y) += amount;
+        auto& fm = world.Fields();
+        auto idx = fm.FindByKey(FieldKey("human_evolution.smell"));
+        if (idx && fm.InBounds(idx, x, y))
+            fm.WriteNext(idx, x, y, fm.Read(idx, x, y) + amount);
     }
 
     std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<EmitSmellCommand>(*this); }
@@ -113,8 +119,10 @@ struct SetDangerCommand : public CommandBase
 
     void Execute(WorldState& world) const override
     {
-        if (world.Info().info1.InBounds(x, y))
-            world.Info().info1.WriteNext(x, y) = value;
+        auto& fm = world.Fields();
+        auto idx = fm.FindByKey(FieldKey("human_evolution.danger"));
+        if (idx && fm.InBounds(idx, x, y))
+            fm.WriteNext(idx, x, y, value);
     }
 
     std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<SetDangerCommand>(*this); }
@@ -141,8 +149,10 @@ struct EmitSmokeCommand : public CommandBase
 
     void Execute(WorldState& world) const override
     {
-        if (world.Info().info2.InBounds(x, y))
-            world.Info().info2.WriteNext(x, y) += amount;
+        auto& fm = world.Fields();
+        auto idx = fm.FindByKey(FieldKey("human_evolution.smoke"));
+        if (idx && fm.InBounds(idx, x, y))
+            fm.WriteNext(idx, x, y, fm.Read(idx, x, y) + amount);
     }
 
     std::unique_ptr<CommandBase> Clone() const override { return std::make_unique<EmitSmokeCommand>(*this); }

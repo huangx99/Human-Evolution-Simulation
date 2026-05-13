@@ -23,14 +23,15 @@ Phase end: unified apply. Next phase: commands visible.
 ## Law 2: Stable Command Identity
 
 ```
-Every command has a CommandKind : u16 that NEVER changes.
-Variant index is an implementation detail.
+Every command inherits from CommandBase and has a stable CommandKind : u16 that NEVER changes.
+Command is type-erased via CommandBase* — never depend on RTTI, typeid, or variant index.
 Serialization, replay, and network must use CommandKind.
+RulePack commands register factories via CommandRegistry.
 ```
 
-**Why**: If command IDs change when the variant order changes, replay files break, network sync breaks, and hash chains break.
+**Why**: Commands use virtual dispatch (CommandBase + unique_ptr) rather than std::variant to support RulePack extension without modifying engine code. The CommandKind enum is the only stable identity — it persists across versions for replay, hash, and network. RTTI/typeid are non-portable and fragile across compilation units.
 
-**Enforcement**: `GetCommandKind(const Command&)` in `sim/command/command.h` is the single source of truth for command→ID mapping.
+**Enforcement**: `CommandBase::GetKind()` returns the stable `CommandKind`. `CommandRegistry` maps `CommandKind` → deserialization factory. World-specific commands (IgniteFire, EmitSmell, etc.) are defined in `rules/` and registered by RulePack, never in `sim/`.
 
 ---
 

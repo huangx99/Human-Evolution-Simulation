@@ -2,6 +2,7 @@
 
 #include "core/types/types.h"
 #include "sim/world/world_state.h"
+#include "rules/human_evolution/human_evolution_context.h"
 #include "sim/cognitive/concept_tag.h"
 #include "sim/cognitive/memory_record.h"
 #include <vector>
@@ -168,14 +169,16 @@ struct WorldSnapshot
     // Cognitive state
     CognitiveSnapshot cognitive;
 
-    static WorldSnapshot Capture(const WorldState& world)
+    static WorldSnapshot Capture(const WorldState& world, const HumanEvolution::EnvironmentContext& envCtx)
     {
         WorldSnapshot snap;
         snap.tick = world.Sim().clock.currentTick;
         snap.width = world.Width();
         snap.height = world.Height();
-        snap.windX = world.Env().env3.Read();
-        snap.windY = world.Env().env4.Read();
+
+        const auto& fm = world.Fields();
+        snap.windX = fm.Read(envCtx.windX, 0, 0);
+        snap.windY = fm.Read(envCtx.windY, 0, 0);
 
         const u64* rstate = world.Sim().random.GetState();
         snap.randomState[0] = rstate[0];
@@ -186,15 +189,15 @@ struct WorldSnapshot
         {
             for (i32 x = 0; x < snap.width; x++)
             {
-                f32 f = world.Env().env2.At(x, y);
-                f32 s = world.Info().info0.At(x, y);
-                f32 d = world.Info().info1.At(x, y);
+                f32 f = fm.Read(envCtx.fire, x, y);
+                f32 s = fm.Read(envCtx.smell, x, y);
+                f32 d = fm.Read(envCtx.danger, x, y);
                 if (f > 0.0f || s > 1.0f || d > 0.0f)
                 {
                     snap.hotCells.push_back({
                         x, y,
-                        world.Env().env0.At(x, y),
-                        world.Env().env1.At(x, y),
+                        fm.Read(envCtx.temperature, x, y),
+                        fm.Read(envCtx.humidity, x, y),
                         f, s, d
                     });
                 }
@@ -474,14 +477,6 @@ struct WorldSnapshot
                << " trm=" << acs.traumaCount
                << " hyp=" << acs.hypothesisCount
                << " kn=" << acs.knowledgeNodeCount << "\n";
-        }
-
-        // Knowledge edges (if any)
-        if (cognitive.totalKnowledgeEdges > 0)
-        {
-            // Note: we'd need the full KnowledgeGraph to serialize edges,
-            // which isn't available through the snapshot.
-            // For now, just show the count.
         }
 
         return os.str();

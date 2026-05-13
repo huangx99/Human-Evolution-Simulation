@@ -11,10 +11,16 @@ void MoveAgentCommand::Execute(WorldState& world) const
     {
         if (agent.id == id)
         {
-            if (world.Env().env0.InBounds(x, y))
+            // Bounds check using first registered field (any spatial field works)
+            auto& fm = world.Fields();
+            if (fm.FieldCount() > 0)
             {
-                agent.position.x = x;
-                agent.position.y = y;
+                FieldIndex firstField(1);
+                if (fm.InBounds(firstField, x, y))
+                {
+                    agent.position.x = x;
+                    agent.position.y = y;
+                }
             }
             break;
         }

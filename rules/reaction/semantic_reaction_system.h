@@ -10,8 +10,8 @@
 #include <cmath>
 
 // OWNERSHIP: Rule (rules/reaction/)
-// READS: EcologyModule (entities), EnvironmentModule (temperature, humidity, fire), InformationModule (smell, danger, smoke), SimulationModule (random, clock)
-// WRITES: EcologyModule (entity state, capabilities) via CommandBuffer, InformationModule (smell, smoke) via CommandBuffer, EnvironmentModule (fire, temperature) via CommandBuffer
+// READS: EcologyModule (entities), FieldModule (via FieldKey lookup), SimulationModule (random, clock)
+// WRITES: EcologyModule (entity state, capabilities) via CommandBuffer, fields via CommandBuffer
 // PHASE: SimPhase::Reaction
 
 class SemanticReactionSystem : public ISystem
@@ -163,9 +163,6 @@ private:
     bool EvaluatePredicate(WorldState& world, i32 x, i32 y,
                            const SemanticPredicate& pred, const SpatialIndex& spatial)
     {
-        auto& env = world.Env();
-        auto& info = world.Info();
-
         switch (pred.type)
         {
         case PredicateType::HasCapability:

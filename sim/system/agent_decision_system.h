@@ -11,7 +11,7 @@
 // hunger + smell). Knowledge-driven behavior comes from modifiers.
 //
 // OWNERSHIP: Engine (sim/system/)
-// READS: AgentModule (agents), CognitiveModule (GenerateDecisionModifiers), EnvironmentModule (fire), InformationModule (smell)
+// READS: AgentModule (agents), CognitiveModule (GenerateDecisionModifiers)
 // WRITES: AgentModule (currentAction) via CommandBuffer (SetAgentActionCommand)
 // PHASE: SimPhase::Decision
 

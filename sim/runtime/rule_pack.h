@@ -3,6 +3,7 @@
 #include "sim/scheduler/phase.h"
 #include "sim/system/i_system.h"
 #include "sim/field/field_module.h"
+#include "sim/runtime/rule_context.h"
 #include <vector>
 #include <memory>
 
@@ -15,33 +16,11 @@ struct SystemRegistration
     std::unique_ptr<ISystem> system;
 };
 
-// FieldBindings: generic indexed field role mapping.
-// The Engine uses these bindings to construct EnvironmentModule / InformationModule
-// without knowing any semantic role names (temperature, fire, smell, etc.).
-// Each RulePack maps its own semantic roles to these generic indices.
-//
-// EnvironmentModule field slots:
-//   env0, env1, env2 = spatial 2D fields (FieldRef)
-//   env3, env4       = scalar fields (ScalarFieldRef)
-//
-// InformationModule field slots:
-//   info0, info1, info2 = spatial 2D fields (FieldRef)
-
-struct FieldBindings
-{
-    // EnvironmentModule: 3 spatial + 2 scalar
-    FieldKey env0, env1, env2;   // spatial 2D
-    FieldKey env3, env4;         // scalar
-
-    // InformationModule: 3 spatial
-    FieldKey info0, info1, info2;  // spatial 2D
-};
-
 // IRulePack: the boundary between Engine and world-specific rules.
 //
 // A RulePack defines WHAT the simulation contains:
 //   - Fields (temperature, fire, smell, ...)
-//   - Field bindings (which field plays which semantic role)
+//   - Context (field indices, config, tables — via IRuleContext subclass)
 //   - Concepts (mental models agents form)
 //   - Senses (perception channels)
 //   - Events (domain-specific event types)
@@ -72,10 +51,10 @@ public:
     // Pure virtual: every RulePack must define its fields.
     virtual void RegisterFields(FieldModule& fields) = 0;
 
-    // Return field bindings: which FieldKey plays which semantic role.
-    // Used by the Engine to construct EnvironmentModule / InformationModule.
-    // Pure virtual: every RulePack must define its bindings.
-    virtual FieldBindings BindFields() const = 0;
+    // Return the RulePack-specific context (field indices, config, tables).
+    // The Engine stores this as IRuleContext* for snapshot/replay access.
+    // Pure virtual: every RulePack must provide a context.
+    virtual IRuleContext& GetContext() = 0;
 
     // Register concept tags (mental models agents can form)
     // Default: empty (no custom concepts)

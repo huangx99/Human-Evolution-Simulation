@@ -27,8 +27,8 @@ struct FieldEntry
 // FieldModule: dynamic field registry and owner.
 //
 // All simulation fields (temperature, fire, smell, etc.) are registered here.
-// FieldModule OWNS the Field2D instances. EnvironmentModule/InformationModule
-// become thin wrappers that reference FieldModule data during the transition.
+// FieldModule OWNS the Field2D instances. RulePack context holds FieldIndex
+// references for system access.
 //
 // FieldIndex is a compact 1-based index assigned at registration time.
 // FieldKey is a stable hash of the namespaced field name, used for persistence.
@@ -91,7 +91,7 @@ public:
             e.scalarValue = value;
     }
 
-    // Returns a mutable reference into the next buffer (for FieldRef aliasing)
+    // Returns a mutable reference into the next buffer
     f32& WriteNextRef(FieldIndex id, i32 x, i32 y)
     {
         auto& e = entries_[id.index - 1];
@@ -164,7 +164,7 @@ public:
         }
     }
 
-    // Swap a single field's double buffers (for FieldRef::Swap)
+    // Swap a single field's double buffers
     void SwapField(FieldIndex id)
     {
         auto& e = entries_[id.index - 1];

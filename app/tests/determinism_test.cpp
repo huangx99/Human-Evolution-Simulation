@@ -8,30 +8,31 @@
 #include "api/snapshot/world_snapshot.h"
 
 static HumanEvolutionRulePack g_rulePack;
+static const auto& g_envCtx = g_rulePack.GetHumanEvolutionContext().environment;
 
 static WorldSnapshot RunSimulation(u64 seed, i32 ticks)
 {
     WorldState world(32, 32, seed);
     world.Init(g_rulePack);
 
-    world.Env().env2.WriteNext(16, 16) = 80.0f;
-    world.Env().env2.WriteNext(17, 16) = 60.0f;
-    world.Env().env2.WriteNext(8, 8) = 60.0f;
-    world.Env().env2.Swap();
+    world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
+    world.Fields().WriteNext(g_envCtx.fire, 17, 16, 60.0f);
+    world.Fields().WriteNext(g_envCtx.fire, 8, 8, 60.0f);
+    world.Fields().SwapAll();
 
     world.SpawnAgent(5, 5);
     world.SpawnAgent(10, 20);
     world.SpawnAgent(25, 10);
 
     Scheduler scheduler;
-    RegisterHumanEvolutionSystems(scheduler);
+    RegisterHumanEvolutionSystems(scheduler, g_envCtx);
 
     for (i32 i = 0; i < ticks; i++)
     {
         scheduler.Tick(world);
     }
 
-    return WorldSnapshot::Capture(world);
+    return WorldSnapshot::Capture(world, g_envCtx);
 }
 
 TEST(determinism_same_seed)
@@ -63,14 +64,14 @@ TEST(determinism_hash_proof)
     auto makeWorld = [](u64 seed) {
         WorldState world(16, 16, seed);
         world.Init(g_rulePack);
-        world.Env().env2.WriteNext(8, 8) = 50.0f;
-        world.Env().env2.Swap();
+        world.Fields().WriteNext(g_envCtx.fire, 8, 8, 50.0f);
+        world.Fields().SwapAll();
         world.SpawnAgent(4, 4);
         return world;
     };
 
     auto makeScheduler = []() {
-        return CreateHumanEvolutionScheduler();
+        return CreateHumanEvolutionScheduler(g_envCtx);
     };
 
     WorldState a = makeWorld(42);
@@ -103,9 +104,9 @@ TEST(minimal_replay)
 
     WorldState world(16, 16, 42);
     world.Init(g_rulePack);
-    world.Env().env2.WriteNext(8, 8) = 80.0f;
-    world.Env().env2.WriteNext(9, 8) = 60.0f;
-    world.Env().env2.Swap();
+    world.Fields().WriteNext(g_envCtx.fire, 8, 8, 80.0f);
+    world.Fields().WriteNext(g_envCtx.fire, 9, 8, 60.0f);
+    world.Fields().SwapAll();
     world.SpawnAgent(4, 4);
     world.SpawnAgent(10, 10);
 

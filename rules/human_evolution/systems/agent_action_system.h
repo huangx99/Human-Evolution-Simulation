@@ -2,28 +2,29 @@
 
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
+#include "rules/human_evolution/human_evolution_context.h"
 #include <cmath>
 
-// OWNERSHIP: Engine (sim/system/)
-// READS: AgentModule (agents), EnvironmentModule (fire, temperature), InformationModule (smell), SimulationModule (clock, random)
-// WRITES: AgentModule (position, hunger, health) via CommandBuffer (MoveAgentCommand, ModifyHungerCommand, FeedAgentCommand, DamageAgentCommand)
-// PHASE: SimPhase::Action
+// AgentActionSystem: executes agent behavior based on perception and action state.
+// Moved from sim/system/ — depends on HumanEvolution field bindings.
 
 class AgentActionSystem : public ISystem
 {
 public:
+    explicit AgentActionSystem(const HumanEvolution::EnvironmentContext& envCtx)
+        : envCtx_(envCtx) {}
+
     void Update(SystemContext& ctx) override
     {
-        auto& world = ctx.World();
-        auto& env = world.Env();
-        auto& info = world.Info();
-        auto& sim = world.Sim();
+        auto& fm = ctx.GetFieldModule();
+        auto& sim = ctx.Sim();
+        auto& commands = ctx.Commands();
+        auto tick = ctx.CurrentTick();
 
-        for (auto& agent : world.Agents().agents)
+        for (auto& agent : ctx.Agents().agents)
         {
             // Hunger increases every tick
-            world.commands.Submit(sim.clock.currentTick,
-                ModifyHungerCommand{agent.id, 0.5f});
+            commands.Submit(tick, ModifyHungerCommand{agent.id, 0.5f});
 
             i32 dx = 0, dy = 0;
 
@@ -38,10 +39,11 @@ public:
                 {
                     i32 nx = agent.position.x + off[0];
                     i32 ny = agent.position.y + off[1];
-                    if (!env.env2.InBounds(nx, ny)) continue;
-                    if (env.env2.At(nx, ny) < bestFire)
+                    if (!fm.InBounds(envCtx_.fire, nx, ny)) continue;
+                    f32 fireVal = fm.Read(envCtx_.fire, nx, ny);
+                    if (fireVal < bestFire)
                     {
-                        bestFire = env.env2.At(nx, ny);
+                        bestFire = fireVal;
                         bestDx = off[0];
                         bestDy = off[1];
                     }
@@ -59,10 +61,11 @@ public:
                 {
                     i32 nx = agent.position.x + off[0];
                     i32 ny = agent.position.y + off[1];
-                    if (!info.info0.InBounds(nx, ny)) continue;
-                    if (info.info0.At(nx, ny) > bestSmell)
+                    if (!fm.InBounds(envCtx_.smell, nx, ny)) continue;
+                    f32 smellVal = fm.Read(envCtx_.smell, nx, ny);
+                    if (smellVal > bestSmell)
                     {
-                        bestSmell = info.info0.At(nx, ny);
+                        bestSmell = smellVal;
                         bestDx = off[0];
                         bestDy = off[1];
                     }
@@ -86,19 +89,17 @@ public:
             // Submit move command
             i32 newX = agent.position.x + dx;
             i32 newY = agent.position.y + dy;
-            if (env.env0.InBounds(newX, newY))
+            if (fm.InBounds(envCtx_.temperature, newX, newY))
             {
-                world.commands.Submit(sim.clock.currentTick,
-                    MoveAgentCommand{agent.id, newX, newY});
+                commands.Submit(tick, MoveAgentCommand{agent.id, newX, newY});
             }
 
             // Eating: submit FeedAgent command
-            if (info.info0.InBounds(agent.position.x, agent.position.y))
+            if (fm.InBounds(envCtx_.smell, agent.position.x, agent.position.y))
             {
-                if (info.info0.At(agent.position.x, agent.position.y) > 20.0f)
+                if (fm.Read(envCtx_.smell, agent.position.x, agent.position.y) > 20.0f)
                 {
-                    world.commands.Submit(sim.clock.currentTick,
-                        FeedAgentCommand{agent.id, 5.0f});
+                    commands.Submit(tick, FeedAgentCommand{agent.id, 5.0f});
                 }
             }
 
@@ -106,8 +107,7 @@ public:
             if (agent.localTemperature > 50.0f)
             {
                 f32 damage = (agent.localTemperature - 50.0f) * 0.1f;
-                world.commands.Submit(sim.clock.currentTick,
-                    DamageAgentCommand{agent.id, damage});
+                commands.Submit(tick, DamageAgentCommand{agent.id, damage});
             }
         }
     }
@@ -116,14 +116,15 @@ public:
     {
         static constexpr ModuleAccess READS[] = {
             {ModuleTag::Agent, AccessMode::Read},
-            {ModuleTag::Environment, AccessMode::Read},
-            {ModuleTag::Information, AccessMode::Read},
             {ModuleTag::Simulation, AccessMode::Read}
         };
         static constexpr ModuleAccess WRITES[] = {
             {ModuleTag::Command, AccessMode::Write}
         };
         static const char* const DEPS[] = {"AgentDecisionSystem"};
-        return {"AgentActionSystem", SimPhase::Action, READS, 4, WRITES, 1, DEPS, 1, true, false};
+        return {"AgentActionSystem", SimPhase::Action, READS, 2, WRITES, 1, DEPS, 1, true, false};
     }
+
+private:
+    HumanEvolution::EnvironmentContext envCtx_;
 };

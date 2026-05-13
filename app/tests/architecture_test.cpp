@@ -6,7 +6,6 @@
 #include "core/container/field2d.h"
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
-#include "rules/human_evolution/environment/climate_system.h"
 #include "sim/event/event_bus.h"
 #include "sim/command/command.h"
 #include "rules/reaction/semantic_predicate.h"
@@ -15,6 +14,7 @@
 #include <memory>
 
 static HumanEvolutionRulePack g_rulePack;
+static const auto& g_envCtx = g_rulePack.GetHumanEvolutionContext().environment;
 
 // Test: ModuleRegistry basic operations
 TEST(module_registration)
@@ -24,8 +24,6 @@ TEST(module_registration)
 
     // Modules should be registered
     ASSERT_TRUE(world.modules.Has<SimulationModule>());
-    ASSERT_TRUE(world.modules.Has<EnvironmentModule>());
-    ASSERT_TRUE(world.modules.Has<InformationModule>());
     ASSERT_TRUE(world.modules.Has<AgentModule>());
     ASSERT_TRUE(world.modules.Has<EcologyModule>());
 
@@ -155,11 +153,11 @@ TEST(snapshot_boundary)
 {
     WorldState world(8, 8, 42);
     world.Init(g_rulePack);
-    world.Env().env2.WriteNext(4, 4) = 100.0f;
-    world.Env().env2.Swap();
+    world.Fields().WriteNext(g_envCtx.fire, 4, 4, 100.0f);
+    world.Fields().SwapAll();
 
     Tick tickBefore = world.Sim().clock.currentTick;
-    WorldSnapshot snap = WorldSnapshot::Capture(world);
+    WorldSnapshot snap = WorldSnapshot::Capture(world, g_envCtx);
     Tick tickAfter = world.Sim().clock.currentTick;
 
     // Snapshot should not modify world
@@ -197,7 +195,7 @@ TEST(snapshot_full_capture)
     world.commands.Push(0, IgniteFireCommand{3, 3, 10.0f});
     world.commands.Apply(world);
 
-    WorldSnapshot snap = WorldSnapshot::Capture(world);
+    WorldSnapshot snap = WorldSnapshot::Capture(world, g_envCtx);
 
     // Ecology entities captured
     ASSERT_EQ(static_cast<i32>(snap.entities.size()), 2);
@@ -316,8 +314,8 @@ TEST(determinism_100k)
     auto run = [](u64 seed) -> std::string {
         WorldState world(16, 16, seed);
         world.Init(g_rulePack);
-        world.Env().env2.WriteNext(8, 8) = 50.0f;
-        world.Env().env2.Swap();
+        world.Fields().WriteNext(g_envCtx.fire, 8, 8, 50.0f);
+        world.Fields().SwapAll();
         world.SpawnAgent(4, 4);
 
         Scheduler scheduler;
@@ -326,7 +324,7 @@ TEST(determinism_100k)
         for (i32 i = 0; i < 1000; i++)
             scheduler.Tick(world);
 
-        WorldSnapshot snap = WorldSnapshot::Capture(world);
+        WorldSnapshot snap = WorldSnapshot::Capture(world, g_envCtx);
         return snap.Serialize();
     };
 
