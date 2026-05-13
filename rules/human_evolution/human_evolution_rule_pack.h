@@ -79,6 +79,80 @@ public:
             MakeObservedActionKey("human_evolution.observed_flee"), "observed_flee");
     }
 
+    void RegisterConcepts(ConceptTypeRegistry& registry) override
+    {
+        using F = ConceptSemanticFlag;
+        auto f = [](ConceptSemanticFlag a, ConceptSemanticFlag b, ConceptSemanticFlag c) {
+            return static_cast<u32>(a | b | c);
+        };
+        auto f2 = [](ConceptSemanticFlag a, ConceptSemanticFlag b) {
+            return static_cast<u32>(a | b);
+        };
+        constexpr u32 none = 0;
+
+        // Natural phenomena
+        ctx_.concepts.fire      = registry.Register(MakeConceptKey("human_evolution.fire"),      "fire",      f(F::Danger, F::Thermal, F::Environmental));
+        ctx_.concepts.water     = registry.Register(MakeConceptKey("human_evolution.water"),     "water",     f(F::Environmental, F::Organic, F::Resource));
+        ctx_.concepts.wind      = registry.Register(MakeConceptKey("human_evolution.wind"),      "wind",      static_cast<u32>(F::Environmental));
+        ctx_.concepts.rain      = registry.Register(MakeConceptKey("human_evolution.rain"),      "rain",      f(F::Environmental, F::Negative, F::Thermal));
+        ctx_.concepts.lightning = registry.Register(MakeConceptKey("human_evolution.lightning"), "lightning", f(F::Environmental, F::Danger, F::Thermal));
+        ctx_.concepts.darkness  = registry.Register(MakeConceptKey("human_evolution.darkness"),  "darkness",  f2(F::Environmental, F::Danger));
+        ctx_.concepts.light     = registry.Register(MakeConceptKey("human_evolution.light"),     "light",     f2(F::Environmental, F::Positive));
+        ctx_.concepts.smoke     = registry.Register(MakeConceptKey("human_evolution.smoke"),     "smoke",     f(F::Environmental, F::Danger, F::Thermal));
+        ctx_.concepts.ice       = registry.Register(MakeConceptKey("human_evolution.ice"),       "ice",       f(F::Environmental, F::Thermal, F::Negative));
+        ctx_.concepts.heat      = registry.Register(MakeConceptKey("human_evolution.heat"),      "heat",      f(F::Environmental, F::Thermal, F::Danger));
+        ctx_.concepts.cold      = registry.Register(MakeConceptKey("human_evolution.cold"),      "cold",      f(F::Environmental, F::Thermal, F::Danger));
+
+        // Materials
+        ctx_.concepts.wood  = registry.Register(MakeConceptKey("human_evolution.wood"),  "wood",  f2(F::Organic, F::Resource));
+        ctx_.concepts.stone = registry.Register(MakeConceptKey("human_evolution.stone"), "stone", static_cast<u32>(F::Resource));
+        ctx_.concepts.grass = registry.Register(MakeConceptKey("human_evolution.grass"), "grass", f2(F::Organic, F::Resource));
+        ctx_.concepts.meat  = registry.Register(MakeConceptKey("human_evolution.meat"),  "meat",  f(F::Organic, F::Resource, F::Internal));
+        ctx_.concepts.bone  = registry.Register(MakeConceptKey("human_evolution.bone"),  "bone",  f2(F::Organic, F::Resource));
+        ctx_.concepts.ash   = registry.Register(MakeConceptKey("human_evolution.ash"),   "ash",   none);
+        ctx_.concepts.coal  = registry.Register(MakeConceptKey("human_evolution.coal"),  "coal",  f2(F::Thermal, F::Resource));
+        ctx_.concepts.fruit = registry.Register(MakeConceptKey("human_evolution.fruit"), "fruit", f(F::Organic, F::Resource, F::Positive));
+
+        // States / conditions
+        ctx_.concepts.warmth  = registry.Register(MakeConceptKey("human_evolution.warmth"),  "warmth",  f2(F::Positive, F::Thermal));
+        ctx_.concepts.wetness = registry.Register(MakeConceptKey("human_evolution.wetness"), "wetness", static_cast<u32>(F::Environmental));
+        ctx_.concepts.dryness = registry.Register(MakeConceptKey("human_evolution.dryness"), "dryness", static_cast<u32>(F::Environmental));
+        ctx_.concepts.hunger  = registry.Register(MakeConceptKey("human_evolution.hunger"),  "hunger",  f(F::Internal, F::Negative, F::Danger));
+        ctx_.concepts.pain    = registry.Register(MakeConceptKey("human_evolution.pain"),    "pain",    f2(F::Internal, F::Negative));
+        ctx_.concepts.satiety = registry.Register(MakeConceptKey("human_evolution.satiety"), "satiety", f2(F::Internal, F::Positive));
+        ctx_.concepts.health  = registry.Register(MakeConceptKey("human_evolution.health"),  "health",  f2(F::Internal, F::Positive));
+        ctx_.concepts.death   = registry.Register(MakeConceptKey("human_evolution.death"),   "death",   f(F::Danger, F::Negative, F::Abstract));
+
+        // Danger
+        ctx_.concepts.danger    = registry.Register(MakeConceptKey("human_evolution.danger"),    "danger",    f2(F::Danger, F::Abstract));
+        ctx_.concepts.beast     = registry.Register(MakeConceptKey("human_evolution.beast"),     "beast",     f(F::Danger, F::Threat, F::Organic));
+        ctx_.concepts.predator  = registry.Register(MakeConceptKey("human_evolution.predator"),  "predator",  f(F::Danger, F::Threat, F::Organic));
+        ctx_.concepts.fall      = registry.Register(MakeConceptKey("human_evolution.fall"),      "fall",      f2(F::Danger, F::Threat));
+        ctx_.concepts.drowning  = registry.Register(MakeConceptKey("human_evolution.drowning"),  "drowning",  f(F::Danger, F::Threat, F::Negative));
+        ctx_.concepts.burning   = registry.Register(MakeConceptKey("human_evolution.burning"),   "burning",   f(F::Danger, F::Thermal, F::Negative));
+
+        // Opportunities
+        ctx_.concepts.food    = registry.Register(MakeConceptKey("human_evolution.food"),    "food",    f(F::Resource, F::Organic, F::Positive));
+        ctx_.concepts.shelter = registry.Register(MakeConceptKey("human_evolution.shelter"), "shelter", f2(F::Resource, F::Abstract));
+        ctx_.concepts.tool    = registry.Register(MakeConceptKey("human_evolution.tool"),    "tool",    f2(F::Resource, F::Abstract));
+        ctx_.concepts.path    = registry.Register(MakeConceptKey("human_evolution.path"),    "path",    f2(F::Environmental, F::Abstract));
+
+        // Social
+        ctx_.concepts.companion    = registry.Register(MakeConceptKey("human_evolution.companion"),    "companion",    f2(F::Social, F::Positive));
+        ctx_.concepts.stranger     = registry.Register(MakeConceptKey("human_evolution.stranger"),     "stranger",     f(F::Social, F::Danger, F::Abstract));
+        ctx_.concepts.group        = registry.Register(MakeConceptKey("human_evolution.group"),        "group",        f2(F::Social, F::Abstract));
+        ctx_.concepts.signal       = registry.Register(MakeConceptKey("human_evolution.signal"),       "signal",       f2(F::Social, F::Abstract));
+        ctx_.concepts.voice        = registry.Register(MakeConceptKey("human_evolution.voice"),        "voice",        f2(F::Social, F::Abstract));
+        ctx_.concepts.observedFlee = registry.Register(MakeConceptKey("human_evolution.observed_flee"), "observed_flee", f(F::Social, F::Danger, F::Abstract));
+
+        // Abstract
+        ctx_.concepts.safety    = registry.Register(MakeConceptKey("human_evolution.safety"),    "safety",    f2(F::Abstract, F::Positive));
+        ctx_.concepts.comfort   = registry.Register(MakeConceptKey("human_evolution.comfort"),   "comfort",   f(F::Abstract, F::Positive, F::Thermal));
+        ctx_.concepts.fear      = registry.Register(MakeConceptKey("human_evolution.fear"),      "fear",      f(F::Abstract, F::Danger, F::Negative));
+        ctx_.concepts.curiosity = registry.Register(MakeConceptKey("human_evolution.curiosity"), "curiosity", f2(F::Abstract, F::Positive));
+        ctx_.concepts.trust     = registry.Register(MakeConceptKey("human_evolution.trust"),     "trust",     f(F::Abstract, F::Social, F::Positive));
+    }
+
     IRuleContext& GetContext() override { return ctx_; }
 
     std::vector<SystemRegistration> CreateSystems() override

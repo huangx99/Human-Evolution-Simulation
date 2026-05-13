@@ -5,6 +5,7 @@
 #include "sim/history/history_id.h"
 #include "sim/social/social_signal_id.h"
 #include "sim/social/observed_action_id.h"
+#include "sim/cognitive/concept_id.h"
 
 // HumanEvolutionContext: RulePack-specific context for the Human Evolution world.
 //
@@ -46,6 +47,73 @@ struct ObservedActionContext
     ObservedActionTypeId observedFlee;
 };
 
+// Cognitive concept type ids (registered via RegisterConcepts)
+// These are runtime ConceptTypeId values, not constexpr.
+struct ConceptContext
+{
+    // Natural phenomena
+    ConceptTypeId fire;
+    ConceptTypeId water;
+    ConceptTypeId wind;
+    ConceptTypeId rain;
+    ConceptTypeId lightning;
+    ConceptTypeId darkness;
+    ConceptTypeId light;
+    ConceptTypeId smoke;
+    ConceptTypeId ice;
+    ConceptTypeId heat;
+    ConceptTypeId cold;
+
+    // Materials
+    ConceptTypeId wood;
+    ConceptTypeId stone;
+    ConceptTypeId grass;
+    ConceptTypeId meat;
+    ConceptTypeId bone;
+    ConceptTypeId ash;
+    ConceptTypeId coal;
+    ConceptTypeId fruit;
+
+    // States / conditions
+    ConceptTypeId warmth;
+    ConceptTypeId wetness;
+    ConceptTypeId dryness;
+    ConceptTypeId hunger;
+    ConceptTypeId pain;
+    ConceptTypeId satiety;
+    ConceptTypeId health;
+    ConceptTypeId death;
+
+    // Danger
+    ConceptTypeId danger;
+    ConceptTypeId beast;
+    ConceptTypeId predator;
+    ConceptTypeId fall;
+    ConceptTypeId drowning;
+    ConceptTypeId burning;
+
+    // Opportunities
+    ConceptTypeId food;
+    ConceptTypeId shelter;
+    ConceptTypeId tool;
+    ConceptTypeId path;
+
+    // Social
+    ConceptTypeId companion;
+    ConceptTypeId stranger;
+    ConceptTypeId group;
+    ConceptTypeId signal;
+    ConceptTypeId voice;
+    ConceptTypeId observedFlee;
+
+    // Abstract
+    ConceptTypeId safety;
+    ConceptTypeId comfort;
+    ConceptTypeId fear;
+    ConceptTypeId curiosity;
+    ConceptTypeId trust;
+};
+
 // Future extensions (uncomment when needed):
 // struct AgentContext { ... };
 // struct CognitiveContext { ... };
@@ -60,4 +128,5 @@ public:
     HumanEvolution::HistoryContext history;
     HumanEvolution::SocialContext social;
     HumanEvolution::ObservedActionContext observedActions;
+    HumanEvolution::ConceptContext concepts;
 };

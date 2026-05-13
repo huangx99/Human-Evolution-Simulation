@@ -1434,3 +1434,121 @@ TEST(rulepack_registers_concepts)
 
     return true;
 }
+
+// ============================================================
+// ConceptRegistry PR C2: HumanEvolution ConceptContext
+// ============================================================
+
+TEST(rulepack_registers_all_concepts)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+
+    const auto& c = rp.GetHumanEvolutionContext().concepts;
+
+    // All 48 concepts must have valid (non-zero) type ids
+    ASSERT_TRUE(c.fire.index > 0);
+    ASSERT_TRUE(c.water.index > 0);
+    ASSERT_TRUE(c.wind.index > 0);
+    ASSERT_TRUE(c.rain.index > 0);
+    ASSERT_TRUE(c.lightning.index > 0);
+    ASSERT_TRUE(c.darkness.index > 0);
+    ASSERT_TRUE(c.light.index > 0);
+    ASSERT_TRUE(c.smoke.index > 0);
+    ASSERT_TRUE(c.ice.index > 0);
+    ASSERT_TRUE(c.heat.index > 0);
+    ASSERT_TRUE(c.cold.index > 0);
+
+    ASSERT_TRUE(c.wood.index > 0);
+    ASSERT_TRUE(c.stone.index > 0);
+    ASSERT_TRUE(c.grass.index > 0);
+    ASSERT_TRUE(c.meat.index > 0);
+    ASSERT_TRUE(c.bone.index > 0);
+    ASSERT_TRUE(c.ash.index > 0);
+    ASSERT_TRUE(c.coal.index > 0);
+    ASSERT_TRUE(c.fruit.index > 0);
+
+    ASSERT_TRUE(c.warmth.index > 0);
+    ASSERT_TRUE(c.wetness.index > 0);
+    ASSERT_TRUE(c.dryness.index > 0);
+    ASSERT_TRUE(c.hunger.index > 0);
+    ASSERT_TRUE(c.pain.index > 0);
+    ASSERT_TRUE(c.satiety.index > 0);
+    ASSERT_TRUE(c.health.index > 0);
+    ASSERT_TRUE(c.death.index > 0);
+
+    ASSERT_TRUE(c.danger.index > 0);
+    ASSERT_TRUE(c.beast.index > 0);
+    ASSERT_TRUE(c.predator.index > 0);
+    ASSERT_TRUE(c.fall.index > 0);
+    ASSERT_TRUE(c.drowning.index > 0);
+    ASSERT_TRUE(c.burning.index > 0);
+
+    ASSERT_TRUE(c.food.index > 0);
+    ASSERT_TRUE(c.shelter.index > 0);
+    ASSERT_TRUE(c.tool.index > 0);
+    ASSERT_TRUE(c.path.index > 0);
+
+    ASSERT_TRUE(c.companion.index > 0);
+    ASSERT_TRUE(c.stranger.index > 0);
+    ASSERT_TRUE(c.group.index > 0);
+    ASSERT_TRUE(c.signal.index > 0);
+    ASSERT_TRUE(c.voice.index > 0);
+    ASSERT_TRUE(c.observedFlee.index > 0);
+
+    ASSERT_TRUE(c.safety.index > 0);
+    ASSERT_TRUE(c.comfort.index > 0);
+    ASSERT_TRUE(c.fear.index > 0);
+    ASSERT_TRUE(c.curiosity.index > 0);
+    ASSERT_TRUE(c.trust.index > 0);
+
+    return true;
+}
+
+TEST(concept_flags_match_expected)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+
+    const auto& c = rp.GetHumanEvolutionContext().concepts;
+    const auto& reg = ConceptTypeRegistry::Instance();
+
+    // Fire: Danger + Thermal + Environmental
+    ASSERT_TRUE(reg.HasFlag(c.fire, ConceptSemanticFlag::Danger));
+    ASSERT_TRUE(reg.HasFlag(c.fire, ConceptSemanticFlag::Thermal));
+    ASSERT_TRUE(reg.HasFlag(c.fire, ConceptSemanticFlag::Environmental));
+    ASSERT_TRUE(!reg.HasFlag(c.fire, ConceptSemanticFlag::Internal));
+
+    // Pain: Internal + Negative
+    ASSERT_TRUE(reg.HasFlag(c.pain, ConceptSemanticFlag::Internal));
+    ASSERT_TRUE(reg.HasFlag(c.pain, ConceptSemanticFlag::Negative));
+    ASSERT_TRUE(!reg.HasFlag(c.pain, ConceptSemanticFlag::Positive));
+
+    // Satiety: Internal + Positive
+    ASSERT_TRUE(reg.HasFlag(c.satiety, ConceptSemanticFlag::Internal));
+    ASSERT_TRUE(reg.HasFlag(c.satiety, ConceptSemanticFlag::Positive));
+
+    // Hunger: Internal + Negative + Danger
+    ASSERT_TRUE(reg.HasFlag(c.hunger, ConceptSemanticFlag::Internal));
+    ASSERT_TRUE(reg.HasFlag(c.hunger, ConceptSemanticFlag::Negative));
+    ASSERT_TRUE(reg.HasFlag(c.hunger, ConceptSemanticFlag::Danger));
+
+    // Food: Resource + Organic + Positive
+    ASSERT_TRUE(reg.HasFlag(c.food, ConceptSemanticFlag::Resource));
+    ASSERT_TRUE(reg.HasFlag(c.food, ConceptSemanticFlag::Organic));
+    ASSERT_TRUE(reg.HasFlag(c.food, ConceptSemanticFlag::Positive));
+
+    // Fear: Abstract + Danger + Negative
+    ASSERT_TRUE(reg.HasFlag(c.fear, ConceptSemanticFlag::Abstract));
+    ASSERT_TRUE(reg.HasFlag(c.fear, ConceptSemanticFlag::Danger));
+    ASSERT_TRUE(reg.HasFlag(c.fear, ConceptSemanticFlag::Negative));
+
+    // Companion: Social + Positive
+    ASSERT_TRUE(reg.HasFlag(c.companion, ConceptSemanticFlag::Social));
+    ASSERT_TRUE(reg.HasFlag(c.companion, ConceptSemanticFlag::Positive));
+
+    // Ash: no flags
+    ASSERT_EQ(reg.GetFlags(c.ash), 0u);
+
+    return true;
+}
