@@ -38,9 +38,9 @@ public:
     SystemDescriptor Descriptor() const override
     {
         static constexpr ModuleAccess READS[] = {
-            {ModuleTag::Pattern,    AccessMode::Read},
-            {ModuleTag::Agent,      AccessMode::Read},
-            {ModuleTag::Environment, AccessMode::Read}
+            {ModuleTag::Pattern, AccessMode::Read},
+            {ModuleTag::Agent,   AccessMode::Read},
+            {ModuleTag::Event,   AccessMode::Read}
         };
         static constexpr ModuleAccess WRITES[] = {
             {ModuleTag::History, AccessMode::Write}

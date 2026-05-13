@@ -76,6 +76,7 @@ struct WorldState
         auto& fm = modules.Get<FieldModule>();
         rulePack.RegisterFields(fm);
         rulePack.RegisterCommands();
+        rulePack.RegisterHistoryTypes(HistoryRegistry::Instance());
         ruleContext_ = &rulePack.GetContext();
     }
 
