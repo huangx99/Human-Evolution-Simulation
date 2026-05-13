@@ -25,6 +25,7 @@
 #include "rules/human_evolution/history/mass_death_detector.h"
 #include "rules/human_evolution/social/human_evolution_social_signal_perception_system.h"
 #include "rules/human_evolution/social/human_evolution_social_signal_emission_system.h"
+#include "rules/human_evolution/social/human_evolution_imitation_observation_system.h"
 
 // HumanEvolutionRulePack: defines the Human Evolution world.
 //
@@ -87,6 +88,7 @@ public:
         systems.push_back({SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx_)});
+        systems.push_back({SimPhase::Perception,  std::make_unique<HumanEvolutionImitationObservationSystem>(ctx_)});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>()});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>()});
 
@@ -226,6 +228,7 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionSocialSignalPerceptionSystem>(ctx));
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<HumanEvolutionImitationObservationSystem>(ctx));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>());
 
