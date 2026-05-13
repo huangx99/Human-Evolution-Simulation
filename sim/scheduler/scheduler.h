@@ -69,9 +69,13 @@ public:
             case SimPhase::EventResolve:
                 world.events.Dispatch();
                 break;
-            case SimPhase::EndTick:
-                world.lastTickHash = ComputeWorldHash(world, HashTier::Full);
+            case SimPhase::FieldSwap:
                 world.Fields().SwapAll();
+                break;
+            case SimPhase::Snapshot:
+                world.lastTickHash = ComputeWorldHash(world, HashTier::Full);
+                break;
+            case SimPhase::EndTick:
                 world.Sim().clock.Step();
                 break;
             default:
@@ -107,6 +111,7 @@ private:
         case SimPhase::Action:        return "Action";
         case SimPhase::CommandApply:  return "CommandApply";
         case SimPhase::EventResolve:  return "EventResolve";
+        case SimPhase::FieldSwap:     return "FieldSwap";
         case SimPhase::Analysis:      return "Analysis";
         case SimPhase::Snapshot:      return "Snapshot";
         case SimPhase::EndTick:       return "EndTick";

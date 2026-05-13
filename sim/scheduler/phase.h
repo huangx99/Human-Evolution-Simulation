@@ -19,10 +19,11 @@ enum class SimPhase : uint8_t
 
     CommandApply,       // Apply all pending commands
     EventResolve,       // Process and archive events
-    Analysis,           // Pattern detection (read-only observer)
-    Snapshot,           // Capture world state
+    FieldSwap,          // Swap field double buffers
+    Analysis,           // Pattern detection (observes post-swap stable state)
+    Snapshot,           // Capture world state, compute hash
 
-    EndTick,            // Finalize tick, swap buffers, clock step
+    EndTick,            // Finalize tick, clock step
 
     Count
 };

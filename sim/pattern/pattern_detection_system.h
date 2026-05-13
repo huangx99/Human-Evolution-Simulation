@@ -80,11 +80,14 @@ public:
     SystemDescriptor Descriptor() const override
     {
         static constexpr ModuleAccess READS[] = {
-            {ModuleTag::Agent, AccessMode::Read}
+            {ModuleTag::Agent, AccessMode::Read},
+            {ModuleTag::Environment, AccessMode::Read}
         };
-        static constexpr ModuleAccess WRITES[] = {};
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Pattern, AccessMode::Write}
+        };
         static const char* const DEPS[] = {};
-        return {"PatternDetectionSystem", SimPhase::Analysis, READS, 1, WRITES, 0, DEPS, 0, true, true};
+        return {"PatternDetectionSystem", SimPhase::Analysis, READS, 2, WRITES, 1, DEPS, 0, true, true};
     }
 
 private:

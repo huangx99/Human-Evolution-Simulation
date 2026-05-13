@@ -23,6 +23,7 @@ enum class ModuleTag : uint8_t
     Command,        // CommandBuffer
     Event,          // EventBus
     Spatial,        // SpatialIndex
+    Pattern,        // PatternModule (long-term structure detection)
     Count
 };
 
