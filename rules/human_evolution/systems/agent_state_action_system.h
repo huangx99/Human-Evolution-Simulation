@@ -58,6 +58,9 @@ public:
             // Execute current state behavior (handles movement)
             sm->Act(execCtx);
 
+            // Handle memory modification flags set by state behaviors
+            HandleMemoryFlags(agent, sm, cog, tick);
+
             // System-level: eating check (WorldState access here, not in state)
             if (HasConsumableFoodAt(ctx.World(), agent, agent.position.x, agent.position.y))
             {
@@ -84,6 +87,13 @@ public:
 
             // Sync state context to agent.feedback for backward compatibility
             SyncFeedback(agent, sm);
+
+            // Transient memory lifecycle: track state transitions
+            HandleTransientMemoryTransition(agent, sm, cog);
+
+            // Periodically reconsider unreachable memories
+            if (tick % 50 == 0)
+                cog.ReconsiderUnreachable(agent.id, tick, 50);
         }
     }
 
@@ -102,6 +112,7 @@ public:
 
 private:
     HumanEvolution::EnvironmentContext envCtx_;
+    std::unordered_map<EntityId, StateId> previousStateId_;
 
     // --- Helpers (migrated from AgentActionSystem) ---
 
@@ -195,6 +206,87 @@ private:
         fb.stuckTicks = ctx.stuckTicks;
         fb.actionSucceeded = ctx.actionSucceeded;
         fb.lastPosition = agent.position;
+    }
+
+    void HandleMemoryFlags(const Agent& agent, StateManager* sm,
+                           CognitiveModule& cog, Tick tick)
+    {
+        AgentState* currentState = sm->GetCurrentState();
+        if (!currentState) return;
+
+        auto& sctx = currentState->context;
+        const auto& reg = ConceptTypeRegistry::Instance();
+
+        // Handle failed approach count
+        if (sctx.incrementFailedApproach > 0)
+        {
+            for (auto& mem : cog.GetAgentMemories(agent.id))
+            {
+                if (mem.location == sctx.targetPosition &&
+                    reg.GetName(mem.subject) == "food")
+                {
+                    mem.failedApproachCount += sctx.incrementFailedApproach;
+                    if (mem.failedApproachCount >= 3)
+                    {
+                        mem.markedUnreachable = true;
+                        mem.unreachableSince = tick;
+                        mem.annotation = "failed_approach";
+                    }
+                    break;
+                }
+            }
+            sctx.incrementFailedApproach = 0;
+        }
+
+        // Handle unreachable marking (from pathfinder)
+        if (sctx.markTargetUnreachable)
+        {
+            for (auto& mem : cog.GetAgentMemories(agent.id))
+            {
+                if (mem.location == sctx.targetPosition &&
+                    reg.GetName(mem.subject) == "food")
+                {
+                    mem.markedUnreachable = true;
+                    mem.unreachableSince = tick;
+                    mem.annotation = "unreachable_path";
+                    break;
+                }
+            }
+            sctx.markTargetUnreachable = false;
+        }
+    }
+
+    void HandleTransientMemoryTransition(const Agent& agent, StateManager* sm,
+                                         CognitiveModule& cog)
+    {
+        AgentState* currentState = sm->GetCurrentState();
+        StateId currentId = currentState ? currentState->id : StateId::None;
+        StateId previousId = StateId::None;
+        auto it = previousStateId_.find(agent.id);
+        if (it != previousStateId_.end()) previousId = it->second;
+
+        const auto& reg = ConceptTypeRegistry::Instance();
+
+        if (previousId == StateId::Hunger && currentId != StateId::Hunger)
+        {
+            // Left hunger — make food memories transient (slower decay)
+            for (auto& mem : cog.GetAgentMemories(agent.id))
+            {
+                if (reg.GetName(mem.subject) == "food" && mem.sense == SenseType::Vision)
+                    mem.isTransient = true;
+            }
+        }
+        else if (currentId == StateId::Hunger && previousId != StateId::Hunger)
+        {
+            // Entered hunger — food memories are actively pursued, normal decay
+            for (auto& mem : cog.GetAgentMemories(agent.id))
+            {
+                if (reg.GetName(mem.subject) == "food" && mem.sense == SenseType::Vision)
+                    mem.isTransient = false;
+            }
+        }
+
+        previousStateId_[agent.id] = currentId;
     }
 
     static constexpr i32 visualExplorationRadius = 4;

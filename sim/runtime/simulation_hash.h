@@ -100,6 +100,11 @@ inline void HashMemoryRecord(SimHash& h, const MemoryRecord& m)
     h.FeedU64(m.lastReinforcedTick);
     h.FeedU32(m.reinforcementCount);
     h.FeedU64(m.sourceStimulusId);
+    h.FeedU8(m.markedUnreachable ? 1 : 0);
+    h.FeedU64(m.unreachableSince);
+    h.FeedI32(m.failedApproachCount);
+    h.FeedU8(m.isTransient ? 1 : 0);
+    // annotation is NOT hashed (debug field, not simulation state)
 }
 
 inline void HashHypothesis(SimHash& h, const Hypothesis& hyp)

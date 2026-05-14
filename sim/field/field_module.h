@@ -172,6 +172,9 @@ public:
             e.spatial->Swap();
     }
 
+    i32 Width() const { return width_; }
+    i32 Height() const { return height_; }
+
     // --- Iteration (for hash, snapshot, replay) ---
 
     const std::vector<FieldEntry>& Entries() const { return entries_; }

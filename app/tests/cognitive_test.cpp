@@ -2035,3 +2035,124 @@ TEST(Pipeline_ValenceSpeciesDifference)
 
     return true;
 }
+
+// ============================================================
+// Memory Optimization: unreachable, transient, annotation
+// ============================================================
+
+TEST(Memory_UnreachableFilteredFromFoodSearch)
+{
+    WorldState world(20, 20, 999, g_rulePack);
+    EnsureBehaviorsRegistered();
+    auto& agents = world.Agents();
+    auto& cog = world.Cognitive();
+    EntityId id = agents.Spawn(10, 10);
+    Agent* agent = agents.Find(id);
+
+    auto foodConcept = g_rulePack.GetHumanEvolutionContext().concepts.food;
+
+    MemoryRecord mem;
+    mem.id = 1;
+    mem.ownerId = id;
+    mem.kind = MemoryKind::Stable;
+    mem.subject = foodConcept;
+    mem.sense = SenseType::Vision;
+    mem.location = {15, 15};
+    mem.strength = 0.9f;
+    mem.confidence = 0.9f;
+    mem.reinforcementCount = 5;
+    mem.markedUnreachable = true;
+    cog.agentMemories[id].push_back(mem);
+
+    auto result = IntentSelector::FindBestKnownFood(*agent, cog);
+    ASSERT_TRUE(!result.has_value());
+    return true;
+}
+
+TEST(Memory_TransientDecaysSlower)
+{
+    CognitiveModule cog;
+    EntityId id = 1;
+
+    MemoryRecord normal;
+    normal.id = 1;
+    normal.ownerId = id;
+    normal.kind = MemoryKind::ShortTerm;
+    normal.strength = 1.0f;
+    normal.isTransient = false;
+
+    MemoryRecord transient;
+    transient.id = 2;
+    transient.ownerId = id;
+    transient.kind = MemoryKind::ShortTerm;
+    transient.strength = 1.0f;
+    transient.isTransient = true;
+
+    cog.agentMemories[id].push_back(normal);
+    cog.agentMemories[id].push_back(transient);
+
+    for (int i = 0; i < 100; i++)
+        cog.DecayAllMemories(0.98f, 0.999f);
+
+    f32 normalStrength = cog.agentMemories[id][0].strength;
+    f32 transientStrength = cog.agentMemories[id][1].strength;
+    ASSERT_TRUE(transientStrength > normalStrength);
+    return true;
+}
+
+TEST(Memory_ReconsiderUnreachable)
+{
+    CognitiveModule cog;
+    EntityId id = 1;
+
+    MemoryRecord mem;
+    mem.id = 1;
+    mem.ownerId = id;
+    mem.kind = MemoryKind::Stable;
+    mem.strength = 0.8f;
+    mem.markedUnreachable = true;
+    mem.unreachableSince = 10;
+    mem.failedApproachCount = 3;
+    cog.agentMemories[id].push_back(mem);
+
+    cog.ReconsiderUnreachable(id, 60, 50);
+    ASSERT_TRUE(!cog.agentMemories[id][0].markedUnreachable);
+    ASSERT_EQ(cog.agentMemories[id][0].failedApproachCount, 0);
+    return true;
+}
+
+TEST(Memory_AnnotationUpdate)
+{
+    CognitiveModule cog;
+    EntityId id = 1;
+
+    MemoryRecord mem;
+    mem.id = 42;
+    mem.ownerId = id;
+    mem.kind = MemoryKind::Stable;
+    mem.strength = 0.8f;
+    cog.agentMemories[id].push_back(mem);
+
+    bool ok = cog.UpdateAnnotation(id, 42, "blocked_by_fire");
+    ASSERT_TRUE(ok);
+    ASSERT_TRUE(cog.agentMemories[id][0].annotation == "blocked_by_fire");
+    return true;
+}
+
+TEST(Memory_MarkUnreachable)
+{
+    CognitiveModule cog;
+    EntityId id = 1;
+
+    MemoryRecord mem;
+    mem.id = 99;
+    mem.ownerId = id;
+    mem.kind = MemoryKind::Stable;
+    mem.strength = 0.8f;
+    cog.agentMemories[id].push_back(mem);
+
+    cog.MarkUnreachable(id, 99, 100);
+    ASSERT_TRUE(cog.agentMemories[id][0].markedUnreachable);
+    ASSERT_EQ(cog.agentMemories[id][0].unreachableSince, 100u);
+    return true;
+}

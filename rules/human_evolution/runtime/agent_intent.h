@@ -77,6 +77,7 @@ struct IntentSelector
             if (reg.GetName(memory.subject) != "food") continue;
             if (memory.sense != SenseType::Vision) continue;
             if (memory.reinforcementCount < 3) continue;
+            if (memory.markedUnreachable) continue;
 
             f32 score = memory.strength * std::max(0.1f, memory.confidence) +
                         static_cast<f32>(memory.reinforcementCount) * 2.0f;

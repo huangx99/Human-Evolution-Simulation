@@ -3,23 +3,25 @@
 // hunger_state.h: Seek food when hungry. Priority 3.
 //
 // Trigger: hungerUrgency > 0.35 (via DriveEvaluator)
-// Behavior: ApproachKnownFood (if memory) or Forage (smell gradient)
-//   Uses cognitive pipeline: CognitiveModule::GetAgentMemories for food targets
-//   Does NOT directly query WorldState for food positions
+// Behavior: A* pathfinding to known food (if memory) or Forage (smell gradient)
+//   Uses LocalPerceptionMap for fog-of-war pathfinding
+//   Scans vision radius each tick to update perception
 // Eating: handled by AgentStateActionSystem (system layer, not this state)
 // Complete: agent.hunger < 20 (ate enough via system-layer FeedAgentCommand)
-// Stuck: after 5 ticks, clear target and switch to pure Forage
+// Stuck: after 5 ticks, mark memory as failed, clear target
 
 #include "rules/human_evolution/runtime/agent_state.h"
 #include "rules/human_evolution/runtime/cell_risk.h"
 #include "rules/human_evolution/runtime/agent_drives.h"
 #include "rules/human_evolution/runtime/navigation_policy.h"
 #include "rules/human_evolution/runtime/agent_intent.h"
+#include "rules/human_evolution/runtime/pathfinder.h"
 #include "sim/entity/agent.h"
 #include "sim/field/field_module.h"
 #include "sim/cognitive/cognitive_module.h"
 #include "rules/human_evolution/human_evolution_context.h"
 #include "sim/command/command_buffer.h"
+#include <cmath>
 
 class HungerState : public IStateBehavior
 {
@@ -44,12 +46,23 @@ public:
 
     void OnEnter(AgentState& state, const StateDecideContext& ctx) override
     {
+        // Init perception map on first entry
+        if (state.context.perceptionMap.width == 0)
+            state.context.perceptionMap.Init(ctx.fields.Width(), ctx.fields.Height());
+
+        // Scan current vision area
+        ScanVisibleArea(state.context, ctx.agent.position, ctx.fields, ctx.cognitive, ctx.envCtx, ctx.agent.id);
+
         // Check memory for known food (cognitive pipeline)
         auto knownFood = IntentSelector::FindBestKnownFood(ctx.agent, ctx.cognitive);
         if (knownFood.has_value())
         {
             state.context.hasTarget = true;
             state.context.targetPosition = knownFood->position;
+            state.context.pathfinderActive = true;
+            state.context.cachedPath.clear();
+            state.context.pathIndex = 0;
+            state.context.pathAge = 0;
         }
 
         CellRisk currentRisk = CellRiskEvaluator::Evaluate(
@@ -63,12 +76,20 @@ public:
 
     void OnResume(AgentState& state, const StateExecuteContext& ctx) override
     {
-        // Re-check food memory on resume (may have changed while paused)
+        // Re-scan vision area (conditions may have changed while paused)
+        ScanVisibleArea(state.context, ctx.agent.position, ctx.fields, ctx.cognitive, ctx.envCtx, ctx.agent.id);
+
+        // Re-check food memory on resume
         auto knownFood = IntentSelector::FindBestKnownFood(ctx.agent, ctx.cognitive);
         if (knownFood.has_value())
         {
             state.context.hasTarget = true;
             state.context.targetPosition = knownFood->position;
+            state.context.pathfinderActive = true;
+            // Invalidate cached path (conditions may have changed while paused)
+            state.context.cachedPath.clear();
+            state.context.pathIndex = 0;
+            state.context.pathAge = 0;
         }
     }
 
@@ -76,10 +97,15 @@ public:
 
     void Execute(AgentState& state, const StateExecuteContext& ctx) override
     {
-        // Stuck handling: after 5 ticks, clear target and switch to pure forage
+        // Scan vision area each tick (fog of war updates)
+        ScanVisibleArea(state.context, ctx.agent.position, ctx.fields, ctx.cognitive, ctx.envCtx, ctx.agent.id);
+
+        // Stuck handling: after 5 ticks, mark memory as failed and clear target
         if (state.context.stuckTicks >= 5 && state.context.hasTarget)
         {
+            state.context.incrementFailedApproach++;
             state.context.hasTarget = false;
+            state.context.pathfinderActive = false;
             state.context.stuckTicks = 0;
         }
 
@@ -87,29 +113,61 @@ public:
         if (state.context.stuckTicks >= 3)
             state.context.riskTolerance = std::min(1.0f, state.context.riskTolerance + 0.10f);
 
-        // Build temporary feedback for NavigationPolicy compatibility
-        AgentFeedback tempFeedback;
-        tempFeedback.stuckTicks = state.context.stuckTicks;
-        tempFeedback.lastMoveDx = state.context.lastMoveDx;
-        tempFeedback.lastMoveDy = state.context.lastMoveDy;
-
         MoveDecision move;
 
         if (state.context.hasTarget)
         {
-            // Approach known food target
-            AgentIntent intent;
-            intent.type = AgentIntentType::ApproachKnownFood;
-            intent.hasTarget = true;
-            intent.targetPosition = state.context.targetPosition;
-            intent.riskTolerance = state.context.riskTolerance;
+            // Use A* pathfinder on local perception map
+            PathfinderConfig pathCfg;
+            pathCfg.riskTolerance = state.context.riskTolerance;
 
-            move = NavigationPolicy::ChooseApproachTargetMove(
-                ctx.fields, ctx.cognitive, ctx.envCtx, ctx.agent, intent, tempFeedback);
+            PathfinderResult pathResult = Pathfinder::GetNextMove(
+                ctx.agent.position,
+                state.context.targetPosition,
+                state.context.perceptionMap,
+                state.context.cachedPath,
+                state.context.pathIndex,
+                state.context.pathAge,
+                pathCfg);
+
+            if (pathResult.unreachable)
+            {
+                // Target unreachable — signal system layer to mark memory
+                state.context.markTargetUnreachable = true;
+                state.context.hasTarget = false;
+                state.context.pathfinderActive = false;
+            }
+            else if (pathResult.targetReached)
+            {
+                move.dx = 0;
+                move.dy = 0;
+                move.foundCandidate = true;
+                move.attemptedMove = false;
+            }
+            else if (pathResult.success)
+            {
+                move.dx = pathResult.dx;
+                move.dy = pathResult.dy;
+                move.foundCandidate = true;
+                move.attemptedMove = true;
+            }
+            else
+            {
+                move.dx = 0;
+                move.dy = 0;
+                move.foundCandidate = true;
+                move.attemptedMove = false;
+            }
         }
-        else
+
+        // If no target (or target became unreachable), fall back to forage
+        if (!state.context.hasTarget)
         {
-            // Forage: search using smell gradient + memory
+            AgentFeedback tempFeedback;
+            tempFeedback.stuckTicks = state.context.stuckTicks;
+            tempFeedback.lastMoveDx = state.context.lastMoveDx;
+            tempFeedback.lastMoveDy = state.context.lastMoveDy;
+
             AgentIntent intent;
             intent.type = AgentIntentType::Forage;
             intent.riskTolerance = state.context.riskTolerance;
@@ -157,7 +215,47 @@ public:
 
     bool IsComplete(const AgentState& state, const StateExecuteContext& ctx) const override
     {
-        // Complete when hunger is satisfied (system layer feeds the agent)
         return ctx.agent.hunger < 20.0f;
+    }
+
+private:
+    // Scan vision radius and update LocalPerceptionMap
+    static void ScanVisibleArea(
+        StateContext& sctx,
+        Vec2i center,
+        const FieldModule& fm,
+        const CognitiveModule& cog,
+        const HumanEvolution::EnvironmentContext& envCtx,
+        EntityId agentId)
+    {
+        auto& map = sctx.perceptionMap;
+        i32 radius = sctx.searchRadius; // vision radius = 5
+        i32 radiusSq = radius * radius;
+
+        for (i32 y = center.y - radius; y <= center.y + radius; ++y)
+        {
+            for (i32 x = center.x - radius; x <= center.x + radius; ++x)
+            {
+                Vec2i pos{x, y};
+                if (!map.InBounds(pos)) continue;
+                i32 dx = x - center.x;
+                i32 dy = y - center.y;
+                if (dx * dx + dy * dy > radiusSq) continue;
+
+                if (!fm.InBounds(envCtx.temperature, x, y))
+                {
+                    map.UpdateCell(pos, CellKnowledge::Blocked, 1.0f);
+                    continue;
+                }
+
+                CellRisk risk = CellRiskEvaluator::Evaluate(
+                    fm, cog, envCtx, agentId, x, y);
+
+                if (risk.traversal == TraversalClass::Blocked)
+                    map.UpdateCell(pos, CellKnowledge::Blocked, risk.total);
+                else
+                    map.UpdateCell(pos, CellKnowledge::Walkable, risk.total);
+            }
+        }
     }
 };

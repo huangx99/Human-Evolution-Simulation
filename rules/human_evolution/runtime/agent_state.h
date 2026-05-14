@@ -12,9 +12,11 @@
 #include "core/types/types.h"
 #include "core/math/vec2i.h"
 #include "sim/entity/agent_action.h"
+#include "rules/human_evolution/runtime/local_perception_map.h"
 #include <vector>
 #include <deque>
 #include <memory>
+#include <limits>
 
 // Forward declarations
 struct Agent;
@@ -74,8 +76,20 @@ struct StateContext
     i32 lastMoveDx = 0;        // direction persistence
     i32 lastMoveDy = 0;
     bool actionSucceeded = false; // did the last action succeed (e.g., ate food)
-    i32 searchRadius = 5;      // for search-type states
+    i32 searchRadius = 5;      // for search-type states / vision radius
     f32 cachedRisk = 0.0f;     // Execute writes, IsComplete reads
+
+    // Pathfinder state (A* on local perception map)
+    LocalPerceptionMap perceptionMap;
+    Vec2i pathTarget{};
+    bool pathfinderActive = false;
+    std::vector<Vec2i> cachedPath;
+    i32 pathIndex = 0;
+    i32 pathAge = 0;
+
+    // Memory modification flags (system layer handles actual mutation)
+    bool markTargetUnreachable = false;
+    i32 incrementFailedApproach = 0;
 };
 
 // --- AgentState: the stack/queue element ---

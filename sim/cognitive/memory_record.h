@@ -66,6 +66,13 @@ struct MemoryRecord
     SenseEmission senseProfile{};
     f32 subjectiveValence = 0.0f;  // -1 (traumatic) to +1 (pleasant)
 
+    // Memory optimization: reachability, failure tracking, transient decay
+    bool markedUnreachable = false;   // agent believes this memory's location is unreachable
+    Tick unreachableSince = 0;        // when it was marked unreachable
+    i32 failedApproachCount = 0;      // times agent tried to reach and got stuck
+    bool isTransient = false;         // transient memories decay at half rate
+    std::string annotation;           // human-readable note (e.g. "blocked_by_fire")
+
     void Decay(f32 rate)
     {
         strength *= rate;

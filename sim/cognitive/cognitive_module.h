@@ -106,12 +106,63 @@ struct CognitiveModule : public IModule
             {
                 f32 rate = (mem.kind == MemoryKind::ShortTerm)
                     ? shortTermRate : longTermRate;
+                // Transient memories decay at half rate (last ~2x longer)
+                if (mem.isTransient)
+                    rate = 1.0f - (1.0f - rate) * 0.5f;
                 mem.Decay(rate);
             }
             memories.erase(
                 std::remove_if(memories.begin(), memories.end(),
                     [](const MemoryRecord& m) { return m.IsFaded(); }),
                 memories.end());
+        }
+    }
+
+    // Update annotation on a specific memory
+    bool UpdateAnnotation(EntityId agentId, u64 memoryId, const std::string& annotation)
+    {
+        auto it = agentMemories.find(agentId);
+        if (it == agentMemories.end()) return false;
+        for (auto& mem : it->second)
+        {
+            if (mem.id == memoryId)
+            {
+                mem.annotation = annotation;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Mark a memory as unreachable
+    void MarkUnreachable(EntityId agentId, u64 memoryId, Tick now)
+    {
+        auto it = agentMemories.find(agentId);
+        if (it == agentMemories.end()) return;
+        for (auto& mem : it->second)
+        {
+            if (mem.id == memoryId)
+            {
+                mem.markedUnreachable = true;
+                mem.unreachableSince = now;
+                return;
+            }
+        }
+    }
+
+    // Periodically reconsider unreachable memories — conditions may have changed
+    void ReconsiderUnreachable(EntityId agentId, Tick now, Tick reconsiderInterval)
+    {
+        auto it = agentMemories.find(agentId);
+        if (it == agentMemories.end()) return;
+        for (auto& mem : it->second)
+        {
+            if (mem.markedUnreachable && (now - mem.unreachableSince) >= reconsiderInterval)
+            {
+                mem.markedUnreachable = false;
+                mem.unreachableSince = 0;
+                mem.failedApproachCount = 0;
+            }
         }
     }
 

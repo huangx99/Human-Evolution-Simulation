@@ -68,6 +68,7 @@ add_executable(human_evolution_tests
     app/tests/social_history_test.cpp
     app/tests/group_knowledge_awareness_test.cpp
     app/tests/cell_risk_test.cpp
+    app/tests/pathfinding_test.cpp
 )
 target_link_libraries(human_evolution_tests
     human_evolution_core
