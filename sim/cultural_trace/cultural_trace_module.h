@@ -96,6 +96,8 @@ struct CulturalTraceModule : public IModule
         records.erase(
             std::remove_if(records.begin(), records.end(),
                 [currentTick, decayWindow](const CulturalTraceRecord& r) {
+                    if (r.lastReinforcedTick > currentTick)
+                        return false;
                     return (currentTick - r.lastReinforcedTick) > decayWindow;
                 }),
             records.end());

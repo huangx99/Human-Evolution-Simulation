@@ -102,7 +102,7 @@ public:
             {ModuleTag::Pattern, AccessMode::Read}
         };
         static constexpr ModuleAccess WRITES[] = {
-            {ModuleTag::CulturalTrace, AccessMode::Write}
+            {ModuleTag::CulturalTrace, AccessMode::ReadWrite}
         };
         static const char* const DEPS[] = {
             "GroupKnowledgeAggregationSystem",

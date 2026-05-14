@@ -390,3 +390,41 @@ TEST(cultural_trace_system_in_pipeline)
 
     return true;
 }
+
+TEST(cultural_trace_descriptor_declares_readwrite_trace_access)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+    CulturalTraceDetectionSystem system(
+        ctx.culturalTraces.dangerAvoidanceTrace,
+        PatternKey("human_evolution.collective_avoidance"),
+        ctx.groupKnowledge.sharedDangerZone);
+    auto desc = system.Descriptor();
+
+    bool culturalTraceReadWrite = false;
+    for (size_t i = 0; i < desc.writeCount; i++)
+    {
+        if (desc.writes[i].module == ModuleTag::CulturalTrace &&
+            desc.writes[i].mode == AccessMode::ReadWrite)
+            culturalTraceReadWrite = true;
+    }
+
+    ASSERT_TRUE(culturalTraceReadWrite);
+
+    return true;
+}
+
+TEST(cultural_trace_decay_ignores_future_reinforced_tick)
+{
+    CulturalTraceModule traces;
+    CulturalTraceTypeId typeId{1};
+
+    traces.AddOrReinforce(typeId, {1}, {1}, 0.8f, 100, 100);
+    traces.DecayRecords(50, 10);
+
+    ASSERT_EQ(traces.records.size(), 1u);
+    ASSERT_EQ(traces.records[0].lastReinforcedTick, 100u);
+
+    return true;
+}
