@@ -30,6 +30,7 @@ enum class MaterialId : u16
     Flesh,
     Bone,
     Leaf,
+    Fruit,
 
     // Constructed (future)
     Charcoal,

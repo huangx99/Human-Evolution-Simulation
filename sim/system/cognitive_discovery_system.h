@@ -74,6 +74,8 @@ public:
 
         for (auto& agent : world.Agents().agents)
         {
+            if (!agent.alive) continue;
+
             auto& memories = cog.GetAgentMemories(agent.id);
             if (memories.size() < 2) continue;
 

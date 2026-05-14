@@ -65,6 +65,8 @@ public:
         // (in case discovery system updated them but didn't emit a discovery)
         for (auto& agent : world.Agents().agents)
         {
+            if (!agent.alive) continue;
+
             auto& hypotheses = cog.GetAgentHypotheses(agent.id);
             for (auto& hyp : hypotheses)
             {

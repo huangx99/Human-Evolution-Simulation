@@ -25,6 +25,7 @@ struct EnvironmentContext
     FieldIndex fire;
     FieldIndex windX;
     FieldIndex windY;
+    FieldIndex food;
     FieldIndex smell;
     FieldIndex danger;
     FieldIndex smoke;

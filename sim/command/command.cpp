@@ -11,6 +11,8 @@ void MoveAgentCommand::Execute(WorldState& world) const
     {
         if (agent.id == id)
         {
+            if (!agent.alive) break;
+
             // Bounds check using first registered field (any spatial field works)
             auto& fm = world.Fields();
             if (fm.FieldCount() > 0)
@@ -33,6 +35,8 @@ void SetAgentActionCommand::Execute(WorldState& world) const
     {
         if (agent.id == id)
         {
+            if (!agent.alive) break;
+
             agent.currentAction = action;
             break;
         }
@@ -45,6 +49,8 @@ void DamageAgentCommand::Execute(WorldState& world) const
     {
         if (agent.id == id)
         {
+            if (!agent.alive) break;
+
             f32 prevHealth = agent.health;
             agent.health = std::max(0.0f, agent.health - amount);
             // Emit death event on health->0 transition
@@ -68,6 +74,8 @@ void FeedAgentCommand::Execute(WorldState& world) const
     {
         if (agent.id == id)
         {
+            if (!agent.alive) break;
+
             agent.hunger = std::max(0.0f, agent.hunger - amount);
             break;
         }
@@ -80,6 +88,8 @@ void ModifyHungerCommand::Execute(WorldState& world) const
     {
         if (agent.id == id)
         {
+            if (!agent.alive) break;
+
             agent.hunger = std::max(0.0f, std::min(100.0f, agent.hunger + delta));
             break;
         }

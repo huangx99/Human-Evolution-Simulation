@@ -125,6 +125,13 @@ namespace MaterialDB
             MaterialState::Alive | MaterialState::Warm
         };
 
+        // Fruit — explicit digestible food source
+        db[static_cast<size_t>(MaterialId::Fruit)] = {
+            Capability::Edible | Capability::Digestible | Capability::Decays | Capability::Passable,
+            Affordance::CanEat | Affordance::CanGather,
+            MaterialState::Alive | MaterialState::Warm
+        };
+
         // Charcoal
         db[static_cast<size_t>(MaterialId::Charcoal)] = {
             Capability::Flammable | Capability::Conducts | Capability::Buildable,

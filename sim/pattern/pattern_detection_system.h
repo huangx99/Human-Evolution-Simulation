@@ -50,6 +50,7 @@ public:
         u32 obsCount = 0;
         for (const auto& agent : agents.agents)
         {
+            if (!agent.alive) continue;
             if (obsCount >= config_.maxObservationsPerTick) break;
 
             PatternObservation obs;

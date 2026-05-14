@@ -13,6 +13,7 @@
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
 #include "rules/human_evolution/human_evolution_context.h"
+#include <algorithm>
 #include <cmath>
 
 class FireSystem : public ISystem
@@ -44,7 +45,8 @@ public:
                     // Propagation: fire decays, spreads, heats, dries
                     fields.WriteNext(env_.fire, x, y, std::max(0.0f, current - burnRate));
                     SpreadFire(ctx, x, y, current);
-                    fields.WriteNext(env_.temperature, x, y, fm.Read(env_.temperature, x, y) + current * 0.05f);
+                    fields.WriteNext(env_.temperature, x, y,
+                        std::min(maxFireTemperature, fm.Read(env_.temperature, x, y) + current * 0.05f));
                     fields.WriteNext(env_.humidity, x, y, std::max(0.0f, fm.Read(env_.humidity, x, y) - current * 0.02f));
                     fields.WriteNext(env_.danger, x, y, std::max(fm.Read(env_.danger, x, y), current));
                 }
@@ -91,6 +93,7 @@ private:
     static constexpr f32 burnRate = 0.5f;
     static constexpr f32 spreadChance = 0.05f;
     static constexpr f32 spreadThreshold = 15.0f;
+    static constexpr f32 maxFireTemperature = 120.0f;
 
     HumanEvolution::EnvironmentContext env_;
 

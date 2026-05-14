@@ -36,6 +36,8 @@ public:
 
         for (auto& agent : world.Agents().agents)
         {
+            if (!agent.alive) continue;
+
             auto it = byAgent.find(agent.id);
             if (it == byAgent.end()) continue;
 

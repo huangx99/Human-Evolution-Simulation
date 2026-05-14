@@ -1,4 +1,5 @@
 #include "app/headless_console/detailed_logger.h"
+#include "app/debug/chinese_debug_names.h"
 #include "rules/human_evolution/commands.h"
 #include "sim/command/command_buffer.h"
 #include "sim/event/event_bus.h"
@@ -11,18 +12,6 @@
 // ============================================================================
 // Helpers: enums / bitfields → strings
 // ============================================================================
-
-static const char* ActionToString(AgentAction action)
-{
-    switch (action)
-    {
-        case AgentAction::Idle:       return "Idle";
-        case AgentAction::MoveToFood: return "MoveToFood";
-        case AgentAction::Flee:       return "Flee";
-        case AgentAction::Wander:     return "Wander";
-    }
-    return "Unknown";
-}
 
 static const char* MaterialToString(MaterialId m)
 {
@@ -44,6 +33,7 @@ static const char* MaterialToString(MaterialId m)
         case MaterialId::Flesh:        return "Flesh";
         case MaterialId::Bone:         return "Bone";
         case MaterialId::Leaf:         return "Leaf";
+        case MaterialId::Fruit:        return "Fruit";
         case MaterialId::Charcoal:     return "Charcoal";
         case MaterialId::Ash:          return "Ash";
         case MaterialId::Coal:         return "Coal";
@@ -158,7 +148,7 @@ static std::string CommandToString(const CommandBase& cmd)
         case CommandKind::SetAgentAction: {
             auto* c = dynamic_cast<const SetAgentActionCommand*>(&cmd);
             return std::string("SetAgentAction agent=") + std::to_string(c->id)
-                + " action=" + ActionToString(c->action);
+                + " action=" + ChineseActionName(c->action);
         }
         case CommandKind::DamageAgent: {
             auto* c = dynamic_cast<const DamageAgentCommand*>(&cmd);
@@ -240,9 +230,8 @@ void PrintDetailedLog(const WorldState& world,
 {
     std::ostringstream out;
     Tick tick = world.Sim().clock.currentTick;
-    // Commands and events are tagged with the tick value at submission time,
-    // which is before EndTick increments the clock. So they are tagged with (tick - 1).
     Tick submitTick = (tick > 0) ? tick - 1 : 0;
+    const auto& regConcept = ConceptTypeRegistry::Instance();
 
     out << "\n========== Tick " << tick << " ==========\n";
 
@@ -260,13 +249,11 @@ void PrintDetailedLog(const WorldState& world,
         i32 fireCount = 0;
         f32 maxFire = 0.0f;
         for (i32 y = 0; y < world.Height(); ++y)
-        {
             for (i32 x = 0; x < world.Width(); ++x)
             {
                 f32 f = world.Fields().Read(envCtx.fire, x, y);
                 if (f > 0.0f) { ++fireCount; if (f > maxFire) maxFire = f; }
             }
-        }
 
         out << "[Environment]\n";
         out << "  Temperature(center): " << std::fixed << std::setprecision(1) << temp << "\n";
@@ -277,11 +264,13 @@ void PrintDetailedLog(const WorldState& world,
     }
 
     // ------------------------------------------------------------------------
-    // Agents
+    // Agents (个体状态)
     // ------------------------------------------------------------------------
     {
         out << "[Agents] count=" << world.Agents().agents.size() << "\n";
         const auto& cog = world.Cognitive();
+        const auto& baselines = world.InternalStateBaselines().baselines;
+
         for (const auto& agent : world.Agents().agents)
         {
             out << "  Agent_" << agent.id << ":\n";
@@ -289,14 +278,43 @@ void PrintDetailedLog(const WorldState& world,
             out << "    Hunger:        " << std::fixed << std::setprecision(1) << agent.hunger << "\n";
             out << "    Health:        " << std::fixed << std::setprecision(1) << agent.health << "\n";
             out << "    Alive:         " << (agent.alive ? "true" : "false") << "\n";
-            out << "    Action:        " << ActionToString(agent.currentAction) << "\n";
+            out << "    Action:        " << ChineseActionName(agent.currentAction) << "\n";
             out << "    Perception:    smell=" << agent.nearestSmell
                 << " fire=" << agent.nearestFire
                 << " temp=" << agent.localTemperature << "\n";
 
+            // 当前关注
+            bool hasFocus = false;
+            for (const auto& f : cog.frameFocused)
+            {
+                if (f.stimulus.observerId == agent.id)
+                {
+                    if (!hasFocus)
+                    {
+                        out << "    CurrentFocus:\n";
+                        hasFocus = true;
+                    }
+                    out << "      concept=" << ChineseConceptName(f.stimulus.concept)
+                        << " score=" << std::fixed << std::setprecision(2) << f.attentionScore
+                        << " sense=" << ChineseSenseName(f.stimulus.sense)
+                        << " pos=(" << f.stimulus.location.x << "," << f.stimulus.location.y << ")\n";
+                }
+            }
+            if (!hasFocus)
+                out << "    CurrentFocus:  (none)\n";
+
+            // 记忆
             const auto& mems = cog.GetAgentMemories(agent.id);
             out << "    Memories:      " << mems.size() << "\n";
+            for (const auto& m : mems)
+            {
+                out << "      " << ChineseConceptName(m.subject)
+                    << " kind=" << static_cast<int>(m.kind)
+                    << " strength=" << std::fixed << std::setprecision(2) << m.strength
+                    << " pos=(" << m.location.x << "," << m.location.y << ")\n";
+            }
 
+            // 知识统计
             size_t knowledgeNodes = 0;
             for (const auto& n : cog.knowledgeGraph.nodes)
                 if (n.ownerAgentId == agent.id) ++knowledgeNodes;
@@ -313,6 +331,85 @@ void PrintDetailedLog(const WorldState& world,
     }
 
     // ------------------------------------------------------------------------
+    // CognitiveInput (当前认知输入)
+    // ------------------------------------------------------------------------
+    {
+        const auto& cog = world.Cognitive();
+        out << "[CognitiveInput]\n";
+
+        // 感知刺激
+        out << "  FrameStimuli:    " << cog.frameStimuli.size() << "\n";
+        for (const auto& s : cog.frameStimuli)
+        {
+            out << "    observer=" << s.observerId
+                << " concept=" << ChineseConceptName(s.concept)
+                << " sense=" << ChineseSenseName(s.sense)
+                << " pos=(" << s.location.x << "," << s.location.y << ")"
+                << " intensity=" << std::fixed << std::setprecision(2) << s.intensity
+                << " confidence=" << s.confidence << "\n";
+        }
+
+        // 关注刺激
+        out << "  FrameFocused:    " << cog.frameFocused.size() << "\n";
+        for (const auto& f : cog.frameFocused)
+        {
+            out << "    observer=" << f.stimulus.observerId
+                << " concept=" << ChineseConceptName(f.stimulus.concept)
+                << " score=" << std::fixed << std::setprecision(2) << f.attentionScore
+                << " sense=" << ChineseSenseName(f.stimulus.sense)
+                << " pos=(" << f.stimulus.location.x << "," << f.stimulus.location.y << ")\n";
+        }
+
+        // 当前 tick 形成的记忆
+        out << "  FrameMemories:   " << cog.frameMemories.size() << "\n";
+        for (const auto& m : cog.frameMemories)
+        {
+            out << "    owner=" << m.ownerId
+                << " concept=" << ChineseConceptName(m.subject)
+                << " strength=" << std::fixed << std::setprecision(2) << m.strength
+                << " pos=(" << m.location.x << "," << m.location.y << ")\n";
+        }
+
+        // 当前 tick 的发现
+        out << "  FrameDiscoveries:" << cog.frameDiscoveries.size() << "\n";
+        for (const auto& d : cog.frameDiscoveries)
+        {
+            out << "    owner=" << d.ownerId
+                << " " << ChineseConceptName(d.causeConcept)
+                << " -> " << ChineseConceptName(d.effectConcept)
+                << " confidence=" << std::fixed << std::setprecision(2) << d.confidence << "\n";
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // CognitiveHypotheses (认知假设)
+    // ------------------------------------------------------------------------
+    {
+        const auto& cog = world.Cognitive();
+        out << "[CognitiveHypotheses]\n";
+        bool any = false;
+        for (const auto& agent : world.Agents().agents)
+        {
+            auto it = cog.agentHypotheses.find(agent.id);
+            if (it != cog.agentHypotheses.end() && !it->second.empty())
+            {
+                any = true;
+                out << "  Agent_" << agent.id << ": count=" << it->second.size() << "\n";
+                for (const auto& h : it->second)
+                {
+                    out << "    " << ChineseConceptName(h.causeConcept)
+                        << " -> " << ChineseConceptName(h.effectConcept)
+                        << " conf=" << std::fixed << std::setprecision(2) << h.confidence
+                        << " support=" << h.supportingCount
+                        << " contra=" << h.contradictingCount << "\n";
+                }
+            }
+        }
+        if (!any)
+            out << "  (none)\n";
+    }
+
+    // ------------------------------------------------------------------------
     // Ecology
     // ------------------------------------------------------------------------
     {
@@ -326,6 +423,141 @@ void PrintDetailedLog(const WorldState& world,
             out << "    State:        " << StateFlagsToString(entity.state) << "\n";
             out << "    Capabilities: " << CapFlagsToString(entity.GetCapabilities()) << "\n";
             out << "    Affordances:  " << AffFlagsToString(entity.GetAffordances()) << "\n";
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // SocialSignals (社会信号)
+    // ------------------------------------------------------------------------
+    {
+        const auto& sigMod = world.SocialSignals();
+        Tick now = tick;
+        out << "[SocialSignals] count=" << sigMod.Count() << "\n";
+        if (sigMod.activeSignals.empty())
+            out << "  (none)\n";
+        else
+        {
+            for (const auto& s : sigMod.activeSignals)
+            {
+                u32 remaining = 0;
+                if (now < s.createdTick + s.ttl)
+                    remaining = static_cast<u32>(s.createdTick + s.ttl - now);
+                out << "  " << ChineseSocialSignalName(s.typeId)
+                    << " source=" << s.sourceEntityId
+                    << " pos=(" << s.origin.x << "," << s.origin.y << ")"
+                    << " intensity=" << std::fixed << std::setprecision(2) << s.intensity
+                    << " ttl_remaining=" << remaining << "\n";
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // GroupKnowledge (群体知识)
+    // ------------------------------------------------------------------------
+    {
+        const auto& gkMod = world.GroupKnowledge();
+        out << "[GroupKnowledge] count=" << gkMod.records.size() << "\n";
+        if (gkMod.records.empty())
+            out << "  (none)\n";
+        else
+        {
+            for (const auto& r : gkMod.records)
+            {
+                out << "  " << ChineseGroupKnowledgeName(r.typeId)
+                    << " id=" << r.id
+                    << " pos=(" << r.origin.x << "," << r.origin.y << ")"
+                    << " radius=" << std::fixed << std::setprecision(1) << r.radius
+                    << " confidence=" << std::fixed << std::setprecision(2) << r.confidence
+                    << " contributors=" << r.contributors << "\n";
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Patterns (群体行为模式)
+    // ------------------------------------------------------------------------
+    {
+        const auto& patMod = world.Patterns();
+        out << "[Patterns] count=" << patMod.Count() << "\n";
+        if (patMod.All().empty())
+            out << "  (none)\n";
+        else
+        {
+            for (const auto& p : patMod.All())
+            {
+                out << "  " << ChinesePatternName(p.typeId)
+                    << " id=" << p.id
+                    << " pos=(" << p.x << "," << p.y << ")"
+                    << " confidence=" << std::fixed << std::setprecision(2) << p.confidence
+                    << " magnitude=" << p.magnitude
+                    << " observations=" << p.observationCount << "\n";
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // CulturalTraces (文化痕迹)
+    // ------------------------------------------------------------------------
+    {
+        const auto& ctMod = world.CulturalTrace();
+        out << "[CulturalTraces] count=" << ctMod.records.size() << "\n";
+        if (ctMod.records.empty())
+            out << "  (none)\n";
+        else
+        {
+            for (const auto& t : ctMod.records)
+            {
+                out << "  " << ChineseCulturalTraceName(t.typeId)
+                    << " id=" << t.id
+                    << " confidence=" << std::fixed << std::setprecision(2) << t.confidence
+                    << " reinforcements=" << t.reinforcementCount
+                    << " sourcePatterns=[";
+                for (size_t i = 0; i < t.sourcePatternIds.size(); ++i)
+                {
+                    if (i > 0) out << ",";
+                    out << t.sourcePatternIds[i];
+                }
+                out << "] sourceGK=[";
+                for (size_t i = 0; i < t.sourceGroupKnowledgeRecordIds.size(); ++i)
+                {
+                    if (i > 0) out << ",";
+                    out << t.sourceGroupKnowledgeRecordIds[i];
+                }
+                out << "]\n";
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // HistoryEvents (历史事件)
+    // ------------------------------------------------------------------------
+    {
+        const auto& histMod = world.History();
+        out << "[HistoryEvents] count=" << histMod.Count() << "\n";
+        if (histMod.Events().empty())
+            out << "  (none)\n";
+        else
+        {
+            for (const auto& e : histMod.Events())
+            {
+                out << "  " << ChineseHistoryEventName(e.typeId)
+                    << " id=" << e.id
+                    << " tick=" << e.tick
+                    << " pos=(" << e.x << "," << e.y << ")"
+                    << " magnitude=" << std::fixed << std::setprecision(2) << e.magnitude
+                    << " confidence=" << e.confidence;
+                if (!e.involvedEntities.empty())
+                {
+                    out << " involved=[";
+                    for (size_t i = 0; i < e.involvedEntities.size(); ++i)
+                    {
+                        if (i > 0) out << ",";
+                        out << e.involvedEntities[i];
+                    }
+                    out << "]";
+                }
+                out << "\n";
+            }
         }
     }
 

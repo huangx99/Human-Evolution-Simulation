@@ -24,6 +24,16 @@ struct RunConfig
     bool quiet = false;
     bool ascii = false;
     bool log = false;
+    i32 asciiSpeedMs = 100;
+    bool asciiPermanentFire = true;
+    i32 asciiPermanentFireX = 16;
+    i32 asciiPermanentFireY = 16;
+    i32 asciiPermanentFireRadius = 2;
+    f32 asciiPermanentFireIntensity = 85.0f;
+    bool asciiPermanentFood = true;
+    i32 asciiPermanentFoodX = 27;
+    i32 asciiPermanentFoodY = 27;
+    i32 asciiPermanentFoodRadius = 1;
 };
 
 RunConfig ParseArgs(int argc, char* argv[])
@@ -41,6 +51,27 @@ RunConfig ParseArgs(int argc, char* argv[])
             cfg.quiet = true;
         else if (std::strcmp(argv[i], "--ascii") == 0)
             cfg.ascii = true;
+        else if (std::strcmp(argv[i], "--ascii-speed") == 0 && i + 1 < argc)
+            cfg.asciiSpeedMs = std::stoi(argv[++i]);
+        else if (std::strcmp(argv[i], "--no-ascii-permanent-fire") == 0)
+            cfg.asciiPermanentFire = false;
+        else if (std::strcmp(argv[i], "--ascii-permanent-fire") == 0 && i + 4 < argc)
+        {
+            cfg.asciiPermanentFire = true;
+            cfg.asciiPermanentFireX = std::stoi(argv[++i]);
+            cfg.asciiPermanentFireY = std::stoi(argv[++i]);
+            cfg.asciiPermanentFireRadius = std::stoi(argv[++i]);
+            cfg.asciiPermanentFireIntensity = std::stof(argv[++i]);
+        }
+        else if (std::strcmp(argv[i], "--no-ascii-permanent-food") == 0)
+            cfg.asciiPermanentFood = false;
+        else if (std::strcmp(argv[i], "--ascii-permanent-food") == 0 && i + 3 < argc)
+        {
+            cfg.asciiPermanentFood = true;
+            cfg.asciiPermanentFoodX = std::stoi(argv[++i]);
+            cfg.asciiPermanentFoodY = std::stoi(argv[++i]);
+            cfg.asciiPermanentFoodRadius = std::stoi(argv[++i]);
+        }
         else if (std::strcmp(argv[i], "--log") == 0)
             cfg.log = true;
     }
@@ -160,8 +191,6 @@ int main(int argc, char* argv[])
     fm.WriteNext(envCtx.fire, 17, 16, 60.0f);
     fm.WriteNext(envCtx.fire, 16, 17, 60.0f);
     fm.WriteNext(envCtx.fire, 15, 16, 40.0f);
-    fm.WriteNext(envCtx.fire, 8, 8, 60.0f);
-    fm.WriteNext(envCtx.fire, 9, 8, 40.0f);
     fm.SwapAll();
 
     world.SpawnAgent(5, 5);
@@ -276,7 +305,19 @@ int main(int argc, char* argv[])
     if (cfg.ascii)
     {
         AsciiViewer viewer;
-        viewer.Run(world, envCtx, scheduler, cfg.ticks);
+        AsciiViewer::PermanentFireConfig permanentFire;
+        permanentFire.enabled = cfg.asciiPermanentFire;
+        permanentFire.x = cfg.asciiPermanentFireX;
+        permanentFire.y = cfg.asciiPermanentFireY;
+        permanentFire.radius = cfg.asciiPermanentFireRadius;
+        permanentFire.intensity = cfg.asciiPermanentFireIntensity;
+        AsciiViewer::PermanentFoodConfig permanentFood;
+        permanentFood.enabled = cfg.asciiPermanentFood;
+        permanentFood.x = cfg.asciiPermanentFoodX;
+        permanentFood.y = cfg.asciiPermanentFoodY;
+        permanentFood.radius = cfg.asciiPermanentFoodRadius;
+        viewer.Run(world, envCtx, scheduler, cfg.ticks,
+                   cfg.asciiSpeedMs, permanentFire, permanentFood);
     }
     else if (cfg.log)
     {

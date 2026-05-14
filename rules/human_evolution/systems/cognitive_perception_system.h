@@ -47,21 +47,23 @@ public:
 
         for (auto& agent : ctx.Agents().agents)
         {
+            if (!agent.alive) continue;
+
             i32 ax = agent.position.x;
             i32 y = agent.position.y;
 
             // === Smell perception ===
-            if (fm.InBounds(envCtx_.smell, ax, y) && agent.nearestSmell > smellThreshold)
+            if (fm.InBounds(envCtx_.food, ax, y) && agent.nearestSmell > smellThreshold)
             {
                 PerceivedStimulus s;
                 s.id = cog.nextStimulusId++;
                 s.observerId = agent.id;
                 s.sense = SenseType::Smell;
                 s.concept = concepts_.food;
-                s.location = agent.position;
+                s.location = FindStrongestFieldLocation(fm, envCtx_.food, agent.position, foodSourceScanRadius);
                 s.intensity = agent.nearestSmell / 50.0f;
                 s.confidence = 0.7f;
-                s.distance = 0.0f;
+                s.distance = Distance(agent.position, s.location);
                 s.tick = sim.clock.currentTick;
                 cog.frameStimuli.push_back(s);
             }
@@ -74,10 +76,10 @@ public:
                 s.observerId = agent.id;
                 s.sense = SenseType::Vision;
                 s.concept = concepts_.fire;
-                s.location = agent.position;
+                s.location = FindStrongestFieldLocation(fm, envCtx_.fire, agent.position, scanRadius);
                 s.intensity = agent.nearestFire / 80.0f;
                 s.confidence = 0.9f;
-                s.distance = 0.0f;
+                s.distance = Distance(agent.position, s.location);
                 s.tick = sim.clock.currentTick;
                 cog.frameStimuli.push_back(s);
             }
@@ -140,16 +142,16 @@ public:
                 {
                     PerceivedStimulus s;
                     s.id = cog.nextStimulusId++;
-                    s.observerId = agent.id;
-                    s.sense = SenseType::Smell;
-                    s.concept = concepts_.smoke;
-                    s.location = agent.position;
-                    s.intensity = smokeVal / 40.0f;
-                    s.confidence = 0.75f;
-                    s.distance = 0.0f;
-                    s.tick = sim.clock.currentTick;
-                    cog.frameStimuli.push_back(s);
-                }
+                s.observerId = agent.id;
+                s.sense = SenseType::Smell;
+                s.concept = concepts_.smoke;
+                s.location = FindStrongestFieldLocation(fm, envCtx_.smoke, agent.position, scanRadius);
+                s.intensity = smokeVal / 40.0f;
+                s.confidence = 0.75f;
+                s.distance = Distance(agent.position, s.location);
+                s.tick = sim.clock.currentTick;
+                cog.frameStimuli.push_back(s);
+            }
             }
 
             // === Nearby ecology entity perception ===
@@ -206,11 +208,50 @@ private:
     static constexpr f32 dangerThreshold = 3.0f;
     static constexpr f32 smokeThreshold = 2.0f;
     static constexpr i32 scanRadius = 4;
+    static constexpr i32 foodSourceScanRadius = 8;
+
+    static f32 Distance(Vec2i a, Vec2i b)
+    {
+        f32 dx = static_cast<f32>(a.x - b.x);
+        f32 dy = static_cast<f32>(a.y - b.y);
+        return std::sqrt(dx * dx + dy * dy);
+    }
+
+    static Vec2i FindStrongestFieldLocation(const FieldModule& fm,
+                                            FieldIndex field,
+                                            Vec2i origin,
+                                            i32 radius)
+    {
+        Vec2i best = origin;
+        f32 bestScore = -1.0f;
+        for (i32 dy = -radius; dy <= radius; ++dy)
+        {
+            for (i32 dx = -radius; dx <= radius; ++dx)
+            {
+                i32 x = origin.x + dx;
+                i32 y = origin.y + dy;
+                if (!fm.InBounds(field, x, y)) continue;
+
+                f32 dist = std::sqrt(static_cast<f32>(dx * dx + dy * dy));
+                if (dist > radius) continue;
+
+                f32 score = fm.Read(field, x, y) / (1.0f + dist * 0.25f);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = {x, y};
+                }
+            }
+        }
+        return best;
+    }
 
     ConceptTypeId InferConcept(const EcologyEntity& entity) const
     {
         if (entity.HasState(MaterialState::Burning))
             return concepts_.fire;
+        if (entity.HasState(MaterialState::Dead) && entity.material == MaterialId::Flesh)
+            return concepts_.death;
         if (entity.HasCapability(Capability::Edible))
             return concepts_.food;
         if (entity.material == MaterialId::Water)
@@ -219,8 +260,6 @@ private:
             return concepts_.wood;
         if (entity.material == MaterialId::Stone)
             return concepts_.stone;
-        if (entity.HasState(MaterialState::Dead) && entity.material == MaterialId::Flesh)
-            return concepts_.death;
         return ConceptTypeId{};  // invalid = skip
     }
 };

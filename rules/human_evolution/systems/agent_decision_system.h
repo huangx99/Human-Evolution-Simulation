@@ -34,6 +34,8 @@ public:
 
         for (auto& agent : world.Agents().agents)
         {
+            if (!agent.alive) continue;
+
             f32 fleeScore = 0.0f;
             f32 foodScore = 0.0f;
             f32 wanderScore = 0.1f;
@@ -46,7 +48,7 @@ public:
                 foodScore = agent.hunger * agent.nearestSmell * 0.01f;
 
             if (agent.localTemperature > 40.0f)
-                wanderScore += (agent.localTemperature - 40.0f) * 0.1f;
+                fleeScore += (agent.localTemperature - 40.0f) * 1.5f;
 
             // === Knowledge-driven scoring via DecisionModifiers ===
             auto mods = cog.GenerateDecisionModifiers(agent.id);

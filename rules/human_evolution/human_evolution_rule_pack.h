@@ -7,6 +7,7 @@
 #include "rules/human_evolution/environment/climate_system.h"
 #include "rules/human_evolution/environment/fire_system.h"
 #include "rules/human_evolution/environment/smell_system.h"
+#include "rules/human_evolution/environment/food_source_system.h"
 #include "rules/human_evolution/systems/agent_perception_system.h"
 #include "rules/human_evolution/systems/agent_action_system.h"
 #include "rules/human_evolution/systems/cognitive_perception_system.h"
@@ -37,7 +38,7 @@
 
 // HumanEvolutionRulePack: defines the Human Evolution world.
 //
-// Fields: temperature, humidity, fire, wind_x, wind_y, smell, danger, smoke
+// Fields: temperature, humidity, fire, wind_x, wind_y, food, smell, danger, smoke
 // Commands: IgniteFire, ExtinguishFire, EmitSmell, SetDanger, EmitSmoke
 // Systems: full cognitive pipeline (environment → perception → attention → memory
 //          → discovery → knowledge → decision → action)
@@ -54,6 +55,7 @@ public:
         ctx_.environment.fire        = fields.RegisterField(FieldKey("human_evolution.fire"),        "fire",         0.0f);
         ctx_.environment.windX       = fields.RegisterScalarField(FieldKey("human_evolution.wind_x"), "wind_x", 0.0f);
         ctx_.environment.windY       = fields.RegisterScalarField(FieldKey("human_evolution.wind_y"), "wind_y", 0.0f);
+        ctx_.environment.food        = fields.RegisterField(FieldKey("human_evolution.food"),        "food",         0.0f);
         ctx_.environment.smell       = fields.RegisterField(FieldKey("human_evolution.smell"),       "smell",        0.0f);
         ctx_.environment.danger      = fields.RegisterField(FieldKey("human_evolution.danger"),      "danger",       0.0f);
         ctx_.environment.smoke       = fields.RegisterField(FieldKey("human_evolution.smoke"),       "smoke",        0.0f);
@@ -209,6 +211,7 @@ public:
         systems.push_back({SimPhase::Environment, std::make_unique<ClimateSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Propagation, std::make_unique<FireSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Propagation, std::make_unique<SmellSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Propagation, std::make_unique<FoodSourceSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Propagation, std::make_unique<SocialSignalDecaySystem>()});
 
         // Perception pipeline
@@ -317,6 +320,8 @@ private:
             {c.fire,      c.pain,      KnowledgeRelation::Causes},
             // Fire → Causes → Warmth
             {c.fire,      c.warmth,    KnowledgeRelation::Causes},
+            // Fire → Causes → Heat
+            {c.fire,      c.heat,      KnowledgeRelation::Causes},
             // Heat → Causes → Comfort
             {c.heat,      c.comfort,   KnowledgeRelation::Causes},
             // Cold → Causes → Pain
@@ -351,6 +356,7 @@ inline void RegisterHumanEvolutionSystems(Scheduler& scheduler, const HumanEvolu
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FoodSourceSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Perception, std::make_unique<AgentPerceptionSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Decision,   std::make_unique<AgentDecisionSystem>());
     scheduler.AddSystem(SimPhase::Action,     std::make_unique<AgentActionSystem>(envCtx));
@@ -389,6 +395,7 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
         {c.smoke, c.fire, KnowledgeRelation::Signals},
         {c.fire, c.pain, KnowledgeRelation::Causes},
         {c.fire, c.warmth, KnowledgeRelation::Causes},
+        {c.fire, c.heat, KnowledgeRelation::Causes},
         {c.heat, c.comfort, KnowledgeRelation::Causes},
         {c.cold, c.pain, KnowledgeRelation::Causes},
         {c.meat, c.satiety, KnowledgeRelation::Causes},
@@ -411,6 +418,7 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FoodSourceSystem>(ctx.environment));
 
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx));
@@ -441,6 +449,7 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
         {c.smoke, c.fire, KnowledgeRelation::Signals},
         {c.fire, c.pain, KnowledgeRelation::Causes},
         {c.fire, c.warmth, KnowledgeRelation::Causes},
+        {c.fire, c.heat, KnowledgeRelation::Causes},
         {c.heat, c.comfort, KnowledgeRelation::Causes},
         {c.cold, c.pain, KnowledgeRelation::Causes},
         {c.meat, c.satiety, KnowledgeRelation::Causes},
@@ -463,6 +472,7 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FoodSourceSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SocialSignalDecaySystem>());
 
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx.environment));

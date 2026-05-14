@@ -21,10 +21,12 @@ public:
 
         for (auto& agent : agentMod.agents)
         {
+            if (!agent.alive) continue;
+
             i32 x = agent.position.x;
             i32 y = agent.position.y;
 
-            if (!fm.InBounds(envCtx_.smell, x, y)) continue;
+            if (!fm.InBounds(envCtx_.food, x, y)) continue;
 
             agent.localTemperature = fm.Read(envCtx_.temperature, x, y);
             agent.nearestSmell = 0.0f;
@@ -38,12 +40,12 @@ public:
                     i32 nx = x + sx;
                     i32 ny = y + sy;
 
-                    if (!fm.InBounds(envCtx_.smell, nx, ny)) continue;
+                    if (!fm.InBounds(envCtx_.food, nx, ny)) continue;
 
                     f32 dist = std::sqrt(static_cast<f32>(sx * sx + sy * sy));
                     if (dist > scanRadius) continue;
 
-                    f32 smellVal = fm.Read(envCtx_.smell, nx, ny) / (1.0f + dist);
+                    f32 smellVal = fm.Read(envCtx_.food, nx, ny) / (1.0f + dist);
                     if (smellVal > agent.nearestSmell) agent.nearestSmell = smellVal;
 
                     f32 fireVal = fm.Read(envCtx_.fire, nx, ny) / (1.0f + dist);

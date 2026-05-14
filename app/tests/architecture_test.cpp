@@ -113,6 +113,33 @@ TEST(command_apply)
     return true;
 }
 
+// Test: Dead agents ignore runtime agent commands
+TEST(dead_agent_commands_are_ignored)
+{
+    WorldState world(8, 8, 42);
+    world.Init(g_rulePack);
+    world.SpawnAgent(2, 3);
+
+    auto& agent = world.Agents().agents[0];
+    agent.alive = false;
+    agent.health = 0.0f;
+    agent.hunger = 50.0f;
+    agent.currentAction = AgentAction::Flee;
+
+    world.commands.Push(0, MoveAgentCommand{agent.id, 5, 6});
+    world.commands.Push(0, SetAgentActionCommand{agent.id, AgentAction::Wander});
+    world.commands.Push(0, FeedAgentCommand{agent.id, 5.0f});
+    world.commands.Push(0, ModifyHungerCommand{agent.id, 5.0f});
+    world.commands.Apply(world);
+
+    ASSERT_EQ(agent.position.x, 2);
+    ASSERT_EQ(agent.position.y, 3);
+    ASSERT_EQ(agent.currentAction, AgentAction::Flee);
+    ASSERT_EQ(agent.hunger, 50.0f);
+
+    return true;
+}
+
 // Test: Event lifecycle (Emit → Dispatch → Archive)
 TEST(event_lifecycle)
 {
