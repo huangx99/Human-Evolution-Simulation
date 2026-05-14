@@ -29,6 +29,9 @@ struct EcologyEntity
     i32 x = -1;
     i32 y = -1;
 
+    // Tick when the state last changed (used by StateDurationGreaterThan predicate)
+    Tick stateChangedTick = 0;
+
     // --- Computed accessors ---
 
     // Total capabilities = material defaults + extras

@@ -159,7 +159,7 @@ struct CognitiveModule : public IModule
                     if (reg.HasFlag(toNode->concept, ConceptSemanticFlag::Danger) ||
                         reg.HasFlag(toNode->concept, ConceptSemanticFlag::Threat))
                     {
-                        danger += e.confidence * e.strength;
+                        danger += KnowledgeInfluence(e);
                     }
                 }
             }
@@ -223,7 +223,7 @@ struct CognitiveModule : public IModule
                 DecisionModifier mod;
                 mod.type = ModifierType::FleeBoost;
                 mod.triggerConcept = fromNode->concept;
-                mod.magnitude = e.confidence * e.strength * 0.3f;
+                mod.magnitude = KnowledgeInfluence(e);
                 mod.confidence = e.confidence;
                 mods.push_back(mod);
             }
@@ -235,7 +235,7 @@ struct CognitiveModule : public IModule
                 DecisionModifier mod;
                 mod.type = ModifierType::ApproachBoost;
                 mod.triggerConcept = fromNode->concept;
-                mod.magnitude = e.confidence * e.strength * 0.3f;
+                mod.magnitude = KnowledgeInfluence(e);
                 mod.confidence = e.confidence;
                 mods.push_back(mod);
             }
@@ -248,6 +248,18 @@ struct CognitiveModule : public IModule
                 mod.triggerConcept = fromNode->concept;
                 mod.magnitude = e.confidence * 0.2f;
                 mod.confidence = e.confidence;
+                mods.push_back(mod);
+            }
+
+            // Valence bias from typical effect valence
+            if (std::abs(e.typicalEffectValence) > 0.1f)
+            {
+                DecisionModifier mod;
+                mod.type = ModifierType::ValenceBias;
+                mod.triggerConcept = fromNode->concept;
+                mod.magnitude = KnowledgeInfluence(e);
+                mod.confidence = e.confidence;
+                mod.valenceBias = e.typicalEffectValence * KnowledgeInfluence(e);
                 mods.push_back(mod);
             }
         }

@@ -147,6 +147,11 @@ public:
                         hyp.lastObservedTick = now;
                         hyp.lastEvidenceTick = pairEvidenceTick;
                         hyp.status = HypothesisStatus::Weak;
+
+                        // Carry sense data from cause memory to hypothesis
+                        hyp.causeSenseProfile = memA.senseProfile;
+                        hyp.effectValence = memB.subjectiveValence;
+
                         hyp.UpdateStatus(stableThreshold, minEvidence);
 
                         hypotheses.push_back(hyp);

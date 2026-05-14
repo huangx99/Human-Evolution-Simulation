@@ -103,6 +103,11 @@ public:
     // Default: empty (no custom cultural trace types)
     virtual void RegisterCulturalTraceTypes(CulturalTraceRegistry&) {}
 
+    // Register state behaviors for the state stack system.
+    // Called before SpawnAgent so that StateManagers can be populated.
+    // Default: empty (no state behaviors)
+    virtual void RegisterStateBehaviors() {}
+
     // --- System creation (called once during WorldState construction) ---
 
     // Create simulation systems and return them tagged with their phase.

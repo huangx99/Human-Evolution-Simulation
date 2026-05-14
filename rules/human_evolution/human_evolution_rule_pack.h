@@ -10,6 +10,13 @@
 #include "rules/human_evolution/environment/food_source_system.h"
 #include "rules/human_evolution/systems/agent_perception_system.h"
 #include "rules/human_evolution/systems/agent_action_system.h"
+#include "rules/human_evolution/systems/agent_state_decision_system.h"
+#include "rules/human_evolution/systems/agent_state_action_system.h"
+#include "rules/human_evolution/runtime/state_behavior_registry.h"
+#include "rules/human_evolution/runtime/states/fear_state.h"
+#include "rules/human_evolution/runtime/states/hunger_state.h"
+#include "rules/human_evolution/runtime/states/explore_state.h"
+#include "rules/human_evolution/runtime/states/rest_state.h"
 #include "rules/human_evolution/systems/cognitive_perception_system.h"
 #include "sim/system/cognitive_attention_system.h"
 #include "sim/system/cognitive_memory_system.h"
@@ -199,12 +206,21 @@ public:
             MakeCulturalTraceKey("human_evolution.danger_avoidance_trace"), "danger_avoidance_trace");
     }
 
+    void RegisterStateBehaviors() override
+    {
+        InitStateBehaviors();
+    }
+
     IRuleContext& GetContext() override { return ctx_; }
 
     std::vector<SystemRegistration> CreateSystems() override
     {
         memoryPolicy_ = std::make_unique<HumanEvolutionMemoryInferencePolicy>(ctx_.concepts);
         attentionPolicy_ = std::make_unique<HumanEvolutionAttentionScoringPolicy>(ctx_);
+
+        // Register state behaviors (once, shared across all agents)
+        InitStateBehaviors();
+
         std::vector<SystemRegistration> systems;
 
         // Environment (constructor-injected EnvironmentContext)
@@ -228,10 +244,10 @@ public:
         // Decision pipeline
         systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(BuildDiscoveryRules())});
         systems.push_back({SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>()});
-        systems.push_back({SimPhase::Decision,    std::make_unique<AgentDecisionSystem>(ctx_.concepts)});
+        systems.push_back({SimPhase::Decision,    std::make_unique<AgentStateDecisionSystem>(ctx_.environment)});
 
         // Action pipeline
-        systems.push_back({SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx_.environment)});
+        systems.push_back({SimPhase::Action,      std::make_unique<AgentStateActionSystem>(ctx_.environment)});
         systems.push_back({SimPhase::Action,      std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx_)});
 
         // Group knowledge aggregation (after memory, before pattern)
@@ -310,6 +326,17 @@ private:
     std::unique_ptr<HumanEvolutionMemoryInferencePolicy> memoryPolicy_;
     std::unique_ptr<HumanEvolutionAttentionScoringPolicy> attentionPolicy_;
 
+    static void InitStateBehaviors()
+    {
+        auto& reg = StateBehaviorRegistry::Instance();
+        // Only register if not already registered (idempotent)
+        if (reg.Get(StateId::Fear) != nullptr) return;
+        reg.Register(std::make_unique<FearState>());
+        reg.Register(std::make_unique<HungerState>());
+        reg.Register(std::make_unique<ExploreState>());
+        reg.Register(std::make_unique<RestState>());
+    }
+
     std::vector<DiscoveryRule> BuildDiscoveryRules() const
     {
         const auto& c = ctx_.concepts;
@@ -353,13 +380,25 @@ private:
 // Use for tests that only need the minimal pipeline.
 inline void RegisterHumanEvolutionSystems(Scheduler& scheduler, const HumanEvolution::EnvironmentContext& envCtx)
 {
+    // Register state behaviors if not already done
+    {
+        auto& reg = StateBehaviorRegistry::Instance();
+        if (reg.Get(StateId::Fear) == nullptr)
+        {
+            reg.Register(std::make_unique<FearState>());
+            reg.Register(std::make_unique<HungerState>());
+            reg.Register(std::make_unique<ExploreState>());
+            reg.Register(std::make_unique<RestState>());
+        }
+    }
+
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<SmellSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FoodSourceSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Perception, std::make_unique<AgentPerceptionSystem>(envCtx));
-    scheduler.AddSystem(SimPhase::Decision,   std::make_unique<AgentDecisionSystem>());
-    scheduler.AddSystem(SimPhase::Action,     std::make_unique<AgentActionSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Decision,   std::make_unique<AgentStateDecisionSystem>(envCtx));
+    scheduler.AddSystem(SimPhase::Action,     std::make_unique<AgentStateActionSystem>(envCtx));
     scheduler.AddSystem(SimPhase::Perception, std::make_unique<CognitivePerceptionSystem>(envCtx));
 }
 
@@ -389,6 +428,18 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
     auto attentionPolicy = std::make_shared<HumanEvolutionAttentionScoringPolicy>(ctx);
     auto* memoryPolicyPtr = memoryPolicy.get();
     auto* attentionPolicyPtr = attentionPolicy.get();
+
+    // Register state behaviors
+    {
+        auto& reg = StateBehaviorRegistry::Instance();
+        if (reg.Get(StateId::Fear) == nullptr)
+        {
+            reg.Register(std::make_unique<FearState>());
+            reg.Register(std::make_unique<HungerState>());
+            reg.Register(std::make_unique<ExploreState>());
+            reg.Register(std::make_unique<RestState>());
+        }
+    }
 
     const auto& c = ctx.concepts;
     std::vector<DiscoveryRule> discoveryRules = {
@@ -427,9 +478,9 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
 
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(std::move(discoveryRules)));
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>());
-    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>(ctx.concepts));
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentStateDecisionSystem>(ctx.environment));
 
-    scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentStateActionSystem>(ctx.environment));
 
     return scheduler;
 }
@@ -439,6 +490,18 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
 // Use for tests that need the complete Phase 2.0 pipeline.
 inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
 {
+    // Register state behaviors
+    {
+        auto& reg = StateBehaviorRegistry::Instance();
+        if (reg.Get(StateId::Fear) == nullptr)
+        {
+            reg.Register(std::make_unique<FearState>());
+            reg.Register(std::make_unique<HungerState>());
+            reg.Register(std::make_unique<ExploreState>());
+            reg.Register(std::make_unique<RestState>());
+        }
+    }
+
     auto memoryPolicy = std::make_shared<HumanEvolutionMemoryInferencePolicy>(ctx.concepts);
     auto attentionPolicy = std::make_shared<HumanEvolutionAttentionScoringPolicy>(ctx);
     auto* memoryPolicyPtr = memoryPolicy.get();
@@ -487,9 +550,9 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
 
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(std::move(discoveryRules)));
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveKnowledgeSystem>());
-    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentDecisionSystem>(ctx.concepts));
+    scheduler.AddSystem(SimPhase::Decision,    std::make_unique<AgentStateDecisionSystem>(ctx.environment));
 
-    scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentActionSystem>(ctx.environment));
+    scheduler.AddSystem(SimPhase::Action,      std::make_unique<AgentStateActionSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Action,      std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx));
 
     scheduler.AddSystem(SimPhase::Analysis,    std::make_unique<GroupKnowledgeAggregationSystem>(

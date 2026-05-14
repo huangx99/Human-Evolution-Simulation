@@ -74,6 +74,10 @@ public:
             mem.lastReinforcedTick = sim.clock.currentTick;
             mem.sourceStimulusId = s.id;
 
+            // Carry sense data from stimulus to memory
+            mem.senseProfile = s.rawEmission;
+            mem.subjectiveValence = s.valence;
+
             // Infer result tags via injected policy (domain-specific)
             if (policy_)
             {

@@ -11,6 +11,7 @@
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
 #include "rules/human_evolution/human_evolution_context.h"
+#include "sim/ecology/behavior_table.h"
 #include <algorithm>
 #include <cmath>
 
@@ -77,19 +78,16 @@ private:
 
     static bool IsActiveFood(const EcologyEntity& entity)
     {
-        return entity.HasCapability(Capability::Edible) &&
-               entity.HasCapability(Capability::Digestible) &&
-               !entity.HasCapability(Capability::Toxic) &&
-               !entity.HasState(MaterialState::Burning) &&
-               !entity.HasState(MaterialState::Dead) &&
-               !entity.HasState(MaterialState::Decomposing);
+        SenseEmission emission = BehaviorTable::Instance().GetEmission(
+            entity.material, entity.state);
+        return emission.smell.appetizing > 0.0f;
     }
 
     static f32 BaseEmission(const EcologyEntity& entity)
     {
-        if (entity.material == MaterialId::Fruit) return 36.0f;
-        if (entity.material == MaterialId::Flesh) return 24.0f;
-        return 18.0f;
+        SenseEmission emission = BehaviorTable::Instance().GetEmission(
+            entity.material, entity.state);
+        return emission.smell.appetizing;
     }
 
     static constexpr i32 emissionRadius = 18;

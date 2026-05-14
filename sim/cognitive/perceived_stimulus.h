@@ -3,6 +3,7 @@
 #include "core/types/types.h"
 #include "core/math/vec2i.h"
 #include "sim/cognitive/concept_id.h"
+#include "sim/ecology/sense_emission.h"
 
 enum class SenseType : u8
 {
@@ -47,4 +48,11 @@ struct PerceivedStimulus
     f32 distance = 0.0f;    // how far from observer
 
     Tick tick = 0;
+
+    // Objective emission from the source entity (same for all observers)
+    SenseEmission rawEmission{};
+
+    // Subjective reaction (computed from emission × observer's SensoryProfile)
+    f32 valence = 0.0f;     // -1 (avoid) to +1 (approach)
+    f32 arousal = 0.0f;     // 0 (calm) to 1 (excited)
 };

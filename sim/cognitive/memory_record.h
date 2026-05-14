@@ -3,6 +3,7 @@
 #include "core/types/types.h"
 #include "core/math/vec2i.h"
 #include "sim/cognitive/perceived_stimulus.h"
+#include "sim/ecology/sense_emission.h"
 #include <vector>
 
 enum class MemoryKind : u8
@@ -60,6 +61,10 @@ struct MemoryRecord
     u32 reinforcementCount = 1;    // repeated evidence count preserved when records merge
 
     u64 sourceStimulusId = 0;      // which stimulus created this memory
+
+    // Sense data: objective emission + subjective valence at time of perception
+    SenseEmission senseProfile{};
+    f32 subjectiveValence = 0.0f;  // -1 (traumatic) to +1 (pleasant)
 
     void Decay(f32 rate)
     {

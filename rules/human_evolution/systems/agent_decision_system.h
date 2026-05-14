@@ -1,14 +1,10 @@
 #pragma once
 
-// AgentDecisionSystem: runtime action selection based on perception + knowledge.
+// AgentDecisionSystem: runtime intent selection based on drives + risk + knowledge.
 //
-// ARCHITECTURE NOTE: This system uses DecisionModifiers generated from the
-// knowledge graph, NOT hand-written knowledge checks. When a new knowledge
-// type is added (e.g. "SharpEdge →Causes→ Cut"), the modifier system
-// automatically produces an approach/avoidance bias. No code changes needed here.
-//
-// The only hard-coded logic is basic sensor thresholds (fire proximity,
-// hunger + smell). Knowledge-driven behavior comes from modifiers.
+// Phase 2.7 refactor: replaces score-based action selection with
+// DriveEvaluator → IntentSelector pipeline.
+// Sets agent.currentIntent (primary) and agent.currentAction (display compat).
 //
 // PHASE: SimPhase::Decision
 
@@ -16,8 +12,9 @@
 #include "sim/system/system_context.h"
 #include "sim/cognitive/concept_registry.h"
 #include "rules/human_evolution/human_evolution_context.h"
-#include "sim/cognitive/knowledge_relation.h"
-#include "sim/cognitive/decision_modifier.h"
+#include "rules/human_evolution/runtime/cell_risk.h"
+#include "rules/human_evolution/runtime/agent_drives.h"
+#include "rules/human_evolution/runtime/agent_intent.h"
 
 class AgentDecisionSystem : public ISystem
 {
@@ -27,61 +24,32 @@ public:
     explicit AgentDecisionSystem(const HumanEvolution::ConceptContext& concepts)
         : concepts_(concepts) {}
 
+    explicit AgentDecisionSystem(const HumanEvolution::EnvironmentContext& envCtx,
+                                 const HumanEvolution::ConceptContext& concepts)
+        : envCtx_(envCtx), concepts_(concepts) {}
+
     void Update(SystemContext& ctx) override
     {
-        auto& world = ctx.World();
-        auto& cog = world.Cognitive();
+        auto& fm = ctx.GetFieldModule();
+        auto& cog = ctx.Cognitive();
 
-        for (auto& agent : world.Agents().agents)
+        for (auto& agent : ctx.Agents().agents)
         {
             if (!agent.alive) continue;
 
-            f32 fleeScore = 0.0f;
-            f32 foodScore = 0.0f;
-            f32 wanderScore = 0.1f;
+            // Step 1: assess risk at current position
+            CellRisk currentRisk = CellRiskEvaluator::Evaluate(
+                fm, cog, envCtx_, agent.id, agent.position.x, agent.position.y);
 
-            // === Base sensor-driven scoring ===
-            if (agent.nearestFire > 10.0f)
-                fleeScore = agent.nearestFire * 2.0f;
+            // Step 2: evaluate drives
+            AgentDrives drives = DriveEvaluator::Evaluate(agent, currentRisk);
 
-            if (agent.hunger > 30.0f && agent.nearestSmell > 5.0f)
-                foodScore = agent.hunger * agent.nearestSmell * 0.01f;
+            // Step 3: select intent
+            AgentIntent intent = IntentSelector::Select(agent, drives, cog);
 
-            if (agent.localTemperature > 40.0f)
-                fleeScore += (agent.localTemperature - 40.0f) * 1.5f;
-
-            // === Knowledge-driven scoring via DecisionModifiers ===
-            auto mods = cog.GenerateDecisionModifiers(agent.id);
-            for (const auto& mod : mods)
-            {
-                switch (mod.type)
-                {
-                case ModifierType::FleeBoost:
-                    // If agent perceives the trigger concept, boost flee
-                    if (IsConceptPerceived(agent, mod.triggerConcept, cog))
-                        fleeScore += mod.magnitude * 50.0f;
-                    break;
-
-                case ModifierType::ApproachBoost:
-                    // If agent perceives the trigger concept and is hungry, boost food
-                    if (IsConceptPerceived(agent, mod.triggerConcept, cog) && agent.hunger > 20.0f)
-                        foodScore += mod.magnitude * 30.0f;
-                    break;
-
-                case ModifierType::AlertBoost:
-                    // Alert boost: if agent perceives the signal, boost flee slightly
-                    if (IsConceptPerceived(agent, mod.triggerConcept, cog))
-                        fleeScore += mod.magnitude * 20.0f;
-                    break;
-                }
-            }
-
-            if (fleeScore > foodScore && fleeScore > wanderScore)
-                agent.currentAction = AgentAction::Flee;
-            else if (foodScore > wanderScore)
-                agent.currentAction = AgentAction::MoveToFood;
-            else
-                agent.currentAction = AgentAction::Wander;
+            // Step 4: write to agent
+            agent.currentIntent = intent.type;
+            agent.currentAction = ToDisplayAction(intent.type);
         }
     }
 
@@ -101,18 +69,25 @@ public:
     }
 
 private:
-    HumanEvolution::ConceptContext concepts_;
+    HumanEvolution::EnvironmentContext envCtx_{};
+    HumanEvolution::ConceptContext concepts_{};
 
-    // Check if agent currently perceives a concept via frame stimuli.
-    // Uses the cognitive pipeline output, not raw agent fields.
-    bool IsConceptPerceived(const Agent& agent, ConceptTypeId concept,
-                             const CognitiveModule& cog) const
+    static AgentAction ToDisplayAction(AgentIntentType intent)
     {
-        for (const auto& stim : cog.frameStimuli)
+        switch (intent)
         {
-            if (stim.observerId == agent.id && stim.concept == concept)
-                return true;
+        case AgentIntentType::Escape:
+            return AgentAction::Flee;
+        case AgentIntentType::ApproachKnownFood:
+        case AgentIntentType::Forage:
+            return AgentAction::SeekFood;
+        case AgentIntentType::Explore:
+        case AgentIntentType::Investigate:
+            return AgentAction::Wander;
+        case AgentIntentType::Rest:
+            return AgentAction::Rest;
+        default:
+            return AgentAction::Wander;
         }
-        return false;
     }
 };

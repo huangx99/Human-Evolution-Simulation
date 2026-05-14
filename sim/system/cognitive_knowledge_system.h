@@ -119,6 +119,33 @@ private:
         // Reinforce edge based on hypothesis confidence
         f32 delta = hyp.confidence * 0.2f;
         kg.ReinforceEdge(edge, delta, now);
+
+        // Carry sense data from hypothesis to knowledge edge (running average)
+        f32 alpha = 1.0f / static_cast<f32>(edge.evidenceCount);
+        edge.typicalCauseProfile.smell.appetizing =
+            edge.typicalCauseProfile.smell.appetizing * (1.0f - alpha) +
+            hyp.causeSenseProfile.smell.appetizing * alpha;
+        edge.typicalCauseProfile.smell.repulsive =
+            edge.typicalCauseProfile.smell.repulsive * (1.0f - alpha) +
+            hyp.causeSenseProfile.smell.repulsive * alpha;
+        edge.typicalCauseProfile.smell.pungent =
+            edge.typicalCauseProfile.smell.pungent * (1.0f - alpha) +
+            hyp.causeSenseProfile.smell.pungent * alpha;
+        edge.typicalCauseProfile.smell.neutral =
+            edge.typicalCauseProfile.smell.neutral * (1.0f - alpha) +
+            hyp.causeSenseProfile.smell.neutral * alpha;
+        edge.typicalCauseProfile.vision.danger =
+            edge.typicalCauseProfile.vision.danger * (1.0f - alpha) +
+            hyp.causeSenseProfile.vision.danger * alpha;
+        edge.typicalCauseProfile.vision.attract =
+            edge.typicalCauseProfile.vision.attract * (1.0f - alpha) +
+            hyp.causeSenseProfile.vision.attract * alpha;
+        edge.typicalCauseProfile.vision.novelty =
+            edge.typicalCauseProfile.vision.novelty * (1.0f - alpha) +
+            hyp.causeSenseProfile.vision.novelty * alpha;
+        edge.typicalEffectValence =
+            edge.typicalEffectValence * (1.0f - alpha) +
+            hyp.effectValence * alpha;
     }
 
     // Check if this hypothesis already has a corresponding knowledge edge

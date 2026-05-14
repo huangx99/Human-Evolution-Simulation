@@ -18,6 +18,7 @@ enum class PredicateType : u8
     FieldEquals,        // numeric field ~= value
     NearbyCapability,   // entity within radius has this capability
     NearbyState,        // entity within radius has this state
+    StateDurationGreaterThan,  // entity has been in its current state for > minDuration ticks
 };
 
 struct SemanticPredicate
@@ -42,4 +43,7 @@ struct SemanticPredicate
 
     // For NearbyCapability / NearbyState
     i32 radius = 0;
+
+    // For StateDurationGreaterThan
+    Tick minDuration = 0;
 };

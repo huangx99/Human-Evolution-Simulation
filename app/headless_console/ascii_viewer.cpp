@@ -579,6 +579,8 @@ const char* AsciiViewer::ActionName(AgentAction action)
         case AgentAction::MoveToFood: return "觅食";
         case AgentAction::Flee:       return "逃离";
         case AgentAction::Wander:     return "游荡";
+        case AgentAction::SeekFood:   return "搜食";
+        case AgentAction::Rest:       return "休息";
     }
     return "未知";
 }

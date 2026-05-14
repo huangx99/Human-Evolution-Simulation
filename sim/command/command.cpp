@@ -100,7 +100,10 @@ void AddEntityStateCommand::Execute(WorldState& world) const
 {
     auto* entity = world.Ecology().entities.Find(id);
     if (entity)
+    {
         entity->AddState(static_cast<MaterialState>(state));
+        entity->stateChangedTick = world.Sim().clock.currentTick;
+    }
 }
 
 void RemoveEntityStateCommand::Execute(WorldState& world) const

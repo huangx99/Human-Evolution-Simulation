@@ -72,6 +72,7 @@ struct WorldState
 
         // RulePack registers its cultural trace types
         rulePack.RegisterCulturalTraceTypes(CulturalTraceRegistry::Instance());
+        rulePack.RegisterStateBehaviors();
 
         // Store RulePack context for snapshot/replay access
         ruleContext_ = &rulePack.GetContext();
@@ -124,6 +125,7 @@ struct WorldState
         rulePack.RegisterConcepts(ConceptTypeRegistry::Instance());
         rulePack.RegisterGroupKnowledgeTypes(GroupKnowledgeRegistry::Instance());
         rulePack.RegisterCulturalTraceTypes(CulturalTraceRegistry::Instance());
+        rulePack.RegisterStateBehaviors();
         ruleContext_ = &rulePack.GetContext();
     }
 

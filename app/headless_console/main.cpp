@@ -2,6 +2,7 @@
 #include "sim/scheduler/scheduler.h"
 #include "sim/scheduler/phase.h"
 #include "rules/human_evolution/human_evolution_rule_pack.h"
+#include "rules/human_evolution/runtime/standard_behaviors.h"
 #include "rules/reaction/semantic_reaction_system.h"
 #include "rules/reaction/semantic_predicate.h"
 #include "rules/reaction/reaction_effect.h"
@@ -118,6 +119,8 @@ void PrintWorldState(const WorldState& world, const HumanEvolution::EnvironmentC
         case AgentAction::Flee:       actionStr = "flee"; break;
         case AgentAction::Wander:     actionStr = "wander"; break;
         case AgentAction::Idle:       actionStr = "idle"; break;
+        case AgentAction::SeekFood:   actionStr = "seek_food"; break;
+        case AgentAction::Rest:       actionStr = "rest"; break;
         }
 
         std::cout << "Agent_" << agent.id
@@ -185,6 +188,9 @@ int main(int argc, char* argv[])
     HumanEvolutionRulePack rulePack;
     WorldState world(32, 32, cfg.seed, rulePack);
     const auto& envCtx = rulePack.GetHumanEvolutionContext().environment;
+
+    // Register standard recipes (after concepts are registered by WorldState)
+    RegisterStandardBehaviors(rulePack.GetHumanEvolutionContext().concepts);
     auto& fm = world.Fields();
 
     fm.WriteNext(envCtx.fire, 16, 16, 80.0f);
@@ -289,6 +295,9 @@ int main(int argc, char* argv[])
         rule.effects = {emitSmell};
         reactionSys->AddRule(rule);
     }
+
+    // Food lifecycle reactions (cooking, decomposition)
+    RegisterLifecycleReactions(*reactionSys);
 
     Scheduler scheduler;
 

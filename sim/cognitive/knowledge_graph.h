@@ -23,8 +23,10 @@
 #include "sim/cognitive/concept_id.h"
 #include "sim/cognitive/concept_registry.h"
 #include "sim/cognitive/knowledge_relation.h"
+#include "sim/ecology/sense_emission.h"
 #include <vector>
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -57,7 +59,20 @@ struct KnowledgeEdge
 
     Tick firstObservedTick = 0;
     Tick lastObservedTick = 0;
+
+    // Sense data: typical cause emission and effect valence (averaged over evidence)
+    SenseEmission typicalCauseProfile{};
+    f32 typicalEffectValence = 0.0f;
 };
+
+// Saturating influence function: returns 0..1 from a knowledge edge.
+// Prevents unbounded decision modifier magnitudes as edges strengthen.
+inline f32 KnowledgeInfluence(const KnowledgeEdge& edge)
+{
+    const f32 confidence = std::clamp(edge.confidence, 0.0f, 1.0f);
+    const f32 familiarity = 1.0f - std::exp(-std::max(0.0f, edge.strength) / 8.0f);
+    return std::clamp(confidence * familiarity, 0.0f, 1.0f);
+}
 
 struct KnowledgeGraph
 {
@@ -144,7 +159,7 @@ struct KnowledgeGraph
     void ReinforceEdge(KnowledgeEdge& edge, f32 confidenceDelta, Tick tick)
     {
         edge.confidence = std::min(1.0f, edge.confidence + confidenceDelta);
-        edge.strength += 1.0f;
+        edge.strength = std::clamp(edge.strength + 1.0f, 0.0f, 1000.0f);
         edge.evidenceCount++;
         edge.lastObservedTick = tick;
     }

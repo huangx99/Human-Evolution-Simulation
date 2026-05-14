@@ -3,6 +3,7 @@
 #include "core/types/types.h"
 #include "sim/cognitive/concept_id.h"
 #include "sim/cognitive/knowledge_relation.h"
+#include "sim/ecology/sense_emission.h"
 #include <vector>
 
 enum class HypothesisStatus : u8
@@ -73,6 +74,10 @@ struct Hypothesis
     Tick lastEvidenceTick = 0; // Last memory evidence watermark absorbed into support/confidence.
 
     HypothesisStatus status = HypothesisStatus::Weak;
+
+    // Sense data: typical cause emission and effect valence
+    SenseEmission causeSenseProfile{};
+    f32 effectValence = 0.0f;
 
     void UpdateStatus(f32 stableThreshold, u32 minEvidence)
     {

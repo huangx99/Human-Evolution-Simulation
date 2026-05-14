@@ -3,7 +3,9 @@
 #include "sim/system/i_system.h"
 #include "sim/system/system_context.h"
 #include "rules/human_evolution/human_evolution_context.h"
+#include "sim/ecology/behavior_table.h"
 #include <cmath>
+#include <vector>
 
 // CognitivePerceptionSystem: converts world state into subjective perception.
 //
@@ -165,21 +167,37 @@ public:
                 f32 dist = std::sqrt(dx * dx + dy * dy);
                 if (dist > scanRadius) continue;
 
-                ConceptTypeId concept = InferConcept(*entity);
-                if (!concept) continue;
+                // Get sense emission from recipe table
+                SenseEmission emission = BehaviorTable::Instance().GetEmission(
+                    entity->material, entity->state);
 
-                PerceivedStimulus s;
-                s.id = cog.nextStimulusId++;
-                s.observerId = agent.id;
-                s.sourceEntityId = entity->id;
-                s.sense = SenseType::Vision;
-                s.concept = concept;
-                s.location = {entity->x, entity->y};
-                s.intensity = 1.0f / (1.0f + dist * 0.3f);
-                s.confidence = 0.85f / (1.0f + dist * 0.1f);
-                s.distance = dist;
-                s.tick = sim.clock.currentTick;
-                cog.frameStimuli.push_back(s);
+                // Infer concepts (multi-concept: e.g. corpse = food + death)
+                std::vector<ConceptTypeId> concepts;
+                InferConcepts(*entity, agent, concepts);
+
+                for (auto concept : concepts)
+                {
+                    if (!concept) continue;
+
+                    PerceivedStimulus s;
+                    s.id = cog.nextStimulusId++;
+                    s.observerId = agent.id;
+                    s.sourceEntityId = entity->id;
+                    s.sense = SenseType::Vision;
+                    s.concept = concept;
+                    s.location = {entity->x, entity->y};
+                    s.intensity = 1.0f / (1.0f + dist * 0.3f);
+                    s.confidence = 0.85f / (1.0f + dist * 0.1f);
+                    s.distance = dist;
+                    s.tick = sim.clock.currentTick;
+
+                    // Sense emission and subjective valence
+                    s.rawEmission = emission;
+                    s.valence = agent.sensoryProfile.ComputeValence(emission);
+                    s.arousal = std::abs(s.valence);
+
+                    cog.frameStimuli.push_back(s);
+                }
             }
         }
     }
@@ -246,20 +264,29 @@ private:
         return best;
     }
 
-    ConceptTypeId InferConcept(const EcologyEntity& entity) const
+    void InferConcepts(const EcologyEntity& entity, const Agent& agent,
+                       std::vector<ConceptTypeId>& out) const
     {
+        // Burning is a global priority (not per-recipe)
         if (entity.HasState(MaterialState::Burning))
-            return concepts_.fire;
-        if (entity.HasState(MaterialState::Dead) && entity.material == MaterialId::Flesh)
-            return concepts_.death;
-        if (entity.HasCapability(Capability::Edible))
-            return concepts_.food;
-        if (entity.material == MaterialId::Water)
-            return concepts_.water;
-        if (entity.material == MaterialId::Wood || entity.material == MaterialId::Tree)
-            return concepts_.wood;
-        if (entity.material == MaterialId::Stone)
-            return concepts_.stone;
-        return ConceptTypeId{};  // invalid = skip
+        {
+            out.push_back(concepts_.fire);
+            return;
+        }
+
+        // Query recipe table
+        BehaviorTable::Instance().GetConcepts(entity.material, entity.state, agent, out);
+
+        // Fallback if recipe returned nothing
+        if (out.empty())
+        {
+            if (entity.material == MaterialId::Water)
+                out.push_back(concepts_.water);
+            else if (entity.material == MaterialId::Wood ||
+                     entity.material == MaterialId::Tree)
+                out.push_back(concepts_.wood);
+            else if (entity.material == MaterialId::Stone)
+                out.push_back(concepts_.stone);
+        }
     }
 };

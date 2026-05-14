@@ -79,7 +79,7 @@ private:
 
     // --- Entity-level predicate check against a single entity ---
 
-    bool EntityMatchesPredicate(const EcologyEntity& e, const SemanticPredicate& pred)
+    bool EntityMatchesPredicate(const EcologyEntity& e, const SemanticPredicate& pred, Tick now)
     {
         switch (pred.type)
         {
@@ -87,6 +87,8 @@ private:
         case PredicateType::HasAffordance: return e.HasAffordance(pred.affordance);
         case PredicateType::HasState:      return e.HasState(pred.state);
         case PredicateType::HasMaterial:   return e.material == pred.material;
+        case PredicateType::StateDurationGreaterThan:
+            return e.stateChangedTick > 0 && (now - e.stateChangedTick) > pred.minDuration;
         default: return true;  // non-entity predicates don't constrain the entity
         }
     }
@@ -97,6 +99,7 @@ private:
                                    const SemanticReactionRule& rule, const SpatialIndex& spatial,
                                    std::vector<EcologyEntity*>& candidates)
     {
+        Tick now = world.Sim().clock.currentTick;
         for (auto* e : candidates)
         {
             if (e->x != x || e->y != y) continue;
@@ -109,7 +112,7 @@ private:
                 if (IsEntityPredicate(pred.type))
                 {
                     hasEntityPred = true;
-                    if (!EntityMatchesPredicate(*e, pred))
+                    if (!EntityMatchesPredicate(*e, pred, now))
                     {
                         allMatch = false;
                         break;
@@ -133,7 +136,8 @@ private:
         return type == PredicateType::HasCapability
             || type == PredicateType::HasAffordance
             || type == PredicateType::HasState
-            || type == PredicateType::HasMaterial;
+            || type == PredicateType::HasMaterial
+            || type == PredicateType::StateDurationGreaterThan;
     }
 
     // --- Cell-level predicate evaluation (SameCell mode) ---
@@ -243,6 +247,19 @@ private:
                 f32 dy = static_cast<f32>(e->y - y);
                 f32 dist = std::sqrt(dx * dx + dy * dy);
                 if (dist <= pred.radius) return true;
+            }
+            return false;
+        }
+        case PredicateType::StateDurationGreaterThan:
+        {
+            Tick now = world.Sim().clock.currentTick;
+            auto nearby = spatial.QueryArea(x, y, 0);
+            for (auto* e : nearby)
+            {
+                if (e->x == x && e->y == y &&
+                    e->stateChangedTick > 0 &&
+                    (now - e->stateChangedTick) > pred.minDuration)
+                    return true;
             }
             return false;
         }

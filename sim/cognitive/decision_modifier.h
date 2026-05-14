@@ -23,6 +23,8 @@ enum class ModifierType : u8
     FleeBoost,      // knowledge of danger → boost flee for this concept
     ApproachBoost,  // knowledge of value → boost approach for this concept
     AlertBoost,     // knowledge of signal → boost alertness for this concept
+    ValenceBias,    // direct valence override from knowledge
+    ArousalBias,    // arousal modifier from knowledge
 };
 
 struct DecisionModifier
@@ -31,4 +33,8 @@ struct DecisionModifier
     ConceptTypeId triggerConcept = ConceptTypeId{};  // what to watch for
     f32 magnitude = 0.0f;                          // how strong the bias is
     f32 confidence = 0.0f;                         // based on knowledge edge confidence
+
+    // Directional bias from knowledge
+    f32 valenceBias = 0.0f;   // -1 to +1, added to computed valence
+    f32 arousalBias = 0.0f;   // 0 to 1, added to computed arousal
 };

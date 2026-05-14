@@ -1,4 +1,5 @@
 #include "rules/human_evolution/human_evolution_rule_pack.h"
+#include "rules/human_evolution/runtime/standard_behaviors.h"
 #include "test_framework.h"
 #include "sim/world/world_state.h"
 #include "sim/scheduler/scheduler.h"
@@ -8,6 +9,17 @@
 static HumanEvolutionRulePack g_rulePack;
 static const auto& g_envCtx = g_rulePack.GetHumanEvolutionContext().environment;
 
+// Register standard recipes once (after first WorldState init)
+static bool g_behaviorsRegistered = false;
+inline void EnsureBehaviorsRegistered()
+{
+    if (!g_behaviorsRegistered)
+    {
+        RegisterStandardBehaviors(g_rulePack.GetHumanEvolutionContext().concepts);
+        g_behaviorsRegistered = true;
+    }
+}
+
 // ============================================================
 // P0-1: Subjective Perception
 // ============================================================
@@ -15,6 +27,7 @@ TEST(cognitive_perception_filtering)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     // Place fire at center
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
@@ -66,6 +79,7 @@ TEST(cognitive_attention_filtering)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     // Create fire and food signal near agent (write to next, then swap once)
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 60.0f);
@@ -133,6 +147,7 @@ TEST(cognitive_memory_decay)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     // Perceptible fire
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 60.0f);
@@ -209,8 +224,14 @@ TEST(cognitive_hypothesis_formation)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
-    world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
+    // Fire zone: agent at center, fire surrounds it so it perceives fire
+    // even if it moves. Agent stays alive because its cell has no direct fire.
+    for (i32 y = 14; y <= 18; y++)
+        for (i32 x = 14; x <= 18; x++)
+            if (x != 16 || y != 15)
+                world.Fields().WriteNext(g_envCtx.fire, x, y, 30.0f);
     world.Fields().SwapAll();
 
     world.SpawnAgent(16, 15);
@@ -222,7 +243,10 @@ TEST(cognitive_hypothesis_formation)
     {
         if (i % 10 == 0)
         {
-            world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
+            for (i32 y = 14; y <= 18; y++)
+                for (i32 x = 14; x <= 18; x++)
+                    if (x != 16 || y != 15)
+                        world.Fields().WriteNext(g_envCtx.fire, x, y, 30.0f);
             world.Fields().SwapAll();
         }
         scheduler.Tick(world);
@@ -257,6 +281,7 @@ TEST(cognitive_knowledge_polysemy)
     {
         WorldState world(32, 32, 42);
         world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
         world.Fields().WriteNext(g_envCtx.fire, 16, 16, 100.0f);
         world.Fields().WriteNext(g_envCtx.fire, 17, 16, 80.0f);
@@ -300,6 +325,7 @@ TEST(cognitive_knowledge_polysemy)
     {
         WorldState world(32, 32, 42);
         world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
         world.Fields().WriteNext(g_envCtx.fire, 16, 16, 25.0f);
         world.Fields().SwapAll();
@@ -420,6 +446,7 @@ TEST(cognitive_knowledge_reinforcement)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
     world.Fields().SwapAll();
@@ -470,6 +497,7 @@ TEST(cognitive_individual_difference)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
     world.Fields().SwapAll();
@@ -527,8 +555,13 @@ TEST(cognitive_full_pipeline)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
-    world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
+    // Fire zone around agent so it perceives fire even if it moves
+    for (i32 y = 14; y <= 18; y++)
+        for (i32 x = 14; x <= 18; x++)
+            if (x != 16 || y != 15)
+                world.Fields().WriteNext(g_envCtx.fire, x, y, 30.0f);
     world.Fields().SwapAll();
 
     world.SpawnAgent(16, 15);
@@ -540,7 +573,10 @@ TEST(cognitive_full_pipeline)
     {
         if (i % 10 == 0)
         {
-            world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
+            for (i32 y = 14; y <= 18; y++)
+                for (i32 x = 14; x <= 18; x++)
+                    if (x != 16 || y != 15)
+                        world.Fields().WriteNext(g_envCtx.fire, x, y, 30.0f);
             world.Fields().SwapAll();
         }
         scheduler.Tick(world);
@@ -574,8 +610,13 @@ TEST(cognitive_different_knowledge_graphs)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
-    world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
+    // Fire zone around agent A's starting position
+    for (i32 y = 14; y <= 18; y++)
+        for (i32 x = 14; x <= 18; x++)
+            if (x != 16 || y != 15)
+                world.Fields().WriteNext(g_envCtx.fire, x, y, 30.0f);
     world.Fields().SwapAll();
 
     auto& corpse = world.Ecology().entities.Create(MaterialId::Flesh, "corpse");
@@ -592,7 +633,10 @@ TEST(cognitive_different_knowledge_graphs)
     {
         if (i % 10 == 0)
         {
-            world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
+            for (i32 y = 14; y <= 18; y++)
+                for (i32 x = 14; x <= 18; x++)
+                    if (x != 16 || y != 15)
+                        world.Fields().WriteNext(g_envCtx.fire, x, y, 30.0f);
             world.Fields().SwapAll();
         }
         scheduler.Tick(world);
@@ -652,12 +696,16 @@ TEST(cognitive_fire_danger_confidence)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
-    world.Fields().WriteNext(g_envCtx.fire, 16, 16, 100.0f);
-    world.Fields().WriteNext(g_envCtx.fire, 17, 16, 80.0f);
+    // Fire zone: agent at center, fire surrounds it
+    for (i32 y = 14; y <= 18; y++)
+        for (i32 x = 14; x <= 18; x++)
+            if (x != 16 || y != 15)
+                world.Fields().WriteNext(g_envCtx.fire, x, y, 40.0f);
     world.Fields().SwapAll();
 
-    world.SpawnAgent(16, 16);
+    world.SpawnAgent(16, 15);
     world.RebuildSpatial();
 
     auto scheduler = CreateCognitiveScheduler(g_rulePack.GetHumanEvolutionContext());
@@ -666,8 +714,10 @@ TEST(cognitive_fire_danger_confidence)
     {
         if (i % 10 == 0)
         {
-            world.Fields().WriteNext(g_envCtx.fire, 16, 16, 100.0f);
-            world.Fields().WriteNext(g_envCtx.fire, 17, 16, 80.0f);
+            for (i32 y = 14; y <= 18; y++)
+                for (i32 x = 14; x <= 18; x++)
+                    if (x != 16 || y != 15)
+                        world.Fields().WriteNext(g_envCtx.fire, x, y, 40.0f);
             world.Fields().SwapAll();
         }
         scheduler.Tick(world);
@@ -705,6 +755,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
     {
         WorldState world(32, 32, 42);
         world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
         for (i32 dy = -2; dy <= 2; dy++)
             for (i32 dx = -2; dx <= 2; dx++)
@@ -733,6 +784,7 @@ TEST(cognitive_smoke_knowledge_boosts_attention)
     {
         WorldState world(32, 32, 42);
         world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
         {
             auto& kg = world.Cognitive().knowledgeGraph;
@@ -781,6 +833,7 @@ TEST(cognitive_memory_decay_unreinforced)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 60.0f);
     world.Fields().SwapAll();
@@ -832,6 +885,7 @@ TEST(cognitive_rule_driven_discovery)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     // Hot environment
     for (i32 dy = -1; dy <= 1; dy++)
@@ -898,6 +952,7 @@ TEST(cognitive_knowledge_debug_dump)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
     world.Fields().SwapAll();
@@ -948,6 +1003,7 @@ TEST(cognitive_memory_from_focused_only)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 80.0f);
     world.Fields().SwapAll();
@@ -1008,6 +1064,7 @@ TEST(cognitive_attention_bottleneck)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     world.Fields().WriteNext(g_envCtx.fire, 16, 16, 100.0f);
     world.Fields().WriteNext(g_envCtx.fire, 17, 16, 80.0f);
@@ -1247,6 +1304,7 @@ TEST(cognitive_natural_learning_changes_behavior)
     {
         WorldState world(32, 32, 42);
         world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
         world.SpawnAgent(16, 15);
         world.RebuildSpatial();
 
@@ -1258,8 +1316,13 @@ TEST(cognitive_natural_learning_changes_behavior)
     {
         WorldState world(32, 32, 42);
         world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
-        world.Fields().WriteNext(g_envCtx.fire, 16, 16, 100.0f);
+        // Fire zone around agent so it perceives fire even if it moves
+        for (i32 y = 14; y <= 18; y++)
+            for (i32 x = 14; x <= 18; x++)
+                if (x != 16 || y != 15)
+                    world.Fields().WriteNext(g_envCtx.fire, x, y, 30.0f);
         world.Fields().SwapAll();
 
         world.SpawnAgent(16, 15);
@@ -1271,7 +1334,10 @@ TEST(cognitive_natural_learning_changes_behavior)
         {
             if (i % 10 == 0)
             {
-                world.Fields().WriteNext(g_envCtx.fire, 16, 16, 100.0f);
+                for (i32 y = 14; y <= 18; y++)
+                    for (i32 x = 14; x <= 18; x++)
+                        if (x != 16 || y != 15)
+                            world.Fields().WriteNext(g_envCtx.fire, x, y, 30.0f);
                 world.Fields().SwapAll();
             }
             scheduler.Tick(world);
@@ -1318,6 +1384,7 @@ TEST(cognitive_contradicted_knowledge_persists)
 {
     WorldState world(32, 32, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
 
     auto& cog = world.Cognitive();
 
@@ -1765,6 +1832,7 @@ TEST(same_memory_pair_does_not_add_discovery_support_every_tick)
 {
     WorldState world(16, 16, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
     EntityId agentId = world.SpawnAgent(4, 4);
     auto& cog = world.Cognitive();
     const auto& concepts = g_rulePack.GetHumanEvolutionContext().concepts;
@@ -1798,6 +1866,7 @@ TEST(newer_memory_reinforcement_adds_discovery_support)
 {
     WorldState world(16, 16, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
     EntityId agentId = world.SpawnAgent(4, 4);
     auto& cog = world.Cognitive();
     const auto& concepts = g_rulePack.GetHumanEvolutionContext().concepts;
@@ -1833,6 +1902,7 @@ TEST(new_hypothesis_records_initial_last_evidence_tick)
 {
     WorldState world(16, 16, 42);
     world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
     EntityId agentId = world.SpawnAgent(4, 4);
     auto& cog = world.Cognitive();
     const auto& concepts = g_rulePack.GetHumanEvolutionContext().concepts;
@@ -1877,6 +1947,91 @@ TEST(hypothesis_last_evidence_tick_changes_full_hash)
 
     ASSERT_TRUE(ComputeWorldHash(a, HashTier::Full) !=
                 ComputeWorldHash(b, HashTier::Full));
+
+    return true;
+}
+
+// ============================================================
+// Pipeline: Memory stores sense data from stimulus
+// ============================================================
+TEST(Pipeline_MemoryStoresSenseData)
+{
+    EnsureBehaviorsRegistered();
+    WorldState world(32, 32, 42);
+    world.Init(g_rulePack);
+    EnsureBehaviorsRegistered();
+
+    auto& cog = world.Cognitive();
+    auto& sim = world.Sim();
+
+    // Create a stimulus with sense data (simulating fruit perception)
+    PerceivedStimulus stim;
+    stim.id = cog.nextStimulusId++;
+    stim.observerId = 1;
+    stim.concept = g_rulePack.GetHumanEvolutionContext().concepts.food;
+    stim.sense = SenseType::Vision;
+    stim.location = {10, 10};
+    stim.intensity = 0.8f;
+    stim.confidence = 0.9f;
+    stim.distance = 2.0f;
+    stim.tick = 1;
+
+    // Set sense emission (fruit-like)
+    stim.rawEmission.smell.appetizing = 36.0f;
+    stim.rawEmission.vision.attract = 20.0f;
+    stim.valence = 0.9f;
+    stim.arousal = 0.9f;
+
+    // Create a focused stimulus
+    FocusedStimulus focused;
+    focused.stimulus = stim;
+    focused.attentionScore = 0.8f;
+
+    cog.frameFocused.push_back(focused);
+
+    // Run memory system
+    world.SpawnAgent(10, 10);
+    CognitiveMemorySystem memory;
+    SystemContext ctx(world);
+    memory.Update(ctx);
+
+    auto& memories = cog.GetAgentMemories(1);
+    ASSERT_TRUE(memories.size() > 0);
+
+    auto& mem = memories.back();
+    ASSERT_NEAR(mem.senseProfile.smell.appetizing, 36.0f, 0.01f);
+    ASSERT_NEAR(mem.senseProfile.vision.attract, 20.0f, 0.01f);
+    ASSERT_NEAR(mem.subjectiveValence, 0.9f, 0.01f);
+
+    return true;
+}
+
+// ============================================================
+// Pipeline: Valence from emission (human vs vulture)
+// ============================================================
+TEST(Pipeline_ValenceSpeciesDifference)
+{
+    // Fruit emission: appetizing=36, attract=20
+    SenseEmission fruitEmission;
+    fruitEmission.smell.appetizing = 36.0f;
+    fruitEmission.vision.attract = 20.0f;
+
+    // Corpse emission: repulsive=40
+    SenseEmission corpseEmission;
+    corpseEmission.smell.repulsive = 40.0f;
+
+    SensoryProfile human = SensoryProfiles::Human();
+    SensoryProfile vulture = SensoryProfiles::Vulture();
+
+    // Human: fruit is positive, corpse is negative
+    f32 humanFruitValence = human.ComputeValence(fruitEmission);
+    f32 humanCorpseValence = human.ComputeValence(corpseEmission);
+    ASSERT_TRUE(humanFruitValence > 0.5f);
+    ASSERT_TRUE(humanCorpseValence < -0.5f);
+
+    // Vulture: corpse is positive (likes rotting smell)
+    f32 vultureCorpseValence = vulture.ComputeValence(corpseEmission);
+    ASSERT_TRUE(vultureCorpseValence > 0.0f);
 
     return true;
 }
