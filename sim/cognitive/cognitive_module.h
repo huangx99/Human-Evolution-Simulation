@@ -115,7 +115,7 @@ struct CognitiveModule : public IModule
         }
     }
 
-    // === Memory consolidation: promote strong short-term to episodic ===
+    // === Legacy memory promotion helper: retained for callers that explicitly opt in ===
 
     void ConsolidateMemories(f32 promotionThreshold)
     {

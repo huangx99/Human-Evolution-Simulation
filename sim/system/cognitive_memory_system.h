@@ -22,6 +22,7 @@
 #include "sim/cognitive/concept_registry.h"
 #include "sim/cognitive/memory_inference_policy.h"
 #include "sim/cognitive/attention_numerics.h"
+#include "sim/cognitive/memory_consolidation.h"
 
 class CognitiveMemorySystem : public ISystem
 {
@@ -36,6 +37,13 @@ public:
         : policy_(policy)
         , numericConfig_(numericConfig) {}
 
+    CognitiveMemorySystem(const IMemoryInferencePolicy* policy,
+                          MemoryNumericConfig numericConfig,
+                          MemoryConsolidationConfig consolidationConfig)
+        : policy_(policy)
+        , numericConfig_(numericConfig)
+        , consolidationConfig_(consolidationConfig) {}
+
     void Update(SystemContext& ctx) override
     {
         auto& world = ctx.World();
@@ -45,8 +53,7 @@ public:
         // Decay existing memories each tick
         cog.DecayAllMemories(shortTermDecayRate, longTermDecayRate);
 
-        // Consolidate strong short-term memories to episodic
-        cog.ConsolidateMemories(promotionThreshold);
+        // ShortTerm -> Stable is handled when repeated evidence reinforces a memory.
 
         // Process focused stimuli into new memories
         for (auto& focused : cog.frameFocused)
@@ -57,6 +64,7 @@ public:
             mem.ownerId = s.observerId;
             mem.kind = MemoryKind::ShortTerm;
             mem.subject = s.concept;
+            mem.sense = s.sense;
             mem.location = s.location;
             mem.strength = MemoryNumerics::Sanitize(
                 focused.attentionScore, numericConfig_);
@@ -77,7 +85,8 @@ public:
             }
 
             auto& memories = cog.GetAgentMemories(s.observerId);
-            MemoryRecord* stored = TryMergeInternalMemory(memories, mem, s, sim.clock.currentTick);
+            MemoryRecord* stored = MemoryConsolidation::TryMergeMemory(
+                memories, mem, sim.clock.currentTick, consolidationConfig_);
             const bool reinforced = stored != nullptr;
 
             if (!reinforced)
@@ -87,13 +96,24 @@ public:
                 stored = &memories.back();
             }
 
-            // Track in frame buffer
+            EventType memoryEvent = EventType::CognitiveMemoryFormed;
+            if (reinforced)
+            {
+                memoryEvent = EventType::CognitiveMemoryReinforced;
+                if (MemoryConsolidation::ShouldStabilizeMemory(*stored, consolidationConfig_))
+                {
+                    stored->kind = MemoryKind::Stable;
+                    memoryEvent = EventType::CognitiveMemoryStabilized;
+                }
+            }
+
+            // Track in frame buffer after merge/stabilization so downstream systems see the stored state.
+            // Future evidence-weighting should read reinforcementCount instead of treating one
+            // consolidated record as only one historical observation.
             cog.frameMemories.push_back(*stored);
 
-            // Emit event
             world.events.Emit({
-                reinforced ? EventType::CognitiveMemoryReinforced
-                           : EventType::CognitiveMemoryFormed,
+                memoryEvent,
                 sim.clock.currentTick,
                 s.observerId,
                 s.location.x, s.location.y,
@@ -117,43 +137,8 @@ public:
 private:
     static constexpr f32 shortTermDecayRate = 0.98f;  // 2% per tick
     static constexpr f32 longTermDecayRate = 0.999f;   // 0.1% per tick
-    static constexpr f32 promotionThreshold = 0.6f;    // strength to promote to episodic
-
     MemoryNumericConfig numericConfig_;
-
-    static constexpr Tick internalMergeWindowTicks = 10;
-
-    MemoryRecord* TryMergeInternalMemory(std::vector<MemoryRecord>& memories,
-                                         const MemoryRecord& incoming,
-                                         const PerceivedStimulus& stimulus,
-                                         Tick now)
-    {
-        if (stimulus.sense != SenseType::Internal)
-            return nullptr;
-
-        for (auto it = memories.rbegin(); it != memories.rend(); ++it)
-        {
-            auto& existing = *it;
-            if (existing.ownerId != incoming.ownerId || existing.subject != incoming.subject)
-                continue;
-            if (existing.lastReinforcedTick > now)
-                continue;
-            if ((now - existing.lastReinforcedTick) > internalMergeWindowTicks)
-                continue;
-
-            existing.strength = std::max(existing.strength, incoming.strength);
-            existing.emotionalWeight = incoming.emotionalWeight;
-            existing.confidence = std::max(existing.confidence, incoming.confidence);
-            existing.location = incoming.location;
-            existing.lastReinforcedTick = now;
-            existing.sourceStimulusId = incoming.sourceStimulusId;
-            existing.reinforcementCount++;
-            existing.resultTags = incoming.resultTags;
-            return &existing;
-        }
-
-        return nullptr;
-    }
+    MemoryConsolidationConfig consolidationConfig_;
 
     // Emotional weight: strong emotions make memories stickier.
     // Uses semantic flags instead of domain-specific concept names.

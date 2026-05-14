@@ -2,7 +2,7 @@
 
 #include "core/types/types.h"
 #include "core/math/vec2i.h"
-#include "sim/cognitive/concept_id.h"
+#include "sim/cognitive/perceived_stimulus.h"
 #include <vector>
 
 enum class MemoryKind : u8
@@ -11,7 +11,8 @@ enum class MemoryKind : u8
     Episodic,       // event + result, medium decay
     Pattern,        // repeated correlation, slow decay
     Social,         // learned from others
-    Trauma          // emotionally charged, very slow decay
+    Trauma,         // emotionally charged, very slow decay
+    Stable          // repeated short-term evidence stabilized into reliable experience
 };
 
 // MemoryRecord: a single memory of an experience.
@@ -44,6 +45,7 @@ struct MemoryRecord
 
     // What was experienced
     ConceptTypeId subject;                      // primary concept
+    SenseType sense = SenseType::Vision;        // channel used for consolidation boundaries
     std::vector<ConceptTypeId> contextTags;     // surrounding context
     std::vector<ConceptTypeId> resultTags;      // what happened as result
 
@@ -55,7 +57,7 @@ struct MemoryRecord
 
     Tick createdTick = 0;
     Tick lastReinforcedTick = 0;
-    u32 reinforcementCount = 1;
+    u32 reinforcementCount = 1;    // repeated evidence count preserved when records merge
 
     u64 sourceStimulusId = 0;      // which stimulus created this memory
 
