@@ -419,3 +419,157 @@ TEST(small_delta_does_not_produce_stimulus)
 
     return true;
 }
+
+TEST(internal_state_stimulus_cooldown_throttles_small_repeated_changes)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    world.SpawnAgent(5, 5);
+
+    Scheduler scheduler;
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
+    scheduler.Tick(world);
+
+    auto& agent = world.Agents().agents[0];
+    u32 emitted = 0;
+    for (int i = 0; i < 4; i++)
+    {
+        agent.hunger += 1.0f;
+        world.Cognitive().ClearFrame();
+        scheduler.Tick(world);
+        for (const auto& stim : world.Cognitive().frameStimuli)
+        {
+            if (stim.observerId == 1 && stim.concept == ctx.concepts.hunger)
+                emitted++;
+        }
+    }
+
+    ASSERT_EQ(emitted, 1u);
+
+    return true;
+}
+
+TEST(internal_state_meaningful_delta_bypasses_cooldown)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    world.SpawnAgent(5, 5);
+
+    Scheduler scheduler;
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
+    scheduler.Tick(world);
+
+    auto& agent = world.Agents().agents[0];
+    u32 emitted = 0;
+    for (int i = 0; i < 3; i++)
+    {
+        agent.health -= 6.0f;
+        world.Cognitive().ClearFrame();
+        scheduler.Tick(world);
+        for (const auto& stim : world.Cognitive().frameStimuli)
+        {
+            if (stim.observerId == 1 && stim.concept == ctx.concepts.pain)
+                emitted++;
+        }
+    }
+
+    ASSERT_EQ(emitted, 3u);
+
+    return true;
+}
+
+TEST(cognitive_memory_merges_repeated_internal_memories)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    EntityId agentId = world.SpawnAgent(5, 5);
+
+    Scheduler scheduler;
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<CognitiveAttentionSystem>());
+    scheduler.AddSystem(SimPhase::Perception, std::make_unique<CognitiveMemorySystem>());
+    scheduler.Tick(world);
+
+    auto& agent = world.Agents().agents[0];
+    for (int i = 0; i < 12; i++)
+    {
+        agent.health -= 6.0f;
+        world.Cognitive().ClearFrame();
+        scheduler.Tick(world);
+    }
+
+    const auto& memories = world.Cognitive().GetAgentMemories(agentId);
+    u32 painCount = 0;
+    u32 maxReinforcements = 0;
+    for (const auto& mem : memories)
+    {
+        if (mem.subject == ctx.concepts.pain)
+        {
+            painCount++;
+            maxReinforcements = std::max(maxReinforcements, mem.reinforcementCount);
+        }
+    }
+
+    ASSERT_TRUE(painCount < 12u);
+    ASSERT_TRUE(maxReinforcements > 1u);
+
+    return true;
+}
+
+
+TEST(cognitive_memory_merge_does_not_consume_next_memory_id)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    EntityId agentId = world.SpawnAgent(5, 5);
+    auto& cog = world.Cognitive();
+    cog.nextMemoryId = 7;
+    world.Sim().clock.currentTick = 1;
+
+    FocusedStimulus first;
+    first.stimulus.id = 100;
+    first.stimulus.observerId = agentId;
+    first.stimulus.sense = SenseType::Internal;
+    first.stimulus.concept = ctx.concepts.pain;
+    first.stimulus.location = {5, 5};
+    first.stimulus.confidence = 1.0f;
+    first.stimulus.tick = 1;
+    first.attentionScore = 0.8f;
+    cog.frameFocused.push_back(first);
+
+    CognitiveMemorySystem memorySystem;
+    SystemContext firstCtx(world);
+    memorySystem.Update(firstCtx);
+
+    ASSERT_EQ(cog.GetAgentMemories(agentId).size(), 1u);
+    ASSERT_EQ(cog.GetAgentMemories(agentId)[0].id, 7u);
+    ASSERT_EQ(cog.nextMemoryId, 8u);
+
+    cog.frameFocused.clear();
+    world.Sim().clock.currentTick = 2;
+
+    FocusedStimulus second = first;
+    second.stimulus.id = 101;
+    second.stimulus.tick = 2;
+    second.attentionScore = 0.9f;
+    cog.frameFocused.push_back(second);
+
+    SystemContext secondCtx(world);
+    memorySystem.Update(secondCtx);
+
+    const auto& memories = cog.GetAgentMemories(agentId);
+    ASSERT_EQ(memories.size(), 1u);
+    ASSERT_EQ(memories[0].id, 7u);
+    ASSERT_EQ(memories[0].reinforcementCount, 2u);
+    ASSERT_EQ(cog.nextMemoryId, 8u);
+
+    return true;
+}

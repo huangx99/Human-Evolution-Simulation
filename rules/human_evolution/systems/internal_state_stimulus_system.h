@@ -55,26 +55,27 @@ public:
             // Health decrease → Pain
             if (healthDelta < -kMinDelta)
             {
-                EmitInternalStimulus(cog, agent, concepts_.pain,
-                    std::min(-healthDelta / 50.0f, 1.0f), now);
+                TryEmitInternalStimulus(cog, prev, agent, concepts_.pain,
+                    std::min(-healthDelta / 50.0f, 1.0f), -healthDelta, now);
             }
 
             // Hunger decrease → Satiety
             if (hungerDelta < -kMinDelta)
             {
-                EmitInternalStimulus(cog, agent, concepts_.satiety,
-                    std::min(-hungerDelta / 30.0f, 1.0f), now);
+                TryEmitInternalStimulus(cog, prev, agent, concepts_.satiety,
+                    std::min(-hungerDelta / 30.0f, 1.0f), -hungerDelta, now);
             }
 
             // Hunger increase above threshold → Hunger
             if (hungerDelta > kMinDelta && agent.hunger > kHungerThreshold)
             {
-                EmitInternalStimulus(cog, agent, concepts_.hunger,
-                    std::min((agent.hunger - kHungerThreshold) / 50.0f, 1.0f), now);
+                TryEmitInternalStimulus(cog, prev, agent, concepts_.hunger,
+                    std::min((agent.hunger - kHungerThreshold) / 50.0f, 1.0f), hungerDelta, now);
             }
 
             // Update baseline
-            prev = {agent.hunger, agent.health};
+            prev.hunger = agent.hunger;
+            prev.health = agent.health;
         }
     }
 
@@ -98,6 +99,33 @@ private:
 
     const HumanEvolution::ConceptContext& concepts_;
 
+    static bool CanEmitInternalStimulus(InternalStateBaseline& baseline,
+                                        ConceptTypeId concept,
+                                        f32 deltaMagnitude,
+                                        Tick now)
+    {
+        if (deltaMagnitude >= kMeaningfulDelta)
+            return true;
+
+        auto it = baseline.lastStimulusTickByConcept.find(concept.index);
+        if (it == baseline.lastStimulusTickByConcept.end())
+            return true;
+        if (it->second > now)
+            return false;
+        return (now - it->second) >= kInternalStimulusCooldownTicks;
+    }
+
+    static void TryEmitInternalStimulus(
+        CognitiveModule& cog, InternalStateBaseline& baseline, const Agent& agent,
+        ConceptTypeId concept, f32 intensity, f32 deltaMagnitude, Tick now)
+    {
+        if (!CanEmitInternalStimulus(baseline, concept, deltaMagnitude, now))
+            return;
+
+        EmitInternalStimulus(cog, agent, concept, intensity, now);
+        baseline.lastStimulusTickByConcept[concept.index] = now;
+    }
+
     static void EmitInternalStimulus(
         CognitiveModule& cog, const Agent& agent,
         ConceptTypeId concept, f32 intensity, Tick now)
@@ -115,4 +143,7 @@ private:
         stim.tick = now;
         cog.frameStimuli.push_back(stim);
     }
+
+    static constexpr Tick kInternalStimulusCooldownTicks = 5;
+    static constexpr f32 kMeaningfulDelta = 5.0f;
 };

@@ -52,10 +52,8 @@ public:
         for (auto& focused : cog.frameFocused)
         {
             auto& s = focused.stimulus;
-            auto& agent = world.Agents();  // used for result inference
 
             MemoryRecord mem;
-            mem.id = cog.nextMemoryId++;
             mem.ownerId = s.observerId;
             mem.kind = MemoryKind::ShortTerm;
             mem.subject = s.concept;
@@ -78,11 +76,18 @@ public:
                                              mem.resultTags);
             }
 
-            // Store in persistent memory
-            cog.GetAgentMemories(s.observerId).push_back(mem);
+            auto& memories = cog.GetAgentMemories(s.observerId);
+            MemoryRecord* stored = TryMergeInternalMemory(memories, mem, s, sim.clock.currentTick);
+
+            if (!stored)
+            {
+                mem.id = cog.nextMemoryId++;
+                memories.push_back(mem);
+                stored = &memories.back();
+            }
 
             // Track in frame buffer
-            cog.frameMemories.push_back(mem);
+            cog.frameMemories.push_back(*stored);
 
             // Emit event
             world.events.Emit({
@@ -90,7 +95,7 @@ public:
                 sim.clock.currentTick,
                 s.observerId,
                 s.location.x, s.location.y,
-                mem.strength
+                stored->strength
             });
         }
     }
@@ -98,14 +103,13 @@ public:
     SystemDescriptor Descriptor() const override
     {
         static constexpr ModuleAccess READS[] = {
-            {ModuleTag::Cognitive, AccessMode::Read},
             {ModuleTag::Agent, AccessMode::Read}
         };
         static constexpr ModuleAccess WRITES[] = {
-            {ModuleTag::Cognitive, AccessMode::Write}
+            {ModuleTag::Cognitive, AccessMode::ReadWrite}
         };
         static const char* const DEPS[] = {"CognitiveAttentionSystem"};
-        return {"CognitiveMemorySystem", SimPhase::Perception, READS, 2, WRITES, 1, DEPS, 1, true, false};
+        return {"CognitiveMemorySystem", SimPhase::Perception, READS, 1, WRITES, 1, DEPS, 1, true, false};
     }
 
 private:
@@ -114,6 +118,40 @@ private:
     static constexpr f32 promotionThreshold = 0.6f;    // strength to promote to episodic
 
     MemoryNumericConfig numericConfig_;
+
+    static constexpr Tick internalMergeWindowTicks = 10;
+
+    MemoryRecord* TryMergeInternalMemory(std::vector<MemoryRecord>& memories,
+                                         const MemoryRecord& incoming,
+                                         const PerceivedStimulus& stimulus,
+                                         Tick now)
+    {
+        if (stimulus.sense != SenseType::Internal)
+            return nullptr;
+
+        for (auto it = memories.rbegin(); it != memories.rend(); ++it)
+        {
+            auto& existing = *it;
+            if (existing.ownerId != incoming.ownerId || existing.subject != incoming.subject)
+                continue;
+            if (existing.lastReinforcedTick > now)
+                continue;
+            if ((now - existing.lastReinforcedTick) > internalMergeWindowTicks)
+                continue;
+
+            existing.strength = std::max(existing.strength, incoming.strength);
+            existing.emotionalWeight = incoming.emotionalWeight;
+            existing.confidence = std::max(existing.confidence, incoming.confidence);
+            existing.location = incoming.location;
+            existing.lastReinforcedTick = now;
+            existing.sourceStimulusId = incoming.sourceStimulusId;
+            existing.reinforcementCount++;
+            existing.resultTags = incoming.resultTags;
+            return &existing;
+        }
+
+        return nullptr;
+    }
 
     // Emotional weight: strong emotions make memories stickier.
     // Uses semantic flags instead of domain-specific concept names.

@@ -55,6 +55,7 @@ struct MemoryRecord
 
     Tick createdTick = 0;
     Tick lastReinforcedTick = 0;
+    u32 reinforcementCount = 1;
 
     u64 sourceStimulusId = 0;      // which stimulus created this memory
 

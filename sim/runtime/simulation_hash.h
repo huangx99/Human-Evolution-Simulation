@@ -97,6 +97,7 @@ inline void HashMemoryRecord(SimHash& h, const MemoryRecord& m)
     h.FeedF32(m.confidence);
     h.FeedU64(m.createdTick);
     h.FeedU64(m.lastReinforcedTick);
+    h.FeedU32(m.reinforcementCount);
     h.FeedU64(m.sourceStimulusId);
 }
 
@@ -283,6 +284,17 @@ inline u64 ComputeWorldHash(const WorldState& world, HashTier tier)
             h.FeedU64(id);
             h.FeedF32(base.hunger);
             h.FeedF32(base.health);
+            std::vector<std::pair<u16, Tick>> sortedStimTicks(
+                base.lastStimulusTickByConcept.begin(),
+                base.lastStimulusTickByConcept.end());
+            std::sort(sortedStimTicks.begin(), sortedStimTicks.end(),
+                      [](const auto& a, const auto& b) { return a.first < b.first; });
+            h.FeedU64(static_cast<u64>(sortedStimTicks.size()));
+            for (const auto& [conceptIndex, tick] : sortedStimTicks)
+            {
+                h.FeedU16(conceptIndex);
+                h.FeedU64(tick);
+            }
         }
     }
 
