@@ -298,7 +298,24 @@ TEST(awareness_cooldown_prevents_repeated_stimulus)
     return true;
 }
 
-// === Test 10: Awareness cooldown allows stimulus after window ===
+// === Test 10: Awareness cooldown blocks future tick underflow ===
+
+TEST(awareness_cooldown_blocks_future_tick_underflow)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(64, 64, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    auto& cooldown = world.AwarenessCooldown();
+    cooldown.MarkEmitted(1, 2, ctx.concepts.groupDangerEvidence, 100);
+
+    ASSERT_TRUE(!cooldown.CanEmit(1, 2, ctx.concepts.groupDangerEvidence, 50, 20));
+    ASSERT_TRUE(cooldown.CanEmit(1, 2, ctx.concepts.groupDangerEvidence, 120, 20));
+
+    return true;
+}
+
+// === Test 11: Awareness cooldown allows stimulus after window ===
 
 TEST(awareness_cooldown_allows_stimulus_after_window)
 {
@@ -336,7 +353,7 @@ TEST(awareness_cooldown_allows_stimulus_after_window)
     return true;
 }
 
-// === Test 11: Awareness cooldown changes full hash ===
+// === Test 12: Awareness cooldown changes full hash ===
 
 TEST(awareness_cooldown_changes_full_hash)
 {
@@ -372,7 +389,7 @@ TEST(awareness_cooldown_changes_full_hash)
     return true;
 }
 
-// === Test 12: Group knowledge awareness system in pipeline ===
+// === Test 13: Group knowledge awareness system in pipeline ===
 
 TEST(group_knowledge_awareness_system_in_pipeline)
 {
@@ -392,6 +409,37 @@ TEST(group_knowledge_awareness_system_in_pipeline)
         }
     }
     ASSERT_TRUE(found);
+
+    return true;
+}
+
+TEST(group_knowledge_awareness_descriptor_has_single_cooldown_access)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+    GroupKnowledgeAwarenessSystem system(ctx.concepts.groupDangerEvidence,
+                                         ctx.groupKnowledge.sharedDangerZone);
+    auto desc = system.Descriptor();
+
+    u32 cooldownReads = 0;
+    u32 cooldownReadWrites = 0;
+
+    for (size_t i = 0; i < desc.readCount; i++)
+    {
+        if (desc.reads[i].module == ModuleTag::AwarenessCooldown)
+            cooldownReads++;
+    }
+
+    for (size_t i = 0; i < desc.writeCount; i++)
+    {
+        if (desc.writes[i].module == ModuleTag::AwarenessCooldown &&
+            desc.writes[i].mode == AccessMode::ReadWrite)
+            cooldownReadWrites++;
+    }
+
+    ASSERT_EQ(cooldownReads, 0u);
+    ASSERT_EQ(cooldownReadWrites, 1u);
 
     return true;
 }

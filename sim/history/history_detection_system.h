@@ -4,7 +4,8 @@
 //
 // This system:
 //   - Calls each detector's Scan() method
-//   - Detectors read PatternModule, AgentModule, EventBus, etc.
+//   - Detectors read PatternModule, AgentModule, EventBus, GroupKnowledge,
+//     CulturalTrace, History, etc.
 //   - Detectors write HistoryEvents into HistoryModule
 //
 // This system does NOT:
@@ -38,15 +39,17 @@ public:
     SystemDescriptor Descriptor() const override
     {
         static constexpr ModuleAccess READS[] = {
-            {ModuleTag::Pattern, AccessMode::Read},
-            {ModuleTag::Agent,   AccessMode::Read},
-            {ModuleTag::Event,   AccessMode::Read}
+            {ModuleTag::Pattern,        AccessMode::Read},
+            {ModuleTag::Agent,          AccessMode::Read},
+            {ModuleTag::Event,          AccessMode::Read},
+            {ModuleTag::GroupKnowledge, AccessMode::Read},
+            {ModuleTag::CulturalTrace,  AccessMode::Read}
         };
         static constexpr ModuleAccess WRITES[] = {
-            {ModuleTag::History, AccessMode::Write}
+            {ModuleTag::History, AccessMode::ReadWrite}
         };
         static const char* const DEPS[] = {};
-        return {"HistoryDetectionSystem", SimPhase::History, READS, 3, WRITES, 1, DEPS, 0, true, true};
+        return {"HistoryDetectionSystem", SimPhase::History, READS, 5, WRITES, 1, DEPS, 0, true, true};
     }
 
 private:

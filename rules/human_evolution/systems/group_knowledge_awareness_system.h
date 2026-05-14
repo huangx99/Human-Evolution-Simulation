@@ -7,7 +7,7 @@
 // First version: only shared_danger_zone awareness.
 // Uses AwarenessCooldownModule for cross-tick cooldown (not system-private state).
 //
-// READS: Agent, Simulation, GroupKnowledge, AwarenessCooldown
+// READS: Agent, Simulation, GroupKnowledge
 // WRITES: Cognitive (frameStimuli), AwarenessCooldown (ReadWrite)
 // PHASE: SimPhase::Perception (before CognitiveAttentionSystem)
 // DOES NOT WRITE: Command, Memory, Agent, GroupKnowledge, Pattern, CulturalTrace, History
@@ -16,6 +16,8 @@
 #include "sim/system/system_context.h"
 #include "rules/human_evolution/human_evolution_context.h"
 #include <cmath>
+#include <vector>
+#include <algorithm>
 
 class GroupKnowledgeAwarenessSystem : public ISystem
 {
@@ -33,11 +35,24 @@ public:
         auto& cooldown = sys.AwarenessCooldown();
         Tick now = sys.CurrentTick();
 
-        auto zones = gk.FindByType(dangerZoneType_);
-
+        std::vector<const Agent*> sortedAgents;
+        sortedAgents.reserve(agents.size());
         for (const auto& agent : agents)
+            sortedAgents.push_back(&agent);
+        std::sort(sortedAgents.begin(), sortedAgents.end(),
+            [](const Agent* a, const Agent* b) {
+                return a->id < b->id;
+            });
+
+        auto zones = gk.FindByType(dangerZoneType_);
+        std::sort(zones.begin(), zones.end(),
+            [](const GroupKnowledgeRecord* a, const GroupKnowledgeRecord* b) {
+                return a->id < b->id;
+            });
+
+        for (const auto* agent : sortedAgents)
         {
-            if (!agent.alive)
+            if (!agent->alive)
                 continue;
 
             for (const auto* zone : zones)
@@ -45,20 +60,20 @@ public:
                 if (zone->confidence < kMinConfidence)
                     continue;
 
-                f32 dx = static_cast<f32>(agent.position.x - zone->origin.x);
-                f32 dy = static_cast<f32>(agent.position.y - zone->origin.y);
+                f32 dx = static_cast<f32>(agent->position.x - zone->origin.x);
+                f32 dy = static_cast<f32>(agent->position.y - zone->origin.y);
                 f32 distance = std::sqrt(dx * dx + dy * dy);
                 f32 awarenessRadius = zone->radius * kAwarenessRadiusMultiplier;
 
                 if (distance > awarenessRadius)
                     continue;
 
-                if (!cooldown.CanEmit(agent.id, zone->id, groupDangerConcept_, now, kCooldownTicks))
+                if (!cooldown.CanEmit(agent->id, zone->id, groupDangerConcept_, now, kCooldownTicks))
                     continue;
 
                 PerceivedStimulus stim;
                 stim.id = cog.nextStimulusId++;
-                stim.observerId = agent.id;
+                stim.observerId = agent->id;
                 stim.sourceEntityId = 0;  // group knowledge is not an entity
                 stim.sense = SenseType::Social;
                 stim.concept = groupDangerConcept_;
@@ -69,7 +84,7 @@ public:
                 stim.tick = now;
                 cog.frameStimuli.push_back(stim);
 
-                cooldown.MarkEmitted(agent.id, zone->id, groupDangerConcept_, now);
+                cooldown.MarkEmitted(agent->id, zone->id, groupDangerConcept_, now);
             }
         }
     }
@@ -79,15 +94,14 @@ public:
         static constexpr ModuleAccess READS[] = {
             {ModuleTag::Agent, AccessMode::Read},
             {ModuleTag::Simulation, AccessMode::Read},
-            {ModuleTag::GroupKnowledge, AccessMode::Read},
-            {ModuleTag::AwarenessCooldown, AccessMode::Read}
+            {ModuleTag::GroupKnowledge, AccessMode::Read}
         };
         static constexpr ModuleAccess WRITES[] = {
             {ModuleTag::Cognitive, AccessMode::Write},
             {ModuleTag::AwarenessCooldown, AccessMode::ReadWrite}
         };
         return {"GroupKnowledgeAwarenessSystem", SimPhase::Perception,
-                READS, 4, WRITES, 2, nullptr, 0, true, false};
+                READS, 3, WRITES, 2, nullptr, 0, true, false};
     }
 
 private:

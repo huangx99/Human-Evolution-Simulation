@@ -6,8 +6,8 @@
 //   - FirstCollectiveAvoidance: first collective_avoidance pattern
 //   - FirstDangerAvoidanceTrace: first danger_avoidance_trace
 //
-// Each event fires once and never again. Uses fired_ flags + HasEventType
-// for double dedup.
+// Each event fires once and never again. HistoryModule is the source of truth
+// for cross-tick dedup.
 //
 // Lives in rules/ because these are Human Evolution semantics.
 
@@ -38,7 +38,7 @@ public:
     void Scan(SystemContext& ctx, HistoryModule& history) override
     {
         // 1. First Shared Danger Memory
-        if (!firedSharedDanger_ && !history.HasEventType(sharedDangerKey_))
+        if (!history.HasEventType(sharedDangerKey_))
         {
             auto zones = ctx.GroupKnowledge().FindByType(dangerZoneType_);
             for (const auto* zone : zones)
@@ -48,14 +48,13 @@ public:
                     Emit(history, sharedDangerKey_, "First Shared Danger Memory",
                          zone->firstObservedTick, zone->origin.x, zone->origin.y,
                          zone->confidence);
-                    firedSharedDanger_ = true;
                     break;
                 }
             }
         }
 
         // 2. First Collective Avoidance
-        if (!firedAvoidance_ && !history.HasEventType(avoidanceKey_))
+        if (!history.HasEventType(avoidanceKey_))
         {
             auto patterns = ctx.Patterns().FindByType(avoidancePatternKey_);
             for (const auto* p : patterns)
@@ -64,14 +63,13 @@ public:
                 {
                     Emit(history, avoidanceKey_, "First Collective Avoidance",
                          p->firstDetectedTick, p->x, p->y, p->confidence);
-                    firedAvoidance_ = true;
                     break;
                 }
             }
         }
 
         // 3. First Danger Avoidance Trace
-        if (!firedTrace_ && !history.HasEventType(traceKey_))
+        if (!history.HasEventType(traceKey_))
         {
             auto traces = ctx.CulturalTrace().FindByType(dangerTraceType_);
             if (!traces.empty())
@@ -79,7 +77,6 @@ public:
                 const auto* t = traces[0];
                 Emit(history, traceKey_, "First Danger Avoidance Trace",
                      t->firstObservedTick, 0, 0, t->confidence);
-                firedTrace_ = true;
             }
         }
     }
@@ -91,10 +88,6 @@ private:
     GroupKnowledgeTypeId dangerZoneType_;
     PatternKey avoidancePatternKey_;
     CulturalTraceTypeId dangerTraceType_;
-
-    bool firedSharedDanger_ = false;
-    bool firedAvoidance_ = false;
-    bool firedTrace_ = false;
 
     static constexpr f32 minZoneConfidence = 0.35f;
     static constexpr u32 minObservations = 3;

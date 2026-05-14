@@ -16,5 +16,6 @@ struct CulturalTraceRecord
     std::vector<u64> sourceGroupKnowledgeRecordIds;
 
     Tick firstObservedTick = 0;
+    Tick lastEvidenceTick = 0;
     Tick lastReinforcedTick = 0;
 };

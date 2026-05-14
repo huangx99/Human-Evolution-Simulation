@@ -30,6 +30,8 @@ target_link_libraries(human_evolution_rules INTERFACE human_evolution_sim)
 # === Headless console app ===
 add_executable(human_evolution_sim_app
     app/headless_console/main.cpp
+    app/headless_console/ascii_viewer.cpp
+    app/headless_console/detailed_logger.cpp
 )
 target_link_libraries(human_evolution_sim_app
     human_evolution_core

@@ -80,11 +80,14 @@ public:
                 if (distSq > mergeRadiusSq) continue;
 
                 // Both sources qualify — create or reinforce trace
+                Tick evidenceTick = std::max(zone->lastReinforcedTick,
+                                             pattern->lastObservedTick);
                 traces.AddOrReinforce(
                     dangerAvoidanceType_,
                     {pattern->id},
                     {zone->id},
                     zone->confidence * pattern->confidence,
+                    evidenceTick,
                     tick);
                 break;  // one pattern per zone is enough
             }

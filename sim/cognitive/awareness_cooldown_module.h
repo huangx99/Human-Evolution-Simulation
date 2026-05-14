@@ -44,7 +44,11 @@ struct AwarenessCooldownModule : public IModule
         for (const auto& r : records)
         {
             if (r.agentId == agentId && r.sourceRecordId == sourceRecordId && r.concept == concept)
+            {
+                if (r.lastEmittedTick > now)
+                    return false;
                 return (now - r.lastEmittedTick) >= cooldownTicks;
+            }
         }
         return true;  // no record = can emit
     }

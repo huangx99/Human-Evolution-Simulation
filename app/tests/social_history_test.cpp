@@ -83,9 +83,9 @@ static void AddPattern(PatternModule& pm, PatternKey key, PatternTypeId typeId,
 
 // Helper: directly add CulturalTraceRecord
 static void AddTrace(CulturalTraceModule& ct, CulturalTraceTypeId typeId,
-                      f32 confidence, Tick tick)
+                     f32 confidence, Tick tick)
 {
-    ct.AddOrReinforce(typeId, {1}, {1}, confidence, tick);
+    ct.AddOrReinforce(typeId, {1}, {1}, confidence, tick, tick);
 }
 
 // === Test 1: Registry registers social history types ===
@@ -376,6 +376,39 @@ TEST(social_history_system_in_pipeline)
         }
     }
     ASSERT_TRUE(found);
+
+    return true;
+}
+
+TEST(social_history_descriptor_declares_detector_access)
+{
+    HistoryDetectionSystem system;
+    auto desc = system.Descriptor();
+
+    bool readsGroupKnowledge = false;
+    bool readsCulturalTrace = false;
+    bool historyReadWrite = false;
+
+    for (size_t i = 0; i < desc.readCount; i++)
+    {
+        if (desc.reads[i].module == ModuleTag::GroupKnowledge &&
+            desc.reads[i].mode == AccessMode::Read)
+            readsGroupKnowledge = true;
+        if (desc.reads[i].module == ModuleTag::CulturalTrace &&
+            desc.reads[i].mode == AccessMode::Read)
+            readsCulturalTrace = true;
+    }
+
+    for (size_t i = 0; i < desc.writeCount; i++)
+    {
+        if (desc.writes[i].module == ModuleTag::History &&
+            desc.writes[i].mode == AccessMode::ReadWrite)
+            historyReadWrite = true;
+    }
+
+    ASSERT_TRUE(readsGroupKnowledge);
+    ASSERT_TRUE(readsCulturalTrace);
+    ASSERT_TRUE(historyReadWrite);
 
     return true;
 }

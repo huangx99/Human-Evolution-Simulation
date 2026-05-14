@@ -35,8 +35,8 @@ static GroupKnowledgeRecord& AddDangerZone(GroupKnowledgeModule& gk, GroupKnowle
 }
 
 // Helper: directly add a PatternRecord
-static void AddPattern(PatternModule& pm, PatternKey key, PatternTypeId typeId,
-                        i32 x, i32 y, f32 confidence, u32 observationCount, Tick tick)
+static u64 AddPattern(PatternModule& pm, PatternKey key, PatternTypeId typeId,
+                      i32 x, i32 y, f32 confidence, u32 observationCount, Tick tick)
 {
     PatternRecord rec;
     rec.typeKey = key;
@@ -48,7 +48,7 @@ static void AddPattern(PatternModule& pm, PatternKey key, PatternTypeId typeId,
     rec.confidence = confidence;
     rec.magnitude = 5.0f;
     rec.observationCount = observationCount;
-    pm.Add(rec);
+    return pm.Add(rec);
 }
 
 // === Test 1: Registry basics ===
@@ -193,9 +193,9 @@ TEST(danger_avoidance_trace_created_from_stable_sources)
     return true;
 }
 
-// === Test 8: Same sources don't duplicate ===
+// === Test 8: Same sources don't reinforce every tick ===
 
-TEST(same_sources_do_not_duplicate_trace)
+TEST(same_sources_do_not_reinforce_every_tick)
 {
     HumanEvolutionRulePack rp;
     WorldState world(64, 64, 42, rp);
@@ -215,14 +215,14 @@ TEST(same_sources_do_not_duplicate_trace)
         scheduler.Tick(world);
 
     ASSERT_EQ(world.CulturalTrace().records.size(), 1u);
-    ASSERT_EQ(world.CulturalTrace().records[0].reinforcementCount, 5u);
+    ASSERT_EQ(world.CulturalTrace().records[0].reinforcementCount, 1u);
 
     return true;
 }
 
-// === Test 9: Newer evidence reinforces ===
+// === Test 9: Newer pattern observation reinforces ===
 
-TEST(newer_evidence_reinforces_existing_trace)
+TEST(newer_pattern_observation_reinforces_trace)
 {
     HumanEvolutionRulePack rp;
     WorldState world(64, 64, 42, rp);
@@ -230,6 +230,39 @@ TEST(newer_evidence_reinforces_existing_trace)
 
     AddDangerZone(world.GroupKnowledge(), ctx.groupKnowledge.sharedDangerZone,
                   {20, 20}, 5.0f, 0.8f, 0);
+    u64 patternId = AddPattern(world.Patterns(),
+                               PatternKey("human_evolution.collective_avoidance"),
+                               ctx.socialPatterns.collectiveAvoidance,
+                               20, 20, 0.8f, 5, 0);
+
+    auto scheduler = CreateFullScheduler(ctx);
+    scheduler.Tick(world);
+
+    ASSERT_EQ(world.CulturalTrace().records.size(), 1u);
+    f32 confBefore = world.CulturalTrace().records[0].confidence;
+    u32 countBefore = world.CulturalTrace().records[0].reinforcementCount;
+
+    Tick evidenceTick = world.Sim().clock.currentTick;
+    ASSERT_TRUE(world.Patterns().Update(patternId, evidenceTick, 0.8f, 5.0f, 6));
+    scheduler.Tick(world);
+
+    ASSERT_EQ(world.CulturalTrace().records.size(), 1u);
+    ASSERT_TRUE(world.CulturalTrace().records[0].confidence > confBefore);
+    ASSERT_EQ(world.CulturalTrace().records[0].reinforcementCount, countBefore + 1);
+
+    return true;
+}
+
+// === Test 10: Newer group knowledge reinforces ===
+
+TEST(newer_group_knowledge_reinforces_trace)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(64, 64, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    auto& zone = AddDangerZone(world.GroupKnowledge(), ctx.groupKnowledge.sharedDangerZone,
+                               {20, 20}, 5.0f, 0.8f, 0);
     AddPattern(world.Patterns(),
                PatternKey("human_evolution.collective_avoidance"),
                ctx.socialPatterns.collectiveAvoidance,
@@ -240,17 +273,20 @@ TEST(newer_evidence_reinforces_existing_trace)
 
     ASSERT_EQ(world.CulturalTrace().records.size(), 1u);
     f32 confBefore = world.CulturalTrace().records[0].confidence;
+    u32 countBefore = world.CulturalTrace().records[0].reinforcementCount;
 
-    // Tick again — should reinforce (confidence grows)
+    Tick evidenceTick = world.Sim().clock.currentTick;
+    world.GroupKnowledge().ReinforceRecord(zone.id, 0.0f, 1, evidenceTick, evidenceTick);
     scheduler.Tick(world);
 
     ASSERT_EQ(world.CulturalTrace().records.size(), 1u);
     ASSERT_TRUE(world.CulturalTrace().records[0].confidence > confBefore);
+    ASSERT_EQ(world.CulturalTrace().records[0].reinforcementCount, countBefore + 1);
 
     return true;
 }
 
-// === Test 10: Does not write to command module ===
+// === Test 11: Does not write to command module ===
 
 TEST(cultural_trace_does_not_write_command)
 {
@@ -275,7 +311,7 @@ TEST(cultural_trace_does_not_write_command)
     return true;
 }
 
-// === Test 11: Does not write to memory module ===
+// === Test 12: Does not write to memory module ===
 
 TEST(cultural_trace_does_not_write_memory)
 {
@@ -301,7 +337,7 @@ TEST(cultural_trace_does_not_write_memory)
     return true;
 }
 
-// === Test 12: Does not modify agents ===
+// === Test 13: Does not modify agents ===
 
 TEST(cultural_trace_does_not_modify_agents)
 {
@@ -331,7 +367,7 @@ TEST(cultural_trace_does_not_modify_agents)
     return true;
 }
 
-// === Test 13: System is in pipeline ===
+// === Test 14: System is in pipeline ===
 
 TEST(cultural_trace_system_in_pipeline)
 {

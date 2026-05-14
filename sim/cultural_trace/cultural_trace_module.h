@@ -39,7 +39,8 @@ struct CulturalTraceModule : public IModule
     CulturalTraceRecord& AddOrReinforce(CulturalTraceTypeId typeId,
                                          const std::vector<u64>& sourcePatternIds,
                                          const std::vector<u64>& sourceGKRecordIds,
-                                         f32 confidence, Tick tick)
+                                         f32 confidence, Tick evidenceTick,
+                                         Tick currentTick)
     {
         // Try to find existing trace with same typeId and overlapping GK source
         for (auto& rec : records)
@@ -52,10 +53,14 @@ struct CulturalTraceModule : public IModule
                                      rec.sourceGroupKnowledgeRecordIds.end(), gkId);
                 if (it != rec.sourceGroupKnowledgeRecordIds.end())
                 {
+                    if (evidenceTick <= rec.lastEvidenceTick)
+                        return rec;
+
                     // Reinforce existing trace
                     rec.confidence = std::min(rec.confidence + confidence * 0.3f, 1.0f);
                     rec.reinforcementCount++;
-                    rec.lastReinforcedTick = tick;
+                    rec.lastEvidenceTick = evidenceTick;
+                    rec.lastReinforcedTick = currentTick;
 
                     // Merge new pattern sources (avoid duplicates)
                     for (u64 pid : sourcePatternIds)
@@ -78,8 +83,9 @@ struct CulturalTraceModule : public IModule
         rec.reinforcementCount = 1;
         rec.sourcePatternIds = sourcePatternIds;
         rec.sourceGroupKnowledgeRecordIds = sourceGKRecordIds;
-        rec.firstObservedTick = tick;
-        rec.lastReinforcedTick = tick;
+        rec.firstObservedTick = currentTick;
+        rec.lastEvidenceTick = evidenceTick;
+        rec.lastReinforcedTick = currentTick;
         records.push_back(rec);
         return records.back();
     }

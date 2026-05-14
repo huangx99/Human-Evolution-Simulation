@@ -7,6 +7,8 @@
 #include "rules/reaction/reaction_effect.h"
 #include "rules/reaction/semantic_reaction_rule.h"
 #include "api/snapshot/world_snapshot.h"
+#include "app/headless_console/ascii_viewer.h"
+#include "app/headless_console/detailed_logger.h"
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -20,6 +22,8 @@ struct RunConfig
     i32 ticks = 300;
     std::string dumpPath;
     bool quiet = false;
+    bool ascii = false;
+    bool log = false;
 };
 
 RunConfig ParseArgs(int argc, char* argv[])
@@ -35,6 +39,10 @@ RunConfig ParseArgs(int argc, char* argv[])
             cfg.dumpPath = argv[++i];
         else if (std::strcmp(argv[i], "--quiet") == 0)
             cfg.quiet = true;
+        else if (std::strcmp(argv[i], "--ascii") == 0)
+            cfg.ascii = true;
+        else if (std::strcmp(argv[i], "--log") == 0)
+            cfg.log = true;
     }
     return cfg;
 }
@@ -265,11 +273,27 @@ int main(int argc, char* argv[])
     i32 printInterval = cfg.ticks / 12;
     if (printInterval < 1) printInterval = 1;
 
-    for (i32 i = 0; i < cfg.ticks; i++)
+    if (cfg.ascii)
     {
-        scheduler.Tick(world);
-        if (!cfg.quiet)
-            PrintWorldState(world, envCtx, printInterval);
+        AsciiViewer viewer;
+        viewer.Run(world, envCtx, scheduler, cfg.ticks);
+    }
+    else if (cfg.log)
+    {
+        for (i32 i = 0; i < cfg.ticks; i++)
+        {
+            scheduler.Tick(world);
+            PrintDetailedLog(world, envCtx);
+        }
+    }
+    else
+    {
+        for (i32 i = 0; i < cfg.ticks; i++)
+        {
+            scheduler.Tick(world);
+            if (!cfg.quiet)
+                PrintWorldState(world, envCtx, printInterval);
+        }
     }
 
     if (!cfg.dumpPath.empty())
