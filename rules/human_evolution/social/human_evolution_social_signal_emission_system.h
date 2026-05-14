@@ -38,7 +38,7 @@ public:
         {
             const auto& stim = focused.stimulus;
 
-            if (!IsDangerConcept(stim.concept))
+            if (!ShouldEmitFearSignal(stim.concept))
                 continue;
 
             // Find the agent who perceived this danger
@@ -95,9 +95,9 @@ private:
 
     const HumanEvolutionContext& ctx_;
 
-    static bool IsDangerConcept(ConceptTypeId concept)
+    static bool ShouldEmitFearSignal(ConceptTypeId concept)
     {
         const auto& reg = ConceptTypeRegistry::Instance();
-        return reg.HasFlag(concept, ConceptSemanticFlag::Danger);
+        return reg.HasFlag(concept, ConceptSemanticFlag::TraumaRelevant);
     }
 };

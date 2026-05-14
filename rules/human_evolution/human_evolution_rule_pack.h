@@ -14,6 +14,7 @@
 #include "sim/system/cognitive_memory_system.h"
 #include "sim/system/cognitive_discovery_system.h"
 #include "rules/human_evolution/systems/human_evolution_memory_inference_policy.h"
+#include "rules/human_evolution/systems/human_evolution_attention_scoring_policy.h"
 #include "sim/system/cognitive_knowledge_system.h"
 #include "sim/system/social_signal_decay_system.h"
 #include "rules/human_evolution/systems/agent_decision_system.h"
@@ -105,17 +106,20 @@ public:
         auto f = [](ConceptSemanticFlag a, ConceptSemanticFlag b, ConceptSemanticFlag c) {
             return static_cast<u32>(a | b | c);
         };
+        auto f4 = [](ConceptSemanticFlag a, ConceptSemanticFlag b, ConceptSemanticFlag c, ConceptSemanticFlag d) {
+            return static_cast<u32>(a | b | c | d);
+        };
         auto f2 = [](ConceptSemanticFlag a, ConceptSemanticFlag b) {
             return static_cast<u32>(a | b);
         };
         constexpr u32 none = 0;
 
         // Natural phenomena
-        ctx_.concepts.fire      = registry.Register(MakeConceptKey("human_evolution.fire"),      "fire",      f(F::Danger, F::Thermal, F::Environmental));
+        ctx_.concepts.fire      = registry.Register(MakeConceptKey("human_evolution.fire"),      "fire",      f4(F::Danger, F::Thermal, F::Environmental, F::TraumaRelevant));
         ctx_.concepts.water     = registry.Register(MakeConceptKey("human_evolution.water"),     "water",     f(F::Environmental, F::Organic, F::Resource));
         ctx_.concepts.wind      = registry.Register(MakeConceptKey("human_evolution.wind"),      "wind",      static_cast<u32>(F::Environmental));
         ctx_.concepts.rain      = registry.Register(MakeConceptKey("human_evolution.rain"),      "rain",      f(F::Environmental, F::Negative, F::Thermal));
-        ctx_.concepts.lightning = registry.Register(MakeConceptKey("human_evolution.lightning"), "lightning", f(F::Environmental, F::Danger, F::Thermal));
+        ctx_.concepts.lightning = registry.Register(MakeConceptKey("human_evolution.lightning"), "lightning", f4(F::Environmental, F::Danger, F::Thermal, F::TraumaRelevant));
         ctx_.concepts.darkness  = registry.Register(MakeConceptKey("human_evolution.darkness"),  "darkness",  f2(F::Environmental, F::Danger));
         ctx_.concepts.light     = registry.Register(MakeConceptKey("human_evolution.light"),     "light",     f2(F::Environmental, F::Positive));
         ctx_.concepts.smoke     = registry.Register(MakeConceptKey("human_evolution.smoke"),     "smoke",     f(F::Environmental, F::Danger, F::Thermal));
@@ -137,19 +141,19 @@ public:
         ctx_.concepts.warmth  = registry.Register(MakeConceptKey("human_evolution.warmth"),  "warmth",  f2(F::Positive, F::Thermal));
         ctx_.concepts.wetness = registry.Register(MakeConceptKey("human_evolution.wetness"), "wetness", static_cast<u32>(F::Environmental));
         ctx_.concepts.dryness = registry.Register(MakeConceptKey("human_evolution.dryness"), "dryness", static_cast<u32>(F::Environmental));
-        ctx_.concepts.hunger  = registry.Register(MakeConceptKey("human_evolution.hunger"),  "hunger",  f(F::Internal, F::Negative, F::Danger));
-        ctx_.concepts.pain    = registry.Register(MakeConceptKey("human_evolution.pain"),    "pain",    f(F::Internal, F::Negative, F::Danger));
+        ctx_.concepts.hunger  = registry.Register(MakeConceptKey("human_evolution.hunger"),  "hunger",  f(F::Internal, F::Negative, F::Need));
+        ctx_.concepts.pain    = registry.Register(MakeConceptKey("human_evolution.pain"),    "pain",    f4(F::Internal, F::Negative, F::Danger, F::TraumaRelevant));
         ctx_.concepts.satiety = registry.Register(MakeConceptKey("human_evolution.satiety"), "satiety", f2(F::Internal, F::Positive));
         ctx_.concepts.health  = registry.Register(MakeConceptKey("human_evolution.health"),  "health",  f2(F::Internal, F::Positive));
-        ctx_.concepts.death   = registry.Register(MakeConceptKey("human_evolution.death"),   "death",   f(F::Danger, F::Negative, F::Abstract));
+        ctx_.concepts.death   = registry.Register(MakeConceptKey("human_evolution.death"),   "death",   f4(F::Danger, F::Negative, F::Abstract, F::TraumaRelevant));
 
         // Danger
-        ctx_.concepts.danger    = registry.Register(MakeConceptKey("human_evolution.danger"),    "danger",    f2(F::Danger, F::Abstract));
-        ctx_.concepts.beast     = registry.Register(MakeConceptKey("human_evolution.beast"),     "beast",     f(F::Danger, F::Threat, F::Organic));
-        ctx_.concepts.predator  = registry.Register(MakeConceptKey("human_evolution.predator"),  "predator",  f(F::Danger, F::Threat, F::Organic));
-        ctx_.concepts.fall      = registry.Register(MakeConceptKey("human_evolution.fall"),      "fall",      f2(F::Danger, F::Threat));
-        ctx_.concepts.drowning  = registry.Register(MakeConceptKey("human_evolution.drowning"),  "drowning",  f(F::Danger, F::Threat, F::Negative));
-        ctx_.concepts.burning   = registry.Register(MakeConceptKey("human_evolution.burning"),   "burning",   f(F::Danger, F::Thermal, F::Negative));
+        ctx_.concepts.danger    = registry.Register(MakeConceptKey("human_evolution.danger"),    "danger",    f(F::Danger, F::Abstract, F::TraumaRelevant));
+        ctx_.concepts.beast     = registry.Register(MakeConceptKey("human_evolution.beast"),     "beast",     f4(F::Danger, F::Threat, F::Organic, F::TraumaRelevant));
+        ctx_.concepts.predator  = registry.Register(MakeConceptKey("human_evolution.predator"),  "predator",  f4(F::Danger, F::Threat, F::Organic, F::TraumaRelevant));
+        ctx_.concepts.fall      = registry.Register(MakeConceptKey("human_evolution.fall"),      "fall",      f(F::Danger, F::Threat, F::TraumaRelevant));
+        ctx_.concepts.drowning  = registry.Register(MakeConceptKey("human_evolution.drowning"),  "drowning",  f4(F::Danger, F::Threat, F::Negative, F::TraumaRelevant));
+        ctx_.concepts.burning   = registry.Register(MakeConceptKey("human_evolution.burning"),   "burning",   f4(F::Danger, F::Thermal, F::Negative, F::TraumaRelevant));
 
         // Opportunities
         ctx_.concepts.food    = registry.Register(MakeConceptKey("human_evolution.food"),    "food",    f(F::Resource, F::Organic, F::Positive));
@@ -163,12 +167,12 @@ public:
         ctx_.concepts.group        = registry.Register(MakeConceptKey("human_evolution.group"),        "group",        f2(F::Social, F::Abstract));
         ctx_.concepts.signal       = registry.Register(MakeConceptKey("human_evolution.signal"),       "signal",       f2(F::Social, F::Abstract));
         ctx_.concepts.voice        = registry.Register(MakeConceptKey("human_evolution.voice"),        "voice",        f2(F::Social, F::Abstract));
-        ctx_.concepts.observedFlee = registry.Register(MakeConceptKey("human_evolution.observed_flee"), "observed_flee", f(F::Social, F::Danger, F::Abstract));
+        ctx_.concepts.observedFlee = registry.Register(MakeConceptKey("human_evolution.observed_flee"), "observed_flee", f4(F::Social, F::Danger, F::Abstract, F::TraumaRelevant));
 
         // Abstract
         ctx_.concepts.safety    = registry.Register(MakeConceptKey("human_evolution.safety"),    "safety",    f2(F::Abstract, F::Positive));
         ctx_.concepts.comfort   = registry.Register(MakeConceptKey("human_evolution.comfort"),   "comfort",   f(F::Abstract, F::Positive, F::Thermal));
-        ctx_.concepts.fear      = registry.Register(MakeConceptKey("human_evolution.fear"),      "fear",      f(F::Abstract, F::Danger, F::Negative));
+        ctx_.concepts.fear      = registry.Register(MakeConceptKey("human_evolution.fear"),      "fear",      f4(F::Abstract, F::Danger, F::Negative, F::TraumaRelevant));
         ctx_.concepts.curiosity = registry.Register(MakeConceptKey("human_evolution.curiosity"), "curiosity", f2(F::Abstract, F::Positive));
         ctx_.concepts.trust     = registry.Register(MakeConceptKey("human_evolution.trust"),     "trust",     f(F::Abstract, F::Social, F::Positive));
 
@@ -176,7 +180,7 @@ public:
         ctx_.concepts.groupDangerEvidence = registry.Register(
             MakeConceptKey("human_evolution.group_danger_evidence"),
             "group_danger_evidence",
-            static_cast<u32>(F::Danger | F::Social | F::Abstract));
+            static_cast<u32>(F::Danger | F::Social | F::Abstract | F::TraumaRelevant));
     }
 
     void RegisterPatternTypes(PatternRegistry& registry) override
@@ -198,6 +202,7 @@ public:
     std::vector<SystemRegistration> CreateSystems() override
     {
         memoryPolicy_ = std::make_unique<HumanEvolutionMemoryInferencePolicy>(ctx_.concepts);
+        attentionPolicy_ = std::make_unique<HumanEvolutionAttentionScoringPolicy>(ctx_);
         std::vector<SystemRegistration> systems;
 
         // Environment (constructor-injected EnvironmentContext)
@@ -214,7 +219,7 @@ public:
         systems.push_back({SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>(ctx_.concepts)});
         systems.push_back({SimPhase::Perception,  std::make_unique<GroupKnowledgeAwarenessSystem>(
             ctx_.concepts.groupDangerEvidence, ctx_.groupKnowledge.sharedDangerZone)});
-        systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>()});
+        systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>(attentionPolicy_.get())});
         systems.push_back({SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>(memoryPolicy_.get())});
 
         // Decision pipeline
@@ -300,6 +305,7 @@ public:
 private:
     HumanEvolutionContext ctx_;
     std::unique_ptr<HumanEvolutionMemoryInferencePolicy> memoryPolicy_;
+    std::unique_ptr<HumanEvolutionAttentionScoringPolicy> attentionPolicy_;
 
     std::vector<DiscoveryRule> BuildDiscoveryRules() const
     {
@@ -374,7 +380,9 @@ inline Scheduler CreateHumanEvolutionSchedulerWithoutPattern(
 inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
 {
     auto memoryPolicy = std::make_shared<HumanEvolutionMemoryInferencePolicy>(ctx.concepts);
+    auto attentionPolicy = std::make_shared<HumanEvolutionAttentionScoringPolicy>(ctx);
     auto* memoryPolicyPtr = memoryPolicy.get();
+    auto* attentionPolicyPtr = attentionPolicy.get();
 
     const auto& c = ctx.concepts;
     std::vector<DiscoveryRule> discoveryRules = {
@@ -394,7 +402,11 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
     };
 
     Scheduler scheduler;
-    scheduler.SetUserData(std::static_pointer_cast<void>(memoryPolicy));
+    auto schedulerData = std::make_shared<std::pair<
+        std::shared_ptr<HumanEvolutionMemoryInferencePolicy>,
+        std::shared_ptr<HumanEvolutionAttentionScoringPolicy>>>(
+            memoryPolicy, attentionPolicy);
+    scheduler.SetUserData(std::static_pointer_cast<void>(schedulerData));
 
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(ctx.environment));
@@ -402,7 +414,7 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
 
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<AgentPerceptionSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitivePerceptionSystem>(ctx));
-    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>(attentionPolicyPtr));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>(memoryPolicyPtr));
 
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(std::move(discoveryRules)));
@@ -420,7 +432,9 @@ inline Scheduler CreateCognitiveScheduler(const HumanEvolutionContext& ctx)
 inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
 {
     auto memoryPolicy = std::make_shared<HumanEvolutionMemoryInferencePolicy>(ctx.concepts);
+    auto attentionPolicy = std::make_shared<HumanEvolutionAttentionScoringPolicy>(ctx);
     auto* memoryPolicyPtr = memoryPolicy.get();
+    auto* attentionPolicyPtr = attentionPolicy.get();
 
     const auto& c = ctx.concepts;
     std::vector<DiscoveryRule> discoveryRules = {
@@ -440,7 +454,11 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
     };
 
     Scheduler scheduler;
-    scheduler.SetUserData(std::static_pointer_cast<void>(memoryPolicy));
+    auto schedulerData = std::make_shared<std::pair<
+        std::shared_ptr<HumanEvolutionMemoryInferencePolicy>,
+        std::shared_ptr<HumanEvolutionAttentionScoringPolicy>>>(
+            memoryPolicy, attentionPolicy);
+    scheduler.SetUserData(std::static_pointer_cast<void>(schedulerData));
 
     scheduler.AddSystem(SimPhase::Environment, std::make_unique<ClimateSystem>(ctx.environment));
     scheduler.AddSystem(SimPhase::Propagation, std::make_unique<FireSystem>(ctx.environment));
@@ -454,7 +472,7 @@ inline Scheduler CreateFullSocialScheduler(const HumanEvolutionContext& ctx)
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<InternalStateStimulusSystem>(ctx.concepts));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<GroupKnowledgeAwarenessSystem>(
         ctx.concepts.groupDangerEvidence, ctx.groupKnowledge.sharedDangerZone));
-    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>());
+    scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveAttentionSystem>(attentionPolicyPtr));
     scheduler.AddSystem(SimPhase::Perception,  std::make_unique<CognitiveMemorySystem>(memoryPolicyPtr));
 
     scheduler.AddSystem(SimPhase::Decision,    std::make_unique<CognitiveDiscoverySystem>(std::move(discoveryRules)));

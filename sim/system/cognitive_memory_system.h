@@ -21,6 +21,7 @@
 #include "sim/system/system_context.h"
 #include "sim/cognitive/concept_registry.h"
 #include "sim/cognitive/memory_inference_policy.h"
+#include "sim/cognitive/attention_numerics.h"
 
 class CognitiveMemorySystem : public ISystem
 {
@@ -29,6 +30,11 @@ public:
 
     explicit CognitiveMemorySystem(const IMemoryInferencePolicy* policy)
         : policy_(policy) {}
+
+    CognitiveMemorySystem(const IMemoryInferencePolicy* policy,
+                          MemoryNumericConfig numericConfig)
+        : policy_(policy)
+        , numericConfig_(numericConfig) {}
 
     void Update(SystemContext& ctx) override
     {
@@ -54,7 +60,8 @@ public:
             mem.kind = MemoryKind::ShortTerm;
             mem.subject = s.concept;
             mem.location = s.location;
-            mem.strength = focused.attentionScore;  // attention determines memory strength
+            mem.strength = MemoryNumerics::Sanitize(
+                focused.attentionScore, numericConfig_);
             mem.emotionalWeight = ComputeEmotionalWeight(s, world);
             mem.confidence = s.confidence;
             mem.createdTick = sim.clock.currentTick;
@@ -105,6 +112,8 @@ private:
     static constexpr f32 shortTermDecayRate = 0.98f;  // 2% per tick
     static constexpr f32 longTermDecayRate = 0.999f;   // 0.1% per tick
     static constexpr f32 promotionThreshold = 0.6f;    // strength to promote to episodic
+
+    MemoryNumericConfig numericConfig_;
 
     // Emotional weight: strong emotions make memories stickier.
     // Uses semantic flags instead of domain-specific concept names.

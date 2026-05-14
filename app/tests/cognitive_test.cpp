@@ -1513,35 +1513,41 @@ TEST(concept_flags_match_expected)
     const auto& c = rp.GetHumanEvolutionContext().concepts;
     const auto& reg = ConceptTypeRegistry::Instance();
 
-    // Fire: Danger + Thermal + Environmental
+    // Fire: Danger + Thermal + Environmental + TraumaRelevant
     ASSERT_TRUE(reg.HasFlag(c.fire, ConceptSemanticFlag::Danger));
     ASSERT_TRUE(reg.HasFlag(c.fire, ConceptSemanticFlag::Thermal));
     ASSERT_TRUE(reg.HasFlag(c.fire, ConceptSemanticFlag::Environmental));
+    ASSERT_TRUE(reg.HasFlag(c.fire, ConceptSemanticFlag::TraumaRelevant));
     ASSERT_TRUE(!reg.HasFlag(c.fire, ConceptSemanticFlag::Internal));
 
-    // Pain: Internal + Negative
+    // Pain: Internal + Negative + Danger + TraumaRelevant
     ASSERT_TRUE(reg.HasFlag(c.pain, ConceptSemanticFlag::Internal));
     ASSERT_TRUE(reg.HasFlag(c.pain, ConceptSemanticFlag::Negative));
+    ASSERT_TRUE(reg.HasFlag(c.pain, ConceptSemanticFlag::Danger));
+    ASSERT_TRUE(reg.HasFlag(c.pain, ConceptSemanticFlag::TraumaRelevant));
     ASSERT_TRUE(!reg.HasFlag(c.pain, ConceptSemanticFlag::Positive));
 
     // Satiety: Internal + Positive
     ASSERT_TRUE(reg.HasFlag(c.satiety, ConceptSemanticFlag::Internal));
     ASSERT_TRUE(reg.HasFlag(c.satiety, ConceptSemanticFlag::Positive));
 
-    // Hunger: Internal + Negative + Danger
+    // Hunger: Internal + Negative + Need, not trauma/danger
     ASSERT_TRUE(reg.HasFlag(c.hunger, ConceptSemanticFlag::Internal));
     ASSERT_TRUE(reg.HasFlag(c.hunger, ConceptSemanticFlag::Negative));
-    ASSERT_TRUE(reg.HasFlag(c.hunger, ConceptSemanticFlag::Danger));
+    ASSERT_TRUE(reg.HasFlag(c.hunger, ConceptSemanticFlag::Need));
+    ASSERT_TRUE(!reg.HasFlag(c.hunger, ConceptSemanticFlag::Danger));
+    ASSERT_TRUE(!reg.HasFlag(c.hunger, ConceptSemanticFlag::TraumaRelevant));
 
     // Food: Resource + Organic + Positive
     ASSERT_TRUE(reg.HasFlag(c.food, ConceptSemanticFlag::Resource));
     ASSERT_TRUE(reg.HasFlag(c.food, ConceptSemanticFlag::Organic));
     ASSERT_TRUE(reg.HasFlag(c.food, ConceptSemanticFlag::Positive));
 
-    // Fear: Abstract + Danger + Negative
+    // Fear: Abstract + Danger + Negative + TraumaRelevant
     ASSERT_TRUE(reg.HasFlag(c.fear, ConceptSemanticFlag::Abstract));
     ASSERT_TRUE(reg.HasFlag(c.fear, ConceptSemanticFlag::Danger));
     ASSERT_TRUE(reg.HasFlag(c.fear, ConceptSemanticFlag::Negative));
+    ASSERT_TRUE(reg.HasFlag(c.fear, ConceptSemanticFlag::TraumaRelevant));
 
     // Companion: Social + Positive
     ASSERT_TRUE(reg.HasFlag(c.companion, ConceptSemanticFlag::Social));
@@ -1549,6 +1555,154 @@ TEST(concept_flags_match_expected)
 
     // Ash: no flags
     ASSERT_EQ(reg.GetFlags(c.ash), 0u);
+
+    return true;
+}
+
+class HugeAttentionPolicy final : public IAttentionScoringPolicy
+{
+public:
+    f32 Score(const PerceivedStimulus&, const Agent&, const WorldState&) const override
+    {
+        return 1000000.0f;
+    }
+};
+
+class InvalidAttentionPolicy final : public IAttentionScoringPolicy
+{
+public:
+    f32 Score(const PerceivedStimulus&, const Agent&, const WorldState&) const override
+    {
+        return std::numeric_limits<f32>::infinity();
+    }
+};
+
+class EmitTestStimulusSystem final : public ISystem
+{
+public:
+    EmitTestStimulusSystem(EntityId observerId, ConceptTypeId concept)
+        : observerId_(observerId)
+        , concept_(concept) {}
+
+    void Update(SystemContext& ctx) override
+    {
+        PerceivedStimulus stimulus;
+        stimulus.id = ctx.Cognitive().nextStimulusId++;
+        stimulus.observerId = observerId_;
+        stimulus.concept = concept_;
+        stimulus.sense = SenseType::Vision;
+        stimulus.intensity = 1.0f;
+        stimulus.confidence = 1.0f;
+        stimulus.location = {5, 5};
+        ctx.Cognitive().frameStimuli.push_back(stimulus);
+    }
+
+    SystemDescriptor Descriptor() const override
+    {
+        static constexpr ModuleAccess WRITES[] = {
+            {ModuleTag::Cognitive, AccessMode::Write}
+        };
+        return {"EmitTestStimulusSystem", SimPhase::Perception,
+                nullptr, 0, WRITES, 1, nullptr, 0, true, false};
+    }
+
+private:
+    EntityId observerId_;
+    ConceptTypeId concept_;
+};
+
+TEST(attention_and_memory_numerics_clamp_scores)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    EntityId agentId = world.SpawnAgent(5, 5);
+    HugeAttentionPolicy policy;
+    AttentionNumericConfig attentionCfg;
+    attentionCfg.maxScore = 7.0f;
+    MemoryNumericConfig memoryCfg;
+    memoryCfg.maxStrength = 3.0f;
+
+    Scheduler scheduler;
+    scheduler.AddSystem(SimPhase::Perception,
+        std::make_unique<EmitTestStimulusSystem>(agentId, ctx.concepts.fire));
+    scheduler.AddSystem(SimPhase::Perception,
+        std::make_unique<CognitiveAttentionSystem>(&policy, attentionCfg));
+    scheduler.AddSystem(SimPhase::Perception,
+        std::make_unique<CognitiveMemorySystem>(nullptr, memoryCfg));
+    scheduler.Tick(world);
+
+    ASSERT_EQ(world.Cognitive().frameFocused.size(), 1u);
+    ASSERT_NEAR(world.Cognitive().frameFocused[0].attentionScore, 7.0f, 0.001f);
+    ASSERT_EQ(world.Cognitive().frameMemories.size(), 1u);
+    ASSERT_NEAR(world.Cognitive().frameMemories[0].strength, 3.0f, 0.001f);
+
+    return true;
+}
+
+TEST(attention_numerics_drop_invalid_scores)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    EntityId agentId = world.SpawnAgent(5, 5);
+    InvalidAttentionPolicy policy;
+    Scheduler scheduler;
+    scheduler.AddSystem(SimPhase::Perception,
+        std::make_unique<EmitTestStimulusSystem>(agentId, ctx.concepts.fire));
+    scheduler.AddSystem(SimPhase::Perception,
+        std::make_unique<CognitiveAttentionSystem>(&policy));
+    scheduler.Tick(world);
+
+    ASSERT_EQ(world.Cognitive().frameFocused.size(), 0u);
+
+    return true;
+}
+
+TEST(human_evolution_attention_policy_keeps_100_ticks_bounded)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    world.Init(rp);
+    world.Fields().FillBoth(ctx.environment.fire, 80.0f);
+    world.Fields().FillBoth(ctx.environment.temperature, 80.0f);
+    world.Fields().FillBoth(ctx.environment.smell, 30.0f);
+    world.Fields().FillBoth(ctx.environment.danger, 80.0f);
+    world.Fields().FillBoth(ctx.environment.smoke, 80.0f);
+    world.SpawnAgent(16, 16);
+    world.SpawnAgent(17, 16);
+    world.SpawnAgent(16, 17);
+    world.RebuildSpatial();
+
+    auto scheduler = CreateCognitiveScheduler(ctx);
+    for (int i = 0; i < 100; i++)
+    {
+        world.Fields().FillBoth(ctx.environment.fire, 80.0f);
+        world.Fields().FillBoth(ctx.environment.temperature, 80.0f);
+        world.Fields().FillBoth(ctx.environment.smell, 30.0f);
+        world.Fields().FillBoth(ctx.environment.danger, 80.0f);
+        world.Fields().FillBoth(ctx.environment.smoke, 80.0f);
+        scheduler.Tick(world);
+    }
+
+    for (const auto& focused : world.Cognitive().frameFocused)
+    {
+        ASSERT_TRUE(std::isfinite(focused.attentionScore));
+        ASSERT_TRUE(focused.attentionScore <= 20.0f);
+    }
+
+    for (const auto& agent : world.Agents().agents)
+    {
+        for (const auto& mem : world.Cognitive().GetAgentMemories(agent.id))
+        {
+            ASSERT_TRUE(std::isfinite(mem.strength));
+            ASSERT_TRUE(mem.strength <= 20.0f);
+        }
+    }
 
     return true;
 }

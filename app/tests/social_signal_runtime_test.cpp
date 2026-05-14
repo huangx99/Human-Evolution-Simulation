@@ -686,3 +686,45 @@ TEST(same_agent_emits_one_fear_signal_per_tick)
 
     return true;
 }
+
+TEST(fear_signal_emission_requires_trauma_relevant_concept)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+    auto& social = world.SocialSignals();
+
+    world.SpawnAgent(5, 5);
+
+    FocusedStimulus cold;
+    cold.stimulus.sense = SenseType::Thermal;
+    cold.stimulus.concept = ctx.concepts.cold;
+    cold.stimulus.location = {5, 5};
+    cold.stimulus.intensity = 0.9f;
+    cold.stimulus.confidence = 0.7f;
+    cold.attentionScore = 1.0f;
+
+    FocusedStimulus pain;
+    pain.stimulus.sense = SenseType::Touch;
+    pain.stimulus.concept = ctx.concepts.pain;
+    pain.stimulus.location = {5, 5};
+    pain.stimulus.intensity = 0.9f;
+    pain.stimulus.confidence = 0.7f;
+    pain.attentionScore = 1.0f;
+
+    Scheduler coldScheduler;
+    coldScheduler.AddSystem(SimPhase::Decision, std::make_unique<InjectFocusedStimulusSystem>(cold, 1));
+    coldScheduler.AddSystem(SimPhase::Action, std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx));
+    coldScheduler.Tick(world);
+
+    ASSERT_EQ(social.Count(), 0u);
+
+    Scheduler painScheduler;
+    painScheduler.AddSystem(SimPhase::Decision, std::make_unique<InjectFocusedStimulusSystem>(pain, 1));
+    painScheduler.AddSystem(SimPhase::Action, std::make_unique<HumanEvolutionSocialSignalEmissionSystem>(ctx));
+    painScheduler.Tick(world);
+
+    ASSERT_EQ(social.Count(), 1u);
+
+    return true;
+}

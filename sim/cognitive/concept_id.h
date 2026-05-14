@@ -77,6 +77,8 @@ enum class ConceptSemanticFlag : u32
     Mineral     = 1 << 12,
     Sheltering  = 1 << 13,
     ToolLike    = 1 << 14,
+    Need        = 1 << 15,
+    TraumaRelevant = 1 << 16,
 };
 
 constexpr ConceptSemanticFlag operator|(ConceptSemanticFlag a, ConceptSemanticFlag b)
