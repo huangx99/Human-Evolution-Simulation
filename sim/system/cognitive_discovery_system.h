@@ -33,6 +33,7 @@
 #include "sim/cognitive/concept_id.h"
 #include "sim/cognitive/knowledge_relation.h"
 #include <vector>
+#include <algorithm>
 #include <cmath>
 
 // DiscoveryRule: a configurable pattern for hypothesis formation.
@@ -90,8 +91,10 @@ public:
                     auto& memB = memories[j];
 
                     // Skip if too far apart in time
-                    if (std::abs(static_cast<i64>(memA.createdTick) -
-                                 static_cast<i64>(memB.createdTick)) > maxTickGap)
+                    // Consolidated memories preserve repeated evidence by updating
+                    // lastReinforcedTick, so use evidence time rather than creation time.
+                    if (std::abs(static_cast<i64>(EvidenceTick(memA)) -
+                                 static_cast<i64>(EvidenceTick(memB))) > maxTickGap)
                         continue;
 
                     // Skip if same concept (no self-relation)
@@ -108,12 +111,15 @@ public:
                     Hypothesis* existing = FindHypothesis(
                         hypotheses, memA.subject, memB.subject, relation);
 
+                    const u32 supportWeight = EvidenceSupport(memA, memB);
                     if (existing)
                     {
-                        // Reinforce existing hypothesis
-                        existing->supportingCount++;
+                        // Consolidated memories represent repeated observations.
+                        // Count their preserved evidence weight so memory merging
+                        // does not make discovery weaker than pre-consolidation runs.
+                        existing->supportingCount += supportWeight;
                         existing->confidence = std::min(1.0f,
-                            existing->confidence + confidenceIncrement);
+                            existing->confidence + confidenceIncrement * static_cast<f32>(supportWeight));
                         existing->lastObservedTick = now;
                         existing->UpdateStatus(stableThreshold, minEvidence);
                     }
@@ -126,11 +132,13 @@ public:
                         hyp.causeConcept = memA.subject;
                         hyp.effectConcept = memB.subject;
                         hyp.proposedRelation = relation;
-                        hyp.confidence = initialConfidence;
-                        hyp.supportingCount = 1;
+                        hyp.confidence = std::min(1.0f,
+                            initialConfidence + confidenceIncrement * static_cast<f32>(supportWeight));
+                        hyp.supportingCount = supportWeight;
                         hyp.firstObservedTick = now;
                         hyp.lastObservedTick = now;
                         hyp.status = HypothesisStatus::Weak;
+                        hyp.UpdateStatus(stableThreshold, minEvidence);
 
                         hypotheses.push_back(hyp);
 
@@ -143,7 +151,7 @@ public:
                         disc.effectConcept = hyp.effectConcept;
                         disc.relation = relation;
                         disc.confidence = hyp.confidence;
-                        disc.newStatus = HypothesisStatus::Weak;
+                        disc.newStatus = hyp.status;
                         disc.tick = now;
 
                         cog.frameDiscoveries.push_back(disc);
@@ -178,6 +186,18 @@ public:
     }
 
 private:
+    static Tick EvidenceTick(const MemoryRecord& memory)
+    {
+        return memory.lastReinforcedTick;
+    }
+
+    static u32 EvidenceSupport(const MemoryRecord& a, const MemoryRecord& b)
+    {
+        // A candidate relation is itself evidence in addition to the
+        // strongest consolidated memory backing either side of the pair.
+        return std::max(a.reinforcementCount, b.reinforcementCount) + 2u;
+    }
+
     static constexpr i64 maxTickGap = 50;
     static constexpr f32 initialConfidence = 0.2f;
     static constexpr f32 confidenceIncrement = 0.1f;
@@ -228,7 +248,7 @@ private:
     bool HasStrongAssociation(const MemoryRecord& a, const MemoryRecord& b)
     {
         if (a.location == b.location &&
-            std::abs(static_cast<i64>(a.createdTick) - static_cast<i64>(b.createdTick)) < 10)
+            std::abs(static_cast<i64>(EvidenceTick(a)) - static_cast<i64>(EvidenceTick(b))) < 10)
             return true;
 
         for (auto tag : a.resultTags)
@@ -266,7 +286,7 @@ private:
             bool foundEffect = false;
             for (const auto& mem : memories)
             {
-                if (std::abs(static_cast<i64>(mem.createdTick) - static_cast<i64>(now)) > maxTickGap)
+                if (std::abs(static_cast<i64>(EvidenceTick(mem)) - static_cast<i64>(now)) > maxTickGap)
                     continue;
 
                 if (mem.subject == hyp.causeConcept) foundCause = true;

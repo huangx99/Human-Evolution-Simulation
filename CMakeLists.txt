@@ -61,6 +61,7 @@ add_executable(human_evolution_tests
     app/tests/imitation_runtime_test.cpp
     app/tests/internal_state_test.cpp
     app/tests/memory_consolidation_test.cpp
+    app/tests/headless_logger_test.cpp
     app/tests/group_knowledge_test.cpp
     app/tests/collective_avoidance_test.cpp
     app/tests/cultural_trace_test.cpp

@@ -5,6 +5,7 @@
 #include "sim/cognitive/memory_record.h"
 #include "sim/cognitive/perceived_stimulus.h"
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 // MemoryConsolidationConfig is engine-level tuning only: it is based on
@@ -14,6 +15,7 @@ struct MemoryConsolidationConfig
 {
     Tick internalMergeWindow = 12;
     Tick spatialMergeWindow = 8;
+    Tick stableMergeWindow = 50;
 
     i32 visionMergeRadius = 3;
     i32 touchMergeRadius = 2;
@@ -38,9 +40,15 @@ struct MemoryConsolidation
                                         const MemoryConsolidationConfig& config)
     {
         if (incoming.sense == SenseType::Internal)
-            return TryMergeInternalMemory(memories, incoming, now, config);
+        {
+            if (auto* merged = TryMergeInternalMemory(memories, incoming, now, config))
+                return merged;
+            return TryReinforceStableMemory(memories, incoming, now, config);
+        }
 
-        return TryMergeSpatialMemory(memories, incoming, now, config);
+        if (auto* merged = TryMergeSpatialMemory(memories, incoming, now, config))
+            return merged;
+        return TryReinforceStableMemory(memories, incoming, now, config);
     }
 
     static bool ShouldStabilizeMemory(const MemoryRecord& memory,
@@ -94,6 +102,31 @@ private:
         return nullptr;
     }
 
+
+    static MemoryRecord* TryReinforceStableMemory(std::vector<MemoryRecord>& memories,
+                                                  const MemoryRecord& incoming,
+                                                  Tick now,
+                                                  const MemoryConsolidationConfig& config)
+    {
+        const i32 radius = MergeRadiusForSense(incoming.sense, config);
+        const i32 radiusSq = radius * radius;
+
+        for (auto it = memories.rbegin(); it != memories.rend(); ++it)
+        {
+            auto& existing = *it;
+            if (!CanReinforceStableBase(existing, incoming, now, config.stableMergeWindow))
+                continue;
+            if (incoming.sense != SenseType::Internal &&
+                DistanceSq(existing.location, incoming.location) > radiusSq)
+                continue;
+
+            ReinforceMemory(existing, incoming, now);
+            return &existing;
+        }
+
+        return nullptr;
+    }
+
     static bool CanMergeBase(const MemoryRecord& existing,
                              const MemoryRecord& incoming,
                              Tick now,
@@ -112,6 +145,35 @@ private:
         return (now - existing.lastReinforcedTick) <= mergeWindow;
     }
 
+
+    static bool CanReinforceStableBase(const MemoryRecord& existing,
+                                       const MemoryRecord& incoming,
+                                       Tick now,
+                                       Tick mergeWindow)
+    {
+        if (existing.ownerId != incoming.ownerId)
+            return false;
+        if (existing.subject != incoming.subject)
+            return false;
+        if (existing.sense != incoming.sense)
+            return false;
+        if (existing.kind != MemoryKind::Stable || incoming.kind != MemoryKind::ShortTerm)
+            return false;
+        if (existing.lastReinforcedTick > now)
+            return false;
+        return (now - existing.lastReinforcedTick) <= mergeWindow;
+    }
+
+    template <typename T>
+    static void AppendUnique(std::vector<T>& dst, const std::vector<T>& src)
+    {
+        for (const auto& value : src)
+        {
+            if (std::find(dst.begin(), dst.end(), value) == dst.end())
+                dst.push_back(value);
+        }
+    }
+
     static void ReinforceMemory(MemoryRecord& existing,
                                 const MemoryRecord& incoming,
                                 Tick now)
@@ -121,14 +183,16 @@ private:
         const bool incomingIsAtLeastAsStrong = incoming.strength >= existing.strength;
 
         existing.strength = std::max(existing.strength, incoming.strength);
-        existing.emotionalWeight = incoming.emotionalWeight;
+        if (std::abs(incoming.emotionalWeight) >= std::abs(existing.emotionalWeight))
+            existing.emotionalWeight = incoming.emotionalWeight;
         existing.confidence = std::max(existing.confidence, incoming.confidence);
         if (incomingIsAtLeastAsStrong)
             existing.location = incoming.location;
         existing.lastReinforcedTick = now;
         existing.sourceStimulusId = incoming.sourceStimulusId;
         existing.reinforcementCount++;
-        existing.resultTags = incoming.resultTags;
+        AppendUnique(existing.contextTags, incoming.contextTags);
+        AppendUnique(existing.resultTags, incoming.resultTags);
     }
 
     static i32 MergeRadiusForSense(SenseType sense,

@@ -2,6 +2,7 @@
 #include "rules/human_evolution/commands.h"
 #include "sim/command/command_buffer.h"
 #include "sim/event/event_bus.h"
+#include "sim/event/event_names.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -144,36 +145,6 @@ static std::string AffFlagsToString(Affordance a)
     return r;
 }
 
-static const char* EventTypeToString(EventType t)
-{
-    switch (t)
-    {
-        case EventType::None:                     return "None";
-        case EventType::FireStarted:              return "FireStarted";
-        case EventType::FireExtinguished:         return "FireExtinguished";
-        case EventType::WindChanged:              return "WindChanged";
-        case EventType::AgentSpawned:             return "AgentSpawned";
-        case EventType::AgentDied:                return "AgentDied";
-        case EventType::AgentMoved:               return "AgentMoved";
-        case EventType::AgentAte:                 return "AgentAte";
-        case EventType::AgentFled:                return "AgentFled";
-        case EventType::SmellEmitted:             return "SmellEmitted";
-        case EventType::DangerDetected:           return "DangerDetected";
-        case EventType::ReactionTriggered:        return "ReactionTriggered";
-        case EventType::EcologyChanged:           return "EcologyChanged";
-        case EventType::Discovery:                return "Discovery";
-        case EventType::Cooperation:              return "Cooperation";
-        case EventType::Migration:                return "Migration";
-        case EventType::CognitiveStimulusPerceived: return "CognitiveStimulusPerceived";
-        case EventType::CognitiveAttentionFocused:  return "CognitiveAttentionFocused";
-        case EventType::CognitiveMemoryFormed:      return "CognitiveMemoryFormed";
-        case EventType::CognitiveHypothesisFormed:  return "CognitiveHypothesisFormed";
-        case EventType::CognitiveKnowledgeUpdated:  return "CognitiveKnowledgeUpdated";
-        case EventType::SocialSignalEmitted:        return "SocialSignalEmitted";
-        case EventType::SocialSignalReceived:       return "SocialSignalReceived";
-        default:                                    return "Unknown";
-    }
-}
 
 static std::string CommandToString(const CommandBase& cmd)
 {
@@ -385,7 +356,7 @@ void PrintDetailedLog(const WorldState& world,
         {
             if (e.tick == submitTick)
             {
-                std::string s = EventTypeToString(e.type);
+                std::string s = EventTypeName(e.type);
                 s += " entity=" + std::to_string(e.entityId);
                 s += " pos=(" + std::to_string(e.x) + "," + std::to_string(e.y) + ")";
                 s += " value=" + std::to_string(e.value);

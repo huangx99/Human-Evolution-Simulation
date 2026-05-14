@@ -1,5 +1,6 @@
 #include "sim/world/world_state.h"
 #include "sim/system/cognitive_memory_system.h"
+#include "sim/cognitive/memory_consolidation.h"
 #include "sim/runtime/simulation_hash.h"
 #include "rules/human_evolution/human_evolution_rule_pack.h"
 #include "test_framework.h"
@@ -278,7 +279,7 @@ TEST(sound_memory_uses_larger_merge_radius)
     return true;
 }
 
-TEST(stable_memory_does_not_merge_like_short_term)
+TEST(stable_memory_reinforces_instead_of_creating_short_term_satellite)
 {
     HumanEvolutionRulePack rp;
     WorldState world(16, 16, 42, rp);
@@ -296,9 +297,9 @@ TEST(stable_memory_does_not_merge_like_short_term)
               MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 6}, 103, 4, 0.8f, 0.8f), 4);
 
     const auto& memories = world.Cognitive().GetAgentMemories(agentId);
-    ASSERT_EQ(memories.size(), 2u);
+    ASSERT_EQ(memories.size(), 1u);
     ASSERT_EQ(memories[0].kind, MemoryKind::Stable);
-    ASSERT_EQ(memories[1].kind, MemoryKind::ShortTerm);
+    ASSERT_EQ(memories[0].reinforcementCount, 4u);
 
     return true;
 }
@@ -363,6 +364,224 @@ TEST(memory_consolidation_same_inputs_produce_same_full_hash)
     }
 
     ASSERT_EQ(ComputeWorldHash(a, HashTier::Full), ComputeWorldHash(b, HashTier::Full));
+
+    return true;
+}
+
+TEST(stable_memory_reinforces_nearby_same_concept)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& concepts = rp.GetHumanEvolutionContext().concepts;
+    EntityId agentId = world.SpawnAgent(5, 5);
+    CognitiveMemorySystem memorySystem;
+
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {5, 5}, 100, 1, 0.8f, 0.8f), 1);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 5}, 101, 2, 0.8f, 0.8f), 2);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 6}, 102, 3, 0.8f, 0.8f), 3);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {7, 6}, 103, 20, 0.9f, 0.8f), 20);
+
+    const auto& memories = world.Cognitive().GetAgentMemories(agentId);
+    ASSERT_EQ(memories.size(), 1u);
+    ASSERT_EQ(memories[0].kind, MemoryKind::Stable);
+    ASSERT_EQ(memories[0].reinforcementCount, 4u);
+    ASSERT_EQ(memories[0].sourceStimulusId, 103u);
+    ASSERT_EQ(memories[0].location.x, 7);
+    ASSERT_EQ(memories[0].location.y, 6);
+
+    return true;
+}
+
+TEST(stable_memory_does_not_reinforce_far_location)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(32, 32, 42, rp);
+    const auto& concepts = rp.GetHumanEvolutionContext().concepts;
+    EntityId agentId = world.SpawnAgent(5, 5);
+    CognitiveMemorySystem memorySystem;
+
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {5, 5}, 100, 1, 0.8f, 0.8f), 1);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 5}, 101, 2, 0.8f, 0.8f), 2);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 6}, 102, 3, 0.8f, 0.8f), 3);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {20, 20}, 103, 20, 0.9f, 0.8f), 20);
+
+    ASSERT_EQ(world.Cognitive().GetAgentMemories(agentId).size(), 2u);
+
+    return true;
+}
+
+TEST(stable_memory_does_not_reinforce_different_concept)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& concepts = rp.GetHumanEvolutionContext().concepts;
+    EntityId agentId = world.SpawnAgent(5, 5);
+    CognitiveMemorySystem memorySystem;
+
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {5, 5}, 100, 1, 0.8f, 0.8f), 1);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 5}, 101, 2, 0.8f, 0.8f), 2);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 6}, 102, 3, 0.8f, 0.8f), 3);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.food, SenseType::Vision, {6, 6}, 103, 20, 0.9f, 0.8f), 20);
+
+    ASSERT_EQ(world.Cognitive().GetAgentMemories(agentId).size(), 2u);
+
+    return true;
+}
+
+TEST(stable_memory_reinforcement_does_not_consume_next_memory_id)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& concepts = rp.GetHumanEvolutionContext().concepts;
+    EntityId agentId = world.SpawnAgent(5, 5);
+    CognitiveMemorySystem memorySystem;
+
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {5, 5}, 100, 1, 0.8f, 0.8f), 1);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 5}, 101, 2, 0.8f, 0.8f), 2);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 6}, 102, 3, 0.8f, 0.8f), 3);
+    const u64 nextBefore = world.Cognitive().nextMemoryId;
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {7, 6}, 103, 20, 0.9f, 0.8f), 20);
+
+    ASSERT_EQ(world.Cognitive().GetAgentMemories(agentId).size(), 1u);
+    ASSERT_EQ(world.Cognitive().nextMemoryId, nextBefore);
+
+    return true;
+}
+
+TEST(stable_memory_reinforcement_emits_reinforced_event)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& concepts = rp.GetHumanEvolutionContext().concepts;
+    EntityId agentId = world.SpawnAgent(5, 5);
+    CognitiveMemorySystem memorySystem;
+
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {5, 5}, 100, 1, 0.8f, 0.8f), 1);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 5}, 101, 2, 0.8f, 0.8f), 2);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {6, 6}, 102, 3, 0.8f, 0.8f), 3);
+    RunMemory(memorySystem, world,
+              MakeFocused(agentId, concepts.fire, SenseType::Vision, {7, 6}, 103, 20, 0.9f, 0.8f), 20);
+
+    ASSERT_EQ(world.events.GetArchive(EventType::CognitiveMemoryFormed).size(), 1u);
+    ASSERT_EQ(world.events.GetArchive(EventType::CognitiveMemoryStabilized).size(), 1u);
+    ASSERT_EQ(world.events.GetArchive(EventType::CognitiveMemoryReinforced).size(), 2u);
+
+    return true;
+}
+
+TEST(memory_merge_unions_result_and_context_tags_without_duplicates)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& concepts = rp.GetHumanEvolutionContext().concepts;
+    EntityId agentId = world.SpawnAgent(5, 5);
+    auto& memories = world.Cognitive().GetAgentMemories(agentId);
+
+    MemoryRecord existing;
+    existing.id = 1;
+    existing.ownerId = agentId;
+    existing.kind = MemoryKind::ShortTerm;
+    existing.subject = concepts.fire;
+    existing.sense = SenseType::Vision;
+    existing.location = {5, 5};
+    existing.strength = 0.7f;
+    existing.confidence = 0.7f;
+    existing.lastReinforcedTick = 1;
+    existing.contextTags = {concepts.smoke};
+    existing.resultTags = {concepts.pain};
+    memories.push_back(existing);
+
+    MemoryRecord incoming = existing;
+    incoming.sourceStimulusId = 101;
+    incoming.contextTags = {concepts.smoke, concepts.heat};
+    incoming.resultTags = {concepts.pain, concepts.fear};
+
+    MemoryConsolidationConfig config;
+    ASSERT_TRUE(MemoryConsolidation::TryMergeMemory(memories, incoming, 2, config) != nullptr);
+
+    ASSERT_EQ(memories[0].contextTags.size(), 2u);
+    ASSERT_EQ(memories[0].resultTags.size(), 2u);
+
+    return true;
+}
+
+TEST(memory_merge_keeps_stronger_emotional_weight)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& concepts = rp.GetHumanEvolutionContext().concepts;
+    EntityId agentId = world.SpawnAgent(5, 5);
+    auto& memories = world.Cognitive().GetAgentMemories(agentId);
+
+    MemoryRecord existing;
+    existing.id = 1;
+    existing.ownerId = agentId;
+    existing.kind = MemoryKind::ShortTerm;
+    existing.subject = concepts.fire;
+    existing.sense = SenseType::Vision;
+    existing.location = {5, 5};
+    existing.strength = 0.7f;
+    existing.emotionalWeight = -0.8f;
+    existing.confidence = 0.7f;
+    existing.lastReinforcedTick = 1;
+    memories.push_back(existing);
+
+    MemoryRecord incoming = existing;
+    incoming.emotionalWeight = -0.2f;
+
+    MemoryConsolidationConfig config;
+    ASSERT_TRUE(MemoryConsolidation::TryMergeMemory(memories, incoming, 2, config) != nullptr);
+    ASSERT_NEAR(memories[0].emotionalWeight, -0.8f, 0.001f);
+
+    return true;
+}
+
+TEST(memory_merge_allows_stronger_incoming_emotional_weight)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(16, 16, 42, rp);
+    const auto& concepts = rp.GetHumanEvolutionContext().concepts;
+    EntityId agentId = world.SpawnAgent(5, 5);
+    auto& memories = world.Cognitive().GetAgentMemories(agentId);
+
+    MemoryRecord existing;
+    existing.id = 1;
+    existing.ownerId = agentId;
+    existing.kind = MemoryKind::ShortTerm;
+    existing.subject = concepts.fire;
+    existing.sense = SenseType::Vision;
+    existing.location = {5, 5};
+    existing.strength = 0.7f;
+    existing.emotionalWeight = -0.2f;
+    existing.confidence = 0.7f;
+    existing.lastReinforcedTick = 1;
+    memories.push_back(existing);
+
+    MemoryRecord incoming = existing;
+    incoming.emotionalWeight = -0.9f;
+
+    MemoryConsolidationConfig config;
+    ASSERT_TRUE(MemoryConsolidation::TryMergeMemory(memories, incoming, 2, config) != nullptr);
+    ASSERT_NEAR(memories[0].emotionalWeight, -0.9f, 0.001f);
 
     return true;
 }
