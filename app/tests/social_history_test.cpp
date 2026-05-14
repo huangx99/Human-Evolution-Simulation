@@ -65,8 +65,8 @@ static GroupKnowledgeRecord& AddDangerZone(GroupKnowledgeModule& gk, GroupKnowle
 }
 
 // Helper: directly add PatternRecord
-static void AddPattern(PatternModule& pm, PatternKey key, PatternTypeId typeId,
-                        i32 x, i32 y, f32 confidence, u32 observationCount, Tick tick)
+static u64 AddPattern(PatternModule& pm, PatternKey key, PatternTypeId typeId,
+                      i32 x, i32 y, f32 confidence, u32 observationCount, Tick tick)
 {
     PatternRecord rec;
     rec.typeKey = key;
@@ -78,7 +78,7 @@ static void AddPattern(PatternModule& pm, PatternKey key, PatternTypeId typeId,
     rec.confidence = confidence;
     rec.magnitude = 5.0f;
     rec.observationCount = observationCount;
-    pm.Add(rec);
+    return pm.Add(rec);
 }
 
 // Helper: directly add CulturalTraceRecord
@@ -86,6 +86,15 @@ static void AddTrace(CulturalTraceModule& ct, CulturalTraceTypeId typeId,
                      f32 confidence, Tick tick)
 {
     ct.AddOrReinforce(typeId, {1}, {1}, confidence, tick, tick);
+}
+
+static void AddTraceWithSources(CulturalTraceModule& ct, CulturalTraceTypeId typeId,
+                                const std::vector<u64>& sourcePatternIds,
+                                const std::vector<u64>& sourceGroupKnowledgeRecordIds,
+                                f32 confidence, Tick tick)
+{
+    ct.AddOrReinforce(typeId, sourcePatternIds, sourceGroupKnowledgeRecordIds,
+                      confidence, tick, tick);
 }
 
 // === Test 1: Registry registers social history types ===
@@ -167,6 +176,71 @@ TEST(first_danger_avoidance_trace_created_from_cultural_trace)
 
     ASSERT_TRUE(world.History().HasEventType(
         HistoryKey("human_evolution.first_danger_avoidance_trace")));
+
+    return true;
+}
+
+
+TEST(first_danger_avoidance_trace_uses_source_pattern_position)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(64, 64, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    const u64 patternId = AddPattern(world.Patterns(),
+               PatternKey("human_evolution.collective_avoidance"),
+               ctx.socialPatterns.collectiveAvoidance,
+               23, 31, 0.8f, 5, 4);
+    auto& zone = AddDangerZone(world.GroupKnowledge(), ctx.groupKnowledge.sharedDangerZone,
+                               {12, 12}, 5.0f, 0.8f, 4);
+    AddTraceWithSources(world.CulturalTrace(), ctx.culturalTraces.dangerAvoidanceTrace,
+                        {patternId}, {zone.id}, 0.7f, 6);
+
+    auto scheduler = CreateHistoryOnlyScheduler(ctx);
+    scheduler.Tick(world);
+
+    bool found = false;
+    for (const auto& evt : world.History().Events())
+    {
+        if (evt.typeKey == HistoryKey("human_evolution.first_danger_avoidance_trace"))
+        {
+            ASSERT_EQ(evt.x, 23);
+            ASSERT_EQ(evt.y, 31);
+            found = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found);
+
+    return true;
+}
+
+TEST(first_danger_avoidance_trace_falls_back_to_group_knowledge_position)
+{
+    HumanEvolutionRulePack rp;
+    WorldState world(64, 64, 42, rp);
+    const auto& ctx = rp.GetHumanEvolutionContext();
+
+    auto& zone = AddDangerZone(world.GroupKnowledge(), ctx.groupKnowledge.sharedDangerZone,
+                               {17, 29}, 5.0f, 0.8f, 4);
+    AddTraceWithSources(world.CulturalTrace(), ctx.culturalTraces.dangerAvoidanceTrace,
+                        {}, {zone.id}, 0.7f, 6);
+
+    auto scheduler = CreateHistoryOnlyScheduler(ctx);
+    scheduler.Tick(world);
+
+    bool found = false;
+    for (const auto& evt : world.History().Events())
+    {
+        if (evt.typeKey == HistoryKey("human_evolution.first_danger_avoidance_trace"))
+        {
+            ASSERT_EQ(evt.x, 17);
+            ASSERT_EQ(evt.y, 29);
+            found = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(found);
 
     return true;
 }

@@ -18,6 +18,7 @@
 #include "sim/pattern/pattern_module.h"
 #include "sim/cultural_trace/cultural_trace_module.h"
 #include "sim/system/system_context.h"
+#include "core/math/vec2i.h"
 
 class SocialHistoryDetector : public IHistoryDetector
 {
@@ -75,8 +76,9 @@ public:
             if (!traces.empty())
             {
                 const auto* t = traces[0];
+                const Vec2i pos = ResolveTracePosition(ctx, *t);
                 Emit(history, traceKey_, "First Danger Avoidance Trace",
-                     t->firstObservedTick, 0, 0, t->confidence);
+                     t->firstObservedTick, pos.x, pos.y, t->confidence);
             }
         }
     }
@@ -91,6 +93,32 @@ private:
 
     static constexpr f32 minZoneConfidence = 0.35f;
     static constexpr u32 minObservations = 3;
+
+    Vec2i ResolveTracePosition(SystemContext& ctx, const CulturalTraceRecord& trace) const
+    {
+        // Prefer the source pattern because it represents the observed social
+        // behavior. Fall back to the underlying group-knowledge origin when a
+        // trace was reconstructed without pattern sources.
+        for (u64 patternId : trace.sourcePatternIds)
+        {
+            for (const auto& pattern : ctx.Patterns().All())
+            {
+                if (pattern.id == patternId)
+                    return {pattern.x, pattern.y};
+            }
+        }
+
+        for (u64 groupKnowledgeId : trace.sourceGroupKnowledgeRecordIds)
+        {
+            for (const auto& record : ctx.GroupKnowledge().records)
+            {
+                if (record.id == groupKnowledgeId)
+                    return record.origin;
+            }
+        }
+
+        return {0, 0};
+    }
 
     void Emit(HistoryModule& history, HistoryKey key, const char* title,
               Tick tick, i32 x, i32 y, f32 confidence)
