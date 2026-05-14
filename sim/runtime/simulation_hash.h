@@ -115,6 +115,7 @@ inline void HashHypothesis(SimHash& h, const Hypothesis& hyp)
     h.FeedU32(hyp.contradictingCount);
     h.FeedU64(hyp.firstObservedTick);
     h.FeedU64(hyp.lastObservedTick);
+    h.FeedU64(hyp.lastEvidenceTick);
     h.FeedU8(static_cast<u8>(hyp.status));
 }
 

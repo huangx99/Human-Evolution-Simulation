@@ -26,10 +26,11 @@ enum class HypothesisStatus : u8
 //    Initial: status=Weak, confidence=0.2, supportingCount=1
 //
 // 2. REINFORCEMENT (CognitiveDiscoverySystem):
-//    Each time the same co-occurrence is observed:
-//      supportingCount += 1
-//      confidence = min(1.0, confidence + 0.1)
+//    Each time new evidence for the same co-occurrence is observed:
+//      supportingCount += evidence weight
+//      confidence = min(1.0, confidence + weighted delta)
 //      lastObservedTick = now
+//      lastEvidenceTick = max(memory evidence ticks)
 //
 // 3. PROMOTION Weak → Stable (CognitiveDiscoverySystem):
 //    Condition: confidence >= 0.6 AND supportingCount >= 3
@@ -69,6 +70,7 @@ struct Hypothesis
 
     Tick firstObservedTick = 0;
     Tick lastObservedTick = 0;
+    Tick lastEvidenceTick = 0; // Last memory evidence watermark absorbed into support/confidence.
 
     HypothesisStatus status = HypothesisStatus::Weak;
 

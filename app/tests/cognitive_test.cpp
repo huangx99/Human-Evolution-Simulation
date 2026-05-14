@@ -1706,3 +1706,159 @@ TEST(human_evolution_attention_policy_keeps_100_ticks_bounded)
 
     return true;
 }
+
+
+// ============================================================
+// 2.6.3 hardening: Discovery evidence watermark
+// ============================================================
+namespace
+{
+void AddDiscoveryMemory(CognitiveModule& cog,
+                        EntityId owner,
+                        ConceptTypeId subject,
+                        ConceptTypeId result,
+                        Tick createdTick,
+                        Tick evidenceTick,
+                        u32 reinforcementCount)
+{
+    MemoryRecord mem;
+    mem.id = cog.nextMemoryId++;
+    mem.ownerId = owner;
+    mem.kind = MemoryKind::Stable;
+    mem.subject = subject;
+    mem.sense = SenseType::Vision;
+    mem.location = {4, 4};
+    mem.strength = 1.0f;
+    mem.confidence = 1.0f;
+    mem.createdTick = createdTick;
+    mem.lastReinforcedTick = evidenceTick;
+    mem.reinforcementCount = reinforcementCount;
+    mem.resultTags = {result};
+    cog.GetAgentMemories(owner).push_back(mem);
+}
+
+CognitiveDiscoverySystem MakeTestDiscoverySystem()
+{
+    return CognitiveDiscoverySystem(std::vector<DiscoveryRule>{});
+}
+}
+
+TEST(same_memory_pair_does_not_add_discovery_support_every_tick)
+{
+    WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
+    EntityId agentId = world.SpawnAgent(4, 4);
+    auto& cog = world.Cognitive();
+    const auto& concepts = g_rulePack.GetHumanEvolutionContext().concepts;
+
+    AddDiscoveryMemory(cog, agentId, concepts.fire, concepts.pain, 1, 10, 2);
+    AddDiscoveryMemory(cog, agentId, concepts.pain, concepts.fire, 1, 10, 1);
+
+    auto discovery = MakeTestDiscoverySystem();
+    SystemContext ctx(world);
+    world.Sim().clock.currentTick = 10;
+    discovery.Update(ctx);
+
+    auto& hyps = cog.GetAgentHypotheses(agentId);
+    ASSERT_EQ(hyps.size(), 1u);
+    const u32 supportAfterFirst = hyps[0].supportingCount;
+    const f32 confidenceAfterFirst = hyps[0].confidence;
+    const Tick evidenceAfterFirst = hyps[0].lastEvidenceTick;
+
+    world.Sim().clock.currentTick = 11;
+    discovery.Update(ctx);
+
+    ASSERT_EQ(hyps[0].supportingCount, supportAfterFirst);
+    ASSERT_NEAR(hyps[0].confidence, confidenceAfterFirst, 0.0001f);
+    ASSERT_EQ(hyps[0].lastEvidenceTick, evidenceAfterFirst);
+    ASSERT_EQ(hyps[0].lastObservedTick, 11u);
+
+    return true;
+}
+
+TEST(newer_memory_reinforcement_adds_discovery_support)
+{
+    WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
+    EntityId agentId = world.SpawnAgent(4, 4);
+    auto& cog = world.Cognitive();
+    const auto& concepts = g_rulePack.GetHumanEvolutionContext().concepts;
+
+    AddDiscoveryMemory(cog, agentId, concepts.fire, concepts.pain, 1, 10, 2);
+    AddDiscoveryMemory(cog, agentId, concepts.pain, concepts.fire, 1, 10, 1);
+
+    auto discovery = MakeTestDiscoverySystem();
+    SystemContext ctx(world);
+    world.Sim().clock.currentTick = 10;
+    discovery.Update(ctx);
+
+    auto& hyps = cog.GetAgentHypotheses(agentId);
+    ASSERT_EQ(hyps.size(), 1u);
+    const u32 supportAfterFirst = hyps[0].supportingCount;
+    const f32 confidenceAfterFirst = hyps[0].confidence;
+
+    auto& memories = cog.GetAgentMemories(agentId);
+    memories[0].lastReinforcedTick = 12;
+    memories[0].reinforcementCount += 1;
+
+    world.Sim().clock.currentTick = 12;
+    discovery.Update(ctx);
+
+    ASSERT_TRUE(hyps[0].supportingCount > supportAfterFirst);
+    ASSERT_TRUE(hyps[0].confidence > confidenceAfterFirst);
+    ASSERT_EQ(hyps[0].lastEvidenceTick, 12u);
+
+    return true;
+}
+
+TEST(new_hypothesis_records_initial_last_evidence_tick)
+{
+    WorldState world(16, 16, 42);
+    world.Init(g_rulePack);
+    EntityId agentId = world.SpawnAgent(4, 4);
+    auto& cog = world.Cognitive();
+    const auto& concepts = g_rulePack.GetHumanEvolutionContext().concepts;
+
+    AddDiscoveryMemory(cog, agentId, concepts.fire, concepts.pain, 1, 9, 1);
+    AddDiscoveryMemory(cog, agentId, concepts.pain, concepts.fire, 1, 14, 1);
+
+    auto discovery = MakeTestDiscoverySystem();
+    SystemContext ctx(world);
+    world.Sim().clock.currentTick = 14;
+    discovery.Update(ctx);
+
+    auto& hyps = cog.GetAgentHypotheses(agentId);
+    ASSERT_EQ(hyps.size(), 1u);
+    ASSERT_EQ(hyps[0].lastEvidenceTick, 14u);
+
+    return true;
+}
+
+TEST(hypothesis_last_evidence_tick_changes_full_hash)
+{
+    WorldState a(16, 16, 42);
+    WorldState b(16, 16, 42);
+    a.Init(g_rulePack);
+    b.Init(g_rulePack);
+
+    Hypothesis hyp;
+    hyp.id = 1;
+    hyp.ownerId = 1;
+    hyp.causeConcept = g_rulePack.GetHumanEvolutionContext().concepts.fire;
+    hyp.effectConcept = g_rulePack.GetHumanEvolutionContext().concepts.pain;
+    hyp.proposedRelation = KnowledgeRelation::Causes;
+    hyp.confidence = 0.5f;
+    hyp.supportingCount = 3;
+    hyp.firstObservedTick = 1;
+    hyp.lastObservedTick = 10;
+    hyp.lastEvidenceTick = 10;
+
+    a.Cognitive().GetAgentHypotheses(1).push_back(hyp);
+    hyp.lastEvidenceTick = 11;
+    b.Cognitive().GetAgentHypotheses(1).push_back(hyp);
+
+    ASSERT_TRUE(ComputeWorldHash(a, HashTier::Full) !=
+                ComputeWorldHash(b, HashTier::Full));
+
+    return true;
+}

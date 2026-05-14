@@ -111,16 +111,22 @@ public:
                     Hypothesis* existing = FindHypothesis(
                         hypotheses, memA.subject, memB.subject, relation);
 
+                    const Tick pairEvidenceTick = PairEvidenceTick(memA, memB);
                     const u32 supportWeight = EvidenceSupport(memA, memB);
                     if (existing)
                     {
+                        existing->lastObservedTick = now;
+                        if (pairEvidenceTick <= existing->lastEvidenceTick)
+                            continue;
+
                         // Consolidated memories represent repeated observations.
-                        // Count their preserved evidence weight so memory merging
-                        // does not make discovery weaker than pre-consolidation runs.
+                        // Count their preserved evidence weight only when the pair has
+                        // a newer evidence watermark, otherwise stale pairs would be
+                        // re-counted every tick by the discovery scan.
                         existing->supportingCount += supportWeight;
                         existing->confidence = std::min(1.0f,
                             existing->confidence + confidenceIncrement * static_cast<f32>(supportWeight));
-                        existing->lastObservedTick = now;
+                        existing->lastEvidenceTick = pairEvidenceTick;
                         existing->UpdateStatus(stableThreshold, minEvidence);
                     }
                     else
@@ -137,6 +143,7 @@ public:
                         hyp.supportingCount = supportWeight;
                         hyp.firstObservedTick = now;
                         hyp.lastObservedTick = now;
+                        hyp.lastEvidenceTick = pairEvidenceTick;
                         hyp.status = HypothesisStatus::Weak;
                         hyp.UpdateStatus(stableThreshold, minEvidence);
 
@@ -189,6 +196,11 @@ private:
     static Tick EvidenceTick(const MemoryRecord& memory)
     {
         return memory.lastReinforcedTick;
+    }
+
+    static Tick PairEvidenceTick(const MemoryRecord& a, const MemoryRecord& b)
+    {
+        return std::max(EvidenceTick(a), EvidenceTick(b));
     }
 
     static u32 EvidenceSupport(const MemoryRecord& a, const MemoryRecord& b)
