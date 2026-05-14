@@ -548,10 +548,13 @@ TEST(cognitive_memory_merge_does_not_consume_next_memory_id)
     CognitiveMemorySystem memorySystem;
     SystemContext firstCtx(world);
     memorySystem.Update(firstCtx);
+    world.events.Dispatch();
 
     ASSERT_EQ(cog.GetAgentMemories(agentId).size(), 1u);
     ASSERT_EQ(cog.GetAgentMemories(agentId)[0].id, 7u);
     ASSERT_EQ(cog.nextMemoryId, 8u);
+    ASSERT_EQ(world.events.GetArchive(EventType::CognitiveMemoryFormed).size(), 1u);
+    ASSERT_EQ(world.events.GetArchive(EventType::CognitiveMemoryReinforced).size(), 0u);
 
     cog.frameFocused.clear();
     world.Sim().clock.currentTick = 2;
@@ -564,12 +567,15 @@ TEST(cognitive_memory_merge_does_not_consume_next_memory_id)
 
     SystemContext secondCtx(world);
     memorySystem.Update(secondCtx);
+    world.events.Dispatch();
 
     const auto& memories = cog.GetAgentMemories(agentId);
     ASSERT_EQ(memories.size(), 1u);
     ASSERT_EQ(memories[0].id, 7u);
     ASSERT_EQ(memories[0].reinforcementCount, 2u);
     ASSERT_EQ(cog.nextMemoryId, 8u);
+    ASSERT_EQ(world.events.GetArchive(EventType::CognitiveMemoryFormed).size(), 1u);
+    ASSERT_EQ(world.events.GetArchive(EventType::CognitiveMemoryReinforced).size(), 1u);
 
     return true;
 }

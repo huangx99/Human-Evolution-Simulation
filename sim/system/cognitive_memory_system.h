@@ -10,7 +10,7 @@
 // Pipeline position: runs AFTER CognitiveAttentionSystem (same SimPhase::Perception).
 // Reads: CognitiveModule::frameFocused.
 // Writes: CognitiveModule::frameMemories, agent persistent memories.
-// Also: emits CognitiveMemoryFormed events.
+// Also: emits CognitiveMemoryFormed or CognitiveMemoryReinforced events.
 //
 // OWNERSHIP: Engine (sim/system/)
 // READS: CognitiveModule (frameFocused), AgentModule (agents)
@@ -78,8 +78,9 @@ public:
 
             auto& memories = cog.GetAgentMemories(s.observerId);
             MemoryRecord* stored = TryMergeInternalMemory(memories, mem, s, sim.clock.currentTick);
+            const bool reinforced = stored != nullptr;
 
-            if (!stored)
+            if (!reinforced)
             {
                 mem.id = cog.nextMemoryId++;
                 memories.push_back(mem);
@@ -91,7 +92,8 @@ public:
 
             // Emit event
             world.events.Emit({
-                EventType::CognitiveMemoryFormed,
+                reinforced ? EventType::CognitiveMemoryReinforced
+                           : EventType::CognitiveMemoryFormed,
                 sim.clock.currentTick,
                 s.observerId,
                 s.location.x, s.location.y,

@@ -40,6 +40,7 @@ enum class EventType : u16
     CognitiveKnowledgeUpdated,
     SocialSignalEmitted,
     SocialSignalReceived,
+    CognitiveMemoryReinforced,
 
     Count
 };
